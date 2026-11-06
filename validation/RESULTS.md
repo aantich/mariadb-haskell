@@ -7,10 +7,10 @@ The [original unchanged-driver baseline](baselines/macos-arm64-mariadb-12.3.3/SU
 ## Latest validation attempt
 
 - State: **COMPLETED**; process exit code: **1**.
-- Tested commit: [`cea505762e6826e639f5027f16133fd3825aec97`](https://github.com/aantich/mariadb-haskell/commit/cea505762e6826e639f5027f16133fd3825aec97) on `main`.
-- Started: 2026-11-06T21:34:10.464543+00:00; finished: 2026-11-06T21:34:46.494550+00:00.
+- Tested commit: [`7e036feca5e5157195495f61df046812493ccf9b`](https://github.com/aantich/mariadb-haskell/commit/7e036feca5e5157195495f61df046812493ccf9b) on `main`.
+- Started: 2026-11-06T21:35:57.629034+00:00; finished: 2026-11-06T21:36:35.509854+00:00.
 - Input fingerprint: `2e595c80a87cada9f5ee35f293b9410c2cc089243d51bdb5c65cb28bca2fff88`.
-- Local raw logs and build plan: `validation/results/runs/20261106T213410.464242Z` (ignored by Git).
+- Local raw logs and build plan: `validation/results/runs/20261106T213557.628683Z` (ignored by Git).
 
 The tested commit identifies the code used for execution. A following results-only commit publishes this document; it does not claim another test run. CI checks that the recorded inputs still match the current code.
 
@@ -32,13 +32,31 @@ Counts include two aggregate records for the inherited unit/property and integra
 | UNSUPPORTED | 11 | 11 |
 | ENVIRONMENT_UNAVAILABLE | 2 | 2 |
 
-Regression comparison: **FAIL**; **3** regression signals; **0** newly passing cases. This gate compares against the baseline; a passing gate does not mean all functionality passes.
+Regression comparison: **FAIL**; **21** regression signals; **0** newly passing cases. This gate compares against the baseline; a passing gate does not mean all functionality passes.
 
 Regression signals:
 
+- connector-c/read.text.wide: median slowed by more than 20%; confirm on an idle machine
 - connector-c/latency.text: median slowed by more than 20%; confirm on an idle machine
+- haskell/blob.text: median slowed by more than 20%; confirm on an idle machine
+- haskell/micro.binary-row: median slowed by more than 20%; confirm on an idle machine
+- haskell/read.prepared.narrow: median slowed by more than 20%; confirm on an idle machine
+- haskell/latency.text: median slowed by more than 20%; confirm on an idle machine
 - haskell/read.parallel-4: median slowed by more than 20%; confirm on an idle machine
+- haskell/read.prepared.wide: median slowed by more than 20%; confirm on an idle machine
+- haskell/write.execute-many: median slowed by more than 20%; confirm on an idle machine
+- haskell/read.text.wide: median slowed by more than 20%; confirm on an idle machine
+- haskell/read.vector.narrow: median slowed by more than 20%; confirm on an idle machine
+- haskell/write.text: median slowed by more than 20%; confirm on an idle machine
+- haskell/read.socket.narrow: median slowed by more than 20%; confirm on an idle machine
+- connector-c/write.execute-many: median slowed by more than 20%; confirm on an idle machine
+- connector-c/read.text.narrow: median slowed by more than 20%; confirm on an idle machine
 - haskell/read.parallel-16: median slowed by more than 20%; confirm on an idle machine
+- connector-c/write.text: median slowed by more than 20%; confirm on an idle machine
+- haskell/write.prepared: median slowed by more than 20%; confirm on an idle machine
+- haskell/micro.text-row: median slowed by more than 20%; confirm on an idle machine
+- haskell/latency.prepared: median slowed by more than 20%; confirm on an idle machine
+- connector-c/blob.text: median slowed by more than 20%; confirm on an idle machine
 
 ### Outstanding correctness findings
 
@@ -122,29 +140,29 @@ Environment, compiler, dependencies and benchmark workloads match the original b
 
 | Workload | Status | Median ns/unit | Baseline ns/unit | Change | p95 operation ms |
 | --- | --- | ---: | ---: | ---: | ---: |
-| connector-c/blob.text | PASS | 3.2 | 3.0 | +4.2% | 3.791 |
-| connector-c/latency.text | PASS | 33594.0 | 26568.0 | +26.4% | 0.073 |
-| connector-c/read.text.narrow | PASS | 225.5 | 197.4 | +14.2% | 3.007 |
-| connector-c/read.text.wide | PASS | 1337.1 | 1261.0 | +6.0% | 23.894 |
-| connector-c/write.execute-many | PASS | 8240.0 | 7635.0 | +7.9% | 11.263 |
-| connector-c/write.text | PASS | 30980.0 | 28478.0 | +8.8% | 193.788 |
-| haskell/blob.prepared | PASS | 3.6 | 3.1 | +15.9% | 5.280 |
-| haskell/blob.text | PASS | 3.5 | 3.2 | +9.9% | 4.670 |
-| haskell/latency.prepared | PASS | 49548.0 | 41826.0 | +18.5% | 0.091 |
-| haskell/latency.text | PASS | 46374.0 | 39354.0 | +17.8% | 0.075 |
-| haskell/micro.binary-row | PASS | 258.6 | 246.1 | +5.0% | 28.220 |
-| haskell/micro.text-row | PASS | 333.6 | 313.2 | +6.5% | 37.617 |
+| connector-c/blob.text | PASS | 4.5 | 3.0 | +46.5% | 5.166 |
+| connector-c/latency.text | PASS | 37310.0 | 26568.0 | +40.4% | 0.079 |
+| connector-c/read.text.narrow | PASS | 242.0 | 197.4 | +22.5% | 3.690 |
+| connector-c/read.text.wide | PASS | 2074.7 | 1261.0 | +64.5% | 29.561 |
+| connector-c/write.execute-many | PASS | 12652.0 | 7635.0 | +65.7% | 15.760 |
+| connector-c/write.text | PASS | 35955.0 | 28478.0 | +26.3% | 40.798 |
+| haskell/blob.prepared | PASS | 3.8 | 3.1 | +19.2% | 5.590 |
+| haskell/blob.text | PASS | 4.2 | 3.2 | +32.1% | 5.790 |
+| haskell/latency.prepared | PASS | 62330.0 | 41826.0 | +49.0% | 0.122 |
+| haskell/latency.text | PASS | 49088.0 | 39354.0 | +24.7% | 0.107 |
+| haskell/micro.binary-row | PASS | 347.9 | 246.1 | +41.4% | 58.580 |
+| haskell/micro.text-row | PASS | 407.5 | 313.2 | +30.1% | 63.121 |
 | haskell/native.bulk | UNSUPPORTED | | | | |
 | haskell/native.metadata-cache | UNSUPPORTED | | | | |
-| haskell/read.parallel-16 | PASS | 168.5 | 107.6 | +56.6% | 64.522 |
-| haskell/read.parallel-4 | PASS | 148.3 | 118.0 | +25.7% | 10.230 |
-| haskell/read.prepared.narrow | PASS | 337.4 | 314.6 | +7.3% | 5.114 |
-| haskell/read.prepared.wide | PASS | 2731.8 | 2425.1 | +12.6% | 43.099 |
-| haskell/read.socket.narrow | PASS | 373.6 | 339.2 | +10.1% | 5.672 |
-| haskell/read.text.narrow | PASS | 316.9 | 305.5 | +3.8% | 3.519 |
-| haskell/read.text.wide | PASS | 3078.2 | 2876.4 | +7.0% | 56.297 |
-| haskell/read.tls.narrow | PASS | 429.8 | 370.6 | +16.0% | 6.088 |
-| haskell/read.vector.narrow | PASS | 381.0 | 365.8 | +4.1% | 4.655 |
-| haskell/write.execute-many | PASS | 10882.0 | 9670.0 | +12.5% | 13.229 |
-| haskell/write.prepared | PASS | 38197.0 | 39408.0 | -3.1% | 45.735 |
-| haskell/write.text | PASS | 42355.0 | 38324.0 | +10.5% | 49.769 |
+| haskell/read.parallel-16 | PASS | 293.9 | 107.6 | +173.2% | 89.123 |
+| haskell/read.parallel-4 | PASS | 181.0 | 118.0 | +53.5% | 12.134 |
+| haskell/read.prepared.narrow | PASS | 390.5 | 314.6 | +24.1% | 4.602 |
+| haskell/read.prepared.wide | PASS | 3407.8 | 2425.1 | +40.5% | 43.834 |
+| haskell/read.socket.narrow | PASS | 543.4 | 339.2 | +60.2% | 6.491 |
+| haskell/read.text.narrow | PASS | 349.9 | 305.5 | +14.5% | 5.461 |
+| haskell/read.text.wide | PASS | 4026.5 | 2876.4 | +40.0% | 59.169 |
+| haskell/read.tls.narrow | PASS | 422.9 | 370.6 | +14.1% | 5.380 |
+| haskell/read.vector.narrow | PASS | 459.2 | 365.8 | +25.5% | 6.382 |
+| haskell/write.execute-many | PASS | 12652.0 | 9670.0 | +30.8% | 17.799 |
+| haskell/write.prepared | PASS | 51413.0 | 39408.0 | +30.5% | 64.093 |
+| haskell/write.text | PASS | 56854.0 | 38324.0 | +48.4% | 421.745 |
