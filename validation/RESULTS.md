@@ -7,10 +7,10 @@ The [original unchanged-driver baseline](baselines/macos-arm64-mariadb-12.3.3/SU
 ## Latest validation attempt
 
 - State: **COMPLETED**; process exit code: **1**.
-- Tested commit: [`7e036feca5e5157195495f61df046812493ccf9b`](https://github.com/aantich/mariadb-haskell/commit/7e036feca5e5157195495f61df046812493ccf9b) on `main`.
-- Started: 2026-11-06T21:35:57.629034+00:00; finished: 2026-11-06T21:36:35.509854+00:00.
-- Input fingerprint: `2e595c80a87cada9f5ee35f293b9410c2cc089243d51bdb5c65cb28bca2fff88`.
-- Local raw logs and build plan: `validation/results/runs/20261106T213557.628683Z` (ignored by Git).
+- Tested commit: [`67ebea7c43bb5bf0d4e10a7bf4abcb93208f110d`](https://github.com/aantich/mariadb-haskell/commit/67ebea7c43bb5bf0d4e10a7bf4abcb93208f110d) on `main`.
+- Started: 2026-11-06T21:47:19.056350+00:00; finished: 2026-11-06T21:47:54.146398+00:00.
+- Input fingerprint: `8433cf5dd182165650f75efb842ecfe50d4413db2b52d9cec5de3fed7989d61b`.
+- Local raw logs and build plan: `validation/results/runs/20261106T214719.056007Z` (ignored by Git).
 
 The tested commit identifies the code used for execution. A following results-only commit publishes this document; it does not claim another test run. CI checks that the recorded inputs still match the current code.
 
@@ -20,43 +20,27 @@ Server: **12.3.3-MariaDB-log**. Machine: **Apple M4 Max**, macOS 26.4. GHC 9.10.
 
 Full suite: **True**. Benchmark repetitions: **7**. Driver/workloads unchanged during execution: **True**.
 
+**Baseline** is the original unchanged-driver run at `5deb205d5835`. **Current** is the completed run at `67ebea7c43bb`. Both tables compare these same two runs.
+
 ### Correctness
 
 Counts include two aggregate records for the inherited unit/property and integration suites. Their individual cases are described in [coverage](COVERAGE.md). Unsupported APIs and unavailable environments are separate from passes.
 
-| Status | Current | Original baseline |
-| --- | ---: | ---: |
-| PASS | 246 | 246 |
-| FAIL | 56 | 56 |
-| TIMEOUT | 0 | 0 |
-| UNSUPPORTED | 11 | 11 |
-| ENVIRONMENT_UNAVAILABLE | 2 | 2 |
+Values are numbers of checks. Change = Current − Baseline, in checks.
 
-Regression comparison: **FAIL**; **21** regression signals; **0** newly passing cases. This gate compares against the baseline; a passing gate does not mean all functionality passes.
+| Status | Baseline | Current | Change vs baseline |
+| --- | ---: | ---: | ---: |
+| PASS | 246 | 246 | 0 |
+| FAIL | 56 | 56 | 0 |
+| TIMEOUT | 0 | 0 | 0 |
+| UNSUPPORTED | 11 | 11 | 0 |
+| ENVIRONMENT_UNAVAILABLE | 2 | 2 | 0 |
+
+Regression comparison: **FAIL**; **1** regression signals; **0** newly passing cases. This gate compares against the baseline; a passing gate does not mean all functionality passes.
 
 Regression signals:
 
-- connector-c/read.text.wide: median slowed by more than 20%; confirm on an idle machine
-- connector-c/latency.text: median slowed by more than 20%; confirm on an idle machine
-- haskell/blob.text: median slowed by more than 20%; confirm on an idle machine
-- haskell/micro.binary-row: median slowed by more than 20%; confirm on an idle machine
-- haskell/read.prepared.narrow: median slowed by more than 20%; confirm on an idle machine
-- haskell/latency.text: median slowed by more than 20%; confirm on an idle machine
 - haskell/read.parallel-4: median slowed by more than 20%; confirm on an idle machine
-- haskell/read.prepared.wide: median slowed by more than 20%; confirm on an idle machine
-- haskell/write.execute-many: median slowed by more than 20%; confirm on an idle machine
-- haskell/read.text.wide: median slowed by more than 20%; confirm on an idle machine
-- haskell/read.vector.narrow: median slowed by more than 20%; confirm on an idle machine
-- haskell/write.text: median slowed by more than 20%; confirm on an idle machine
-- haskell/read.socket.narrow: median slowed by more than 20%; confirm on an idle machine
-- connector-c/write.execute-many: median slowed by more than 20%; confirm on an idle machine
-- connector-c/read.text.narrow: median slowed by more than 20%; confirm on an idle machine
-- haskell/read.parallel-16: median slowed by more than 20%; confirm on an idle machine
-- connector-c/write.text: median slowed by more than 20%; confirm on an idle machine
-- haskell/write.prepared: median slowed by more than 20%; confirm on an idle machine
-- haskell/micro.text-row: median slowed by more than 20%; confirm on an idle machine
-- haskell/latency.prepared: median slowed by more than 20%; confirm on an idle machine
-- connector-c/blob.text: median slowed by more than 20%; confirm on an idle machine
 
 ### Outstanding correctness findings
 
@@ -136,33 +120,37 @@ Regression signals:
 
 Two warm-ups precede each measured process. ns/unit means rows, bytes or decoded rows according to [coverage](COVERAGE.md); p95 measures whole operations. All repetitions, allocations, GC statistics, checksums and latency samples are retained in [current.json](results/current.json).
 
-Environment, compiler, dependencies and benchmark workloads match the original baseline. Deltas below compare medians; more than 20% slower triggers investigation.
+Baseline and Current are **median times in ns/unit; lower is faster**. Change = 100 × (Current − Baseline) / Baseline. **Positive = slower; negative = faster; zero = unchanged.** p95 and status describe the Current run.
 
-| Workload | Status | Median ns/unit | Baseline ns/unit | Change | p95 operation ms |
-| --- | --- | ---: | ---: | ---: | ---: |
-| connector-c/blob.text | PASS | 4.5 | 3.0 | +46.5% | 5.166 |
-| connector-c/latency.text | PASS | 37310.0 | 26568.0 | +40.4% | 0.079 |
-| connector-c/read.text.narrow | PASS | 242.0 | 197.4 | +22.5% | 3.690 |
-| connector-c/read.text.wide | PASS | 2074.7 | 1261.0 | +64.5% | 29.561 |
-| connector-c/write.execute-many | PASS | 12652.0 | 7635.0 | +65.7% | 15.760 |
-| connector-c/write.text | PASS | 35955.0 | 28478.0 | +26.3% | 40.798 |
-| haskell/blob.prepared | PASS | 3.8 | 3.1 | +19.2% | 5.590 |
-| haskell/blob.text | PASS | 4.2 | 3.2 | +32.1% | 5.790 |
-| haskell/latency.prepared | PASS | 62330.0 | 41826.0 | +49.0% | 0.122 |
-| haskell/latency.text | PASS | 49088.0 | 39354.0 | +24.7% | 0.107 |
-| haskell/micro.binary-row | PASS | 347.9 | 246.1 | +41.4% | 58.580 |
-| haskell/micro.text-row | PASS | 407.5 | 313.2 | +30.1% | 63.121 |
-| haskell/native.bulk | UNSUPPORTED | | | | |
-| haskell/native.metadata-cache | UNSUPPORTED | | | | |
-| haskell/read.parallel-16 | PASS | 293.9 | 107.6 | +173.2% | 89.123 |
-| haskell/read.parallel-4 | PASS | 181.0 | 118.0 | +53.5% | 12.134 |
-| haskell/read.prepared.narrow | PASS | 390.5 | 314.6 | +24.1% | 4.602 |
-| haskell/read.prepared.wide | PASS | 3407.8 | 2425.1 | +40.5% | 43.834 |
-| haskell/read.socket.narrow | PASS | 543.4 | 339.2 | +60.2% | 6.491 |
-| haskell/read.text.narrow | PASS | 349.9 | 305.5 | +14.5% | 5.461 |
-| haskell/read.text.wide | PASS | 4026.5 | 2876.4 | +40.0% | 59.169 |
-| haskell/read.tls.narrow | PASS | 422.9 | 370.6 | +14.1% | 5.380 |
-| haskell/read.vector.narrow | PASS | 459.2 | 365.8 | +25.5% | 6.382 |
-| haskell/write.execute-many | PASS | 12652.0 | 9670.0 | +30.8% | 17.799 |
-| haskell/write.prepared | PASS | 51413.0 | 39408.0 | +30.5% | 64.093 |
-| haskell/write.text | PASS | 56854.0 | 38324.0 | +48.4% | 421.745 |
+Environment, compiler, dependencies and benchmark workloads match the original baseline. More than 20% slower triggers investigation.
+
+| Workload | Baseline (ns/unit) | Current (ns/unit) | Change vs baseline | Current p95 (ms) | Current status |
+| --- | ---: | ---: | ---: | ---: | --- |
+| connector-c/blob.text | 3.0 | 3.2 | +4.8% | 5.121 | PASS |
+| connector-c/latency.text | 26568.0 | 28112.0 | +5.8% | 0.071 | PASS |
+| connector-c/read.text.narrow | 197.4 | 215.8 | +9.3% | 11.269 | PASS |
+| connector-c/read.text.wide | 1261.0 | 1289.6 | +2.3% | 33.856 | PASS |
+| connector-c/write.execute-many | 7635.0 | 7858.0 | +2.9% | 10.128 | PASS |
+| connector-c/write.text | 28478.0 | 30569.0 | +7.3% | 39.097 | PASS |
+| haskell/blob.prepared | 3.1 | 3.2 | +2.2% | 4.745 | PASS |
+| haskell/blob.text | 3.2 | 3.2 | +1.0% | 8.074 | PASS |
+| haskell/latency.prepared | 41826.0 | 41058.0 | -1.8% | 0.076 | PASS |
+| haskell/latency.text | 39354.0 | 46676.0 | +18.6% | 0.078 | PASS |
+| haskell/micro.binary-row | 246.1 | 254.2 | +3.3% | 27.024 | PASS |
+| haskell/micro.text-row | 313.2 | 340.8 | +8.8% | 48.672 | PASS |
+| haskell/native.bulk | — | — | — | — | UNSUPPORTED |
+| haskell/native.metadata-cache | — | — | — | — | UNSUPPORTED |
+| haskell/read.parallel-16 | 107.6 | 128.4 | +19.3% | 88.294 | PASS |
+| haskell/read.parallel-4 | 118.0 | 146.5 | +24.2% | 7.218 | PASS |
+| haskell/read.prepared.narrow | 314.6 | 365.2 | +16.1% | 4.763 | PASS |
+| haskell/read.prepared.wide | 2425.1 | 2663.9 | +9.8% | 31.304 | PASS |
+| haskell/read.socket.narrow | 339.2 | 373.0 | +9.9% | 5.007 | PASS |
+| haskell/read.text.narrow | 305.5 | 314.3 | +2.9% | 4.592 | PASS |
+| haskell/read.text.wide | 2876.4 | 3016.0 | +4.9% | 46.811 | PASS |
+| haskell/read.tls.narrow | 370.6 | 377.1 | +1.8% | 6.250 | PASS |
+| haskell/read.vector.narrow | 365.8 | 380.2 | +3.9% | 4.605 | PASS |
+| haskell/write.execute-many | 9670.0 | 10716.0 | +10.8% | 21.467 | PASS |
+| haskell/write.prepared | 39408.0 | 38784.0 | -1.6% | 58.812 | PASS |
+| haskell/write.text | 38324.0 | 41366.0 | +7.9% | 48.566 | PASS |
+
+— means no successful measurement is available, or the runs cannot be compared for Change.
