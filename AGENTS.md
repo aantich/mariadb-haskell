@@ -29,6 +29,9 @@ commits do not require an endless rerun cycle. If executable inputs change after
 a run, rerun before publishing. Never hand-edit measured values or substitute
 older results for the current source. Preserve the original reference separately.
 
+Keep comparison tables consistent: Baseline, Current, then Change vs baseline.
+Label units and define the change calculation and direction explicitly.
+
 Compare performance only with matching workloads, compiler, dependencies,
 machine and server settings. Preserve old profiles when another environment
 needs its own baseline. Document actual commands and results, including failures.

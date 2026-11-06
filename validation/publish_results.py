@@ -108,13 +108,17 @@ def render(document, baseline):
     machine = data["machine"]
     lines += [f"Server: **{data['server']['identity'][0]}**. Machine: **{machine.get('cpu_model', machine['machine'])}**, macOS {machine.get('macos', '')}. GHC {data['build']['ghc']}; Cabal {data['build']['cabal']}; MariaDB Connector/C {data.get('connector_c_version', 'not recorded')}.", "",
               f"Full suite: **{data['complete_suite']}**. Benchmark repetitions: **{data['repetitions']}**. Driver/workloads unchanged during execution: **{data['source_unchanged_during_run']}**.", "",
+              f"**Baseline** is the original unchanged-driver run at `{baseline['build']['git_commit'][:12]}`. **Current** is the completed run at `{data['build']['git_commit'][:12]}`. Both tables compare these same two runs.", "",
               "### Correctness", "",
               "Counts include two aggregate records for the inherited unit/property and integration suites. Their individual cases are described in [coverage](COVERAGE.md). Unsupported APIs and unavailable environments are separate from passes.", "",
-              "| Status | Current | Original baseline |", "| --- | ---: | ---: |"]
+              "Values are numbers of checks. Change = Current − Baseline, in checks.", "",
+              "| Status | Baseline | Current | Change vs baseline |", "| --- | ---: | ---: | ---: |"]
     counts = Counter(c["status"] for c in data["correctness"])
     old_counts = Counter(c["status"] for c in baseline["correctness"])
     for status in ("PASS", "FAIL", "TIMEOUT", "UNSUPPORTED", "ENVIRONMENT_UNAVAILABLE"):
-        lines.append(f"| {status} | {counts[status]} | {old_counts[status]} |")
+        change = counts[status] - old_counts[status]
+        lines.append(f"| {status} | {old_counts[status]} | {counts[status]} | {change:+d} |" if change
+                     else f"| {status} | {old_counts[status]} | {counts[status]} | 0 |")
     comparison = data.get("comparison")
     if comparison:
         regressions = comparison["regressions"]
@@ -135,18 +139,20 @@ def render(document, baseline):
     speed_comparable = compatible(data, baseline)
     lines += ["", "### Benchmarks", "",
               "Two warm-ups precede each measured process. ns/unit means rows, bytes or decoded rows according to [coverage](COVERAGE.md); p95 measures whole operations. All repetitions, allocations, GC statistics, checksums and latency samples are retained in [current.json](results/current.json).", "",
-              ("Environment, compiler, dependencies and benchmark workloads match the original baseline. Deltas below compare medians; more than 20% slower triggers investigation."
+              "Baseline and Current are **median times in ns/unit; lower is faster**. Change = 100 × (Current − Baseline) / Baseline. **Positive = slower; negative = faster; zero = unchanged.** p95 and status describe the Current run.", "",
+              ("Environment, compiler, dependencies and benchmark workloads match the original baseline. More than 20% slower triggers investigation."
                if speed_comparable else "Performance profiles differ or comparability was not established; speed deltas are withheld."), "",
-              "| Workload | Status | Median ns/unit | Baseline ns/unit | Change | p95 operation ms |",
-              "| --- | --- | ---: | ---: | ---: | ---: |"]
+              "| Workload | Baseline (ns/unit) | Current (ns/unit) | Change vs baseline | Current p95 (ms) | Current status |",
+              "| --- | ---: | ---: | ---: | ---: | --- |"]
     for ident, bench in sorted(data["benchmarks"].items()):
         old = baseline["benchmarks"].get(ident, {})
+        before = f"{old['median_ns_per_unit']:.1f}" if old.get("status") == "PASS" else "—"
         if bench["status"] != "PASS":
-            lines.append(f"| {ident} | {bench['status']} | | | | |")
+            lines.append(f"| {ident} | {before} | — | — | — | {bench['status']} |")
             continue
-        before = f"{old['median_ns_per_unit']:.1f}" if speed_comparable and old.get("status") == "PASS" else "—"
-        delta = f"{(bench['median_ns_per_unit']/old['median_ns_per_unit']-1)*100:+.1f}%" if before != "—" else "—"
-        lines.append(f"| {ident} | PASS | {bench['median_ns_per_unit']:.1f} | {before} | {delta} | {bench['p95_operation_ns']/1e6:.3f} |")
+        delta = f"{(bench['median_ns_per_unit']/old['median_ns_per_unit']-1)*100:+.1f}%" if speed_comparable and before != "—" else "—"
+        lines.append(f"| {ident} | {before} | {bench['median_ns_per_unit']:.1f} | {delta} | {bench['p95_operation_ns']/1e6:.3f} | PASS |")
+    lines += ["", "— means no successful measurement is available, or the runs cannot be compared for Change."]
     return "\n".join(lines) + "\n"
 
 
