@@ -2,6 +2,8 @@
 
 This suite tests the real Haskell driver against MariaDB. The first baseline must use the inherited implementation unchanged. Failures, unsupported APIs and unavailable environment fixtures remain visible; they are not converted into passing expected-failure tests.
 
+**[Live results for the current tested code](RESULTS.md)** are committed on `main` and linked from the root README. Full runs update this document and [current.json](results/current.json) automatically. The original frozen baseline remains the comparison reference; Git history preserves earlier versions of the live report.
+
 Install and verify the database **before** building or running the validation suite. [macOS setup](MACOS.md) uses a Homebrew binary package and its managed service. No MariaDB Server source build is needed.
 
 ## Run the suite
@@ -11,8 +13,7 @@ From the repository root, after the server setup:
 ```sh
 python3 validation/provision.py
 cabal update
-cabal build exe:mariadb-validation test:test test:integration --enable-tests -O2
-python3 validation/test_runner.py
+python3 -m unittest discover -s validation -p 'test_*.py'
 python3 validation/check.py
 ```
 
@@ -23,6 +24,18 @@ Both MariaDB's default session timezone and the test-process timezone are pinned
 `validation/.local/environment.json` holds generated local connection settings and credentials with mode 0600. It is ignored by Git. The runner also accepts `--config FILE`. Haskell cases read the `MB_*` environment variables supplied by that file. No password is written into the baseline JSON or passed to the CLI on its command line.
 
 Runs are retained under `validation/results/runs/`, including raw logs, machine/server/compiler details, resolved dependency versions, source/workload hashes, per-case outcomes, raw benchmark repetitions, operation latency samples, allocations and checksums. A summary is generated even when the driver has known failures. Initial capture exits nonzero on correctness failures; that does not invalidate its role as an honest baseline.
+
+## Keep the live report current on main
+
+For every change to driver code, tests, benchmarks or build inputs:
+
+1. Commit the code being tested locally, so the run identifies its actual revision.
+2. Run `python3 validation/check.py` with the complete suite and at least seven benchmark repetitions. It rebuilds, compares against the original baseline by default and refreshes `validation/RESULTS.md` and `validation/results/current.json`, including when tests fail.
+3. Run `python3 validation/publish_results.py --check`, then commit both results files and push the code and results to `main` together.
+
+The live report includes the tested commit, input hashes, environment, individual findings, raw samples and median performance changes. A subsequent results-only commit publishes it; that commit does not pretend that another run occurred. CI verifies the recorded inputs against the current files and flags a stale report. Documentation-only changes do not invalidate executable inputs.
+
+A server/preflight/build/recorder failure updates the latest-attempt status. Any retained last-completed results are explicitly labeled as older, and the freshness check fails. Runs with filters, skipped suites/benchmarks or fewer than seven repetitions remain development runs and cannot replace the live full-suite report. Raw per-process logs stay in the ignored run directory; the committed JSON retains all completed measurements.
 
 ## Freeze the first baseline
 

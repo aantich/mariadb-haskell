@@ -4,6 +4,12 @@ A pure Haskell database driver focused **exclusively on MariaDB**.
 
 This project is a fork of [mysql-haskell](https://github.com/winterland1989/mysql-haskell), originally created by Winterland and maintained by its upstream contributors. We are building on that work to make a reliable, well-tested and efficient MariaDB driver. **Supporting MySQL servers is outside the scope of this fork.**
 
+## Live test and benchmark results
+
+**[Read the current correctness and benchmark results](validation/RESULTS.md).** This live document is maintained on `main` and refreshed for each tested code change. It identifies the tested commit, shows outstanding failures and compares performance with the [original unchanged-driver baseline](validation/baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md). Earlier results remain in Git history; the original reference remains available.
+
+Every full `python3 validation/check.py` run updates the live document and its [raw results](validation/results/current.json), including failed runs. The [validation guide](validation/README.md) describes the required test-and-publish workflow. CI flags results that no longer match the current source.
+
 ## What we want to achieve
 
 - **Make correctness dependable.** Preserve values accurately, handle large results and unusual data, and report errors clearly.
@@ -13,11 +19,11 @@ This project is a fork of [mysql-haskell](https://github.com/winterland1989/mysq
 - **Measure before optimizing.** Establish correctness and performance baselines for the current fork, then run the same checks against every improvement. Record failures and unsupported features as well as successes.
 - **Keep the library practical.** Provide clear documentation, repeatable local setup and an API that higher-level Haskell libraries can build on.
 
-These are current goals, not a claim that all of them are implemented. The first milestone is a comprehensive MariaDB test and benchmark suite, run against the existing driver before changing its implementation. Historical upstream benchmarks do not establish this fork's performance on MariaDB.
+These are current goals, not a claim that all of them are implemented. The comprehensive MariaDB suite and unchanged-driver baseline are in place; the live results track progress from that starting point. Historical upstream benchmarks do not establish this fork's performance on MariaDB.
 
 ## Current status
 
-The inherited driver supports streaming results, prepared statements, TLS and Unix sockets. The [initial MariaDB baseline](validation/baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md) records correctness failures and performance before implementation changes. The [validation guide](validation/README.md) explains how to check each improvement against the same baseline.
+The inherited driver supports streaming results, prepared statements, TLS and Unix sockets. The [live results](validation/RESULTS.md) record current correctness failures, unsupported functionality and measured performance. The [initial MariaDB baseline](validation/baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md) records the starting point before implementation changes.
 
 The Cabal package is still named `mysql-haskell`, and public modules still use `Database.MySQL.*`. We are keeping those names while establishing the baseline. Some protocol identifiers containing `mysql` are also used by MariaDB itself; those names do not imply support for MySQL servers.
 

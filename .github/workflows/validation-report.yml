@@ -1,0 +1,23 @@
+name: Live MariaDB results provenance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Check report publication and regression rules
+        run: python3 -m unittest discover -s validation -p 'test_*.py'
+      - name: Require live results for current committed inputs
+        run: python3 validation/publish_results.py --check
