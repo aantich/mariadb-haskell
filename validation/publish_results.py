@@ -152,7 +152,7 @@ def run_details(attempt, data):
                   f"| Complete suite / repetitions | {data['complete_suite']} / {data['repetitions']} |",
                   f"| Driver/workloads stable during execution | {data['source_unchanged_during_run']} |"]
     lines += ["", "The tested commit identifies the code used for execution. A following results-only commit publishes this document; it does not claim another test run. CI checks that the report, graphic and raw results match the current inputs.", "",
-              "Full `python3 validation/check.py` runs refresh this live document, [overview.svg](results/overview.svg) and [current.json](results/current.json), including failed attempts. Commit all three with each tested change. Git history retains previous results.", "", "</details>", ""]
+              "Full `python3 validation/check.py` runs refresh this live document, [overview.svg](results/overview.svg) and [current.json](results/current.json), including failed attempts. Commit all three with each tested change. Git history retains previous results.", "", "</details>"]
     return lines
 
 
