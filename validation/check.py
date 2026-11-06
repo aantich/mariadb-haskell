@@ -17,7 +17,7 @@ import publish_results as live
 def main():
     if "--help" in sys.argv or "-h" in sys.argv:
         status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
-        print("\nFull runs also update validation/RESULTS.md and results/current.json; the original baseline is compared by default. Partial runs do not replace the live report.")
+        print("\nFull runs also update validation/RESULTS.md, results/overview.svg and results/current.json; the original baseline is compared by default. Partial runs do not replace the live report.")
         return status
     parser=argparse.ArgumentParser(add_help=False)
     parser.add_argument("--config",type=Path,default=run.HERE/".local/environment.json")

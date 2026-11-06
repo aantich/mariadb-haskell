@@ -35,7 +35,7 @@ class PublicationTests(unittest.TestCase):
         document = self.publish()
         live.verify(document, self.inputs)
         text = self.report.read_text()
-        self.assertIn("| FAIL | 56 | 56 |", text)
+        self.assertIn("56 failed or timed-out check records", text)
         self.assertIn("+0.0%", text)
         self.assertIn(self.inputs["commit"], text)
         self.assertIn("does not mean all functionality passes", text)
@@ -56,12 +56,13 @@ class PublicationTests(unittest.TestCase):
 
     def test_partial_or_short_runs_cannot_replace_current_results(self):
         self.publish()
-        before = self.current.read_bytes(), self.report.read_bytes()
+        overview = self.current.parent / "overview.svg"
+        before = self.current.read_bytes(), self.report.read_bytes(), overview.read_bytes()
         for key, value in [("complete_suite", False), ("repetitions", 1)]:
             data = {**self.data, key: value}
             with self.assertRaisesRegex(ValueError, "partial/short"):
                 self.publish(data=data)
-            self.assertEqual(before, (self.current.read_bytes(), self.report.read_bytes()))
+            self.assertEqual(before, (self.current.read_bytes(), self.report.read_bytes(), overview.read_bytes()))
 
     def test_failed_attempt_retains_but_labels_older_complete_results(self):
         before = self.publish()
@@ -71,6 +72,7 @@ class PublicationTests(unittest.TestCase):
         after = json.loads(self.current.read_text())
         self.assertEqual(before["latest_completed_run"], after["latest_completed_run"])
         self.assertIn("Last completed suite (older results)", self.report.read_text())
+        self.assertIn("PREVIOUS COMPLETE RUN", (self.current.parent / "overview.svg").read_text())
         with self.assertRaisesRegex(ValueError, "did not complete"):
             live.verify(after, self.inputs)
 

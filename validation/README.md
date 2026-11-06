@@ -2,7 +2,7 @@
 
 This suite tests the real Haskell driver against MariaDB. The first baseline must use the inherited implementation unchanged. Failures, unsupported APIs and unavailable environment fixtures remain visible; they are not converted into passing expected-failure tests.
 
-**[Live results for the current tested code](RESULTS.md)** are committed on `main` and linked from the root README. Full runs update this document and [current.json](results/current.json) automatically. The original frozen baseline remains the comparison reference; Git history preserves earlier versions of the live report.
+**[Live results for the current tested code](RESULTS.md)** are committed on `main` and linked from the root README. Full runs update this document, its [colored summary](results/overview.svg) and [current.json](results/current.json) automatically. Status colors always include text labels; complete findings remain available in expandable sections. The original frozen baseline remains the comparison reference; Git history preserves earlier versions of the live report.
 
 Install and verify the database **before** building or running the validation suite. [macOS setup](MACOS.md) uses a Homebrew binary package and its managed service. No MariaDB Server source build is needed.
 
@@ -30,8 +30,8 @@ Runs are retained under `validation/results/runs/`, including raw logs, machine/
 For every change to driver code, tests, benchmarks or build inputs:
 
 1. Commit the code being tested locally, so the run identifies its actual revision.
-2. Run `python3 validation/check.py` with the complete suite and at least seven benchmark repetitions. It rebuilds, compares against the original baseline by default and refreshes `validation/RESULTS.md` and `validation/results/current.json`, including when tests fail.
-3. Run `python3 validation/publish_results.py --check`, then commit both results files and push the code and results to `main` together.
+2. Run `python3 validation/check.py` with the complete suite and at least seven benchmark repetitions. It rebuilds, compares against the original baseline by default and refreshes `validation/RESULTS.md`, `validation/results/overview.svg` and `validation/results/current.json`, including when tests fail.
+3. Run `python3 validation/publish_results.py --check`, then commit all three results files and push the code and results to `main` together.
 
 The live report includes the tested commit, input hashes, environment, individual findings, raw samples and median performance changes. A subsequent results-only commit publishes it; that commit does not pretend that another run occurred. CI verifies the recorded inputs against the current files and flags a stale report. Documentation-only changes do not invalidate executable inputs.
 
