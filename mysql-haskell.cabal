@@ -14,6 +14,9 @@ extra-doc-files:    ChangeLog.md
 extra-source-files:
   mozillaCAStore.pem
   README.md
+  validation/*.py
+  validation/*.md
+  validation/*.c
   test/cert/ca-key.pem
   test/cert/ca.pem
   test/cert/server-cert.pem
@@ -267,3 +270,22 @@ benchmark bench24
 --   build-depends:
 --       mysql-haskell
 --   ghc-options: -Wno-unused-packages
+
+-- Validation is deliberately a separate component: src/ remains unchanged
+-- while the first correctness and performance baseline is established.
+executable mariadb-validation
+  import: common-options
+  default-extensions: OverloadedStrings
+  hs-source-dirs: validation/hs
+  main-is: Main.hs
+  other-modules:
+    Validation.Common
+    Validation.Protocol
+    Validation.Functional
+    Validation.Reliability
+    Validation.Security
+    Validation.CDC
+    Validation.Benchmark
+  build-depends:
+    binary, bytestring, io-streams, mysql-haskell, scientific, text, time, tls, vector
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-T

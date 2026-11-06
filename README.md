@@ -55,7 +55,7 @@ cabal build all --enable-tests
 cabal test test
 ```
 
-The integration suite requires a configured MariaDB instance. Reproducible setup, coverage and baseline commands will live alongside the new validation suite. Until that suite has run, there is no published MariaDB performance baseline for this fork.
+Install, start and verify MariaDB before running integration tests or benchmarks. The [managed macOS setup](validation/MACOS.md) uses Homebrew and requires no server source build. The [validation guide](validation/README.md) covers the comprehensive suite, initial baseline capture and comparison commands; [coverage](validation/COVERAGE.md) lists the tested surfaces and explicit gaps.
 
 ## Upstream and attribution
 
