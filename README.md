@@ -17,7 +17,7 @@ These are current goals, not a claim that all of them are implemented. The first
 
 ## Current status
 
-The inherited driver supports streaming results, prepared statements, TLS and Unix sockets. A source review has identified compatibility and reliability gaps that the baseline suite will make visible.
+The inherited driver supports streaming results, prepared statements, TLS and Unix sockets. The [initial MariaDB baseline](validation/baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md) records correctness failures and performance before implementation changes. The [validation guide](validation/README.md) explains how to check each improvement against the same baseline.
 
 The Cabal package is still named `mysql-haskell`, and public modules still use `Database.MySQL.*`. We are keeping those names while establishing the baseline. Some protocol identifiers containing `mysql` are also used by MariaDB itself; those names do not imply support for MySQL servers.
 

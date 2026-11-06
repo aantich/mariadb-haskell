@@ -13,10 +13,10 @@ python3 validation/provision.py
 cabal update
 cabal build exe:mariadb-validation test:test test:integration --enable-tests -O2
 python3 validation/test_runner.py
-python3 validation/run.py
+python3 validation/check.py
 ```
 
-The runner first checks connectivity, server identity, the reserved database, packet limits and binlog configuration. If preflight fails, it runs no tests or benchmarks. It then runs every new correctness case in a separate process, runs both inherited suites unchanged, seeds the reserved benchmark table, and interleaves seven repetitions of Haskell and matching MariaDB Connector/C workloads. Every measured process performs two warm-ups before recording timings. A hung/crashed case cannot stop the remaining new cases.
+The `check.py` entry point verifies MariaDB before building, rebuilds the current source and invokes the recorder. This prevents stale executables being measured after source edits. The recorder checks connectivity, server identity, the reserved database, packet limits and binlog configuration. If preflight fails, it runs no tests or benchmarks. It then runs every new correctness case in a separate process, runs both inherited suites unchanged, seeds the reserved benchmark table, and interleaves seven repetitions of Haskell and matching MariaDB Connector/C workloads. Every measured process performs two warm-ups before recording timings. A hung/crashed case cannot stop the remaining new cases. `run.py` is the lower-level recorder for an already-built harness.
 
 Both MariaDB's default session timezone and the test-process timezone are pinned to UTC. This avoids seasonal timezone assumptions in inherited binlog tests. The runner verifies password-plugin and client-certificate fixtures with MariaDB's own client before attributing failures to the Haskell driver.
 
@@ -29,7 +29,7 @@ Runs are retained under `validation/results/runs/`, including raw logs, machine/
 Use a new directory name; existing baselines cannot be overwritten:
 
 ```sh
-python3 validation/run.py \
+python3 validation/check.py \
   --freeze validation/baselines/macos-arm64-mariadb-12.3.3
 ```
 
@@ -38,13 +38,15 @@ Freezing requires the complete suite and at least seven repetitions. The driver 
 ## Compare every improvement
 
 ```sh
-python3 validation/run.py \
+python3 validation/check.py \
   --compare validation/baselines/macos-arm64-mariadb-12.3.3/results.json
 ```
 
 Comparison rejects removal of old cases, loss of a previous pass, hiding a failure as unsupported/unavailable, failed previously working benchmarks and a median slowdown over 20%. Newly passing cases are reported as improvements. A slowdown is a signal to repeat on an idle machine and investigate, not a precise statistical claim.
 
 Speed comparisons require matching machine, server version/settings, compiler, resolved dependencies and benchmark workload hashes. This prevents comparing a changed workload or another machine to the Mac baseline. To compare only behavior across environments, add `--correctness-only-comparison`. Preserve the initial baseline; use a separate directory for another server/version/hardware profile. `--only SUBSTRING --no-upstream --no-benchmarks` is available for harness development but cannot freeze a baseline.
+
+The initial [frozen baseline](baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md) contains 300 executable checks, 11 missing-API entries and two unavailable-environment entries. The two inherited suites appear as aggregate records in JSON; their logs contain the individual 179 unit/property cases (one inherited external HTTPS ignore) and 32 integration cases.
 
 ## Scope and interpretation
 
