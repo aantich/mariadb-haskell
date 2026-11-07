@@ -354,6 +354,34 @@ Bulk units are rows; prepared-read units are complete one-row queries.
 | Cached / uncached narrow query | 38,706.00 | 36,822.00 | -4.9% | -15.6% |
 | Cached / uncached wide query | 71,864.00 | 53,888.00 | -25.0% | -73.5% |
 
+## Committed publication — 7 November 2026
+
+The full publication run tested implementation commit `ef4e52b234187435d1ea464834df629cea5f267a` on `main`,
+with clean executable inputs and the same `9987450d8d8b` input fingerprint as the
+review-fix window. It records **462 PASS / 17 FAIL / 8 UNSUPPORTED /
+2 ENVIRONMENT_UNAVAILABLE**. All 56 Stage 3 cases, both inherited suites and every
+protected earlier PASS remain passing. The wrapper completed with **exit 0**.
+
+All 24 runnable frozen profiles and eight native profiles have seven process
+repetitions. Neither set reports a >20% timing alarm against its immutable
+baseline. The stricter acceptance policy still identifies **nine ordinary timing
+signals above 5%**, with **zero allocation signals**; native baseline comparison
+is comparable and has neither timing nor allocation signals. Performance
+acceptance remains open across the retained review window, and no reference
+advanced. This committed run supplies the live report; it does not replace the
+three historical review captures or waive their alarms.
+
+On this build, native bulk takes **95.5% less time than sequential prepared
+execution** and **81.6% less than text batching**. Cached wide queries take
+**23.2% less time** and allocate **73.5% fewer bytes** than their uncached
+alternative. Exact medians, samples, checksums and comparisons are retained in
+[publication suite evidence](../validation/results/references/stage3-publication-1.json),
+[native evidence](../validation/results/references/stage3-publication-1-native.json)
+and the [publication manifest](../validation/results/stage3-confirmation.json).
+The prior Linux review retains its own revision identity and confirms matching
+driver, registered harness and library configuration hashes; it is not presented
+as a new Linux run on this Git commit.
+
 ## Deferred work
 
 The remaining CDC defects, GTID/acknowledgement work, reset/session APIs and

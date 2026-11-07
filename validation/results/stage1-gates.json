@@ -6,23 +6,48 @@
   "timing_investigations": [
     {
       "reference": "original",
-      "id": "haskell/latency.text",
-      "percent": 5.0566651420440145
+      "id": "haskell/read.parallel-4",
+      "percent": 17.14588484634405
     },
     {
       "reference": "original",
       "id": "haskell/write.text",
-      "percent": 7.830602233587314
+      "percent": 8.469888320634599
     },
     {
       "reference": "original",
       "id": "connector-c/read.text.narrow",
-      "percent": 5.7739059967585105
+      "percent": 5.824554294975681
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.tls.narrow",
+      "percent": 7.091586162232177
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.text.narrow",
+      "percent": 5.4340709702762835
     },
     {
       "reference": "accepted",
       "id": "haskell/read.parallel-4",
-      "percent": 18.649571226375826
+      "percent": 38.05678128382317
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.tls.narrow",
+      "percent": 7.068472454540542
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.parallel-4",
+      "percent": 16.356746894954743
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.tls.narrow",
+      "percent": 5.86885770687724
     }
   ],
   "allocation_investigations": [],
@@ -30,14 +55,16 @@
   "target_count": 23,
   "native_target_passes": 14,
   "native_target_count": 14,
+  "statement_target_passes": 5,
+  "statement_target_count": 5,
   "correctness_accepted": true,
   "performance_requires_confirmation": true,
   "previous_stage_reference": {
     "schema": 1,
-    "reference": "references/stage1-publication-1.json",
-    "sha256": "e9ecaff3279e69ed2658771a669b57dd4aa35f9b0b084c7e5f8d21d1a58af1ac",
-    "tested_commit": "0128b7908e8ac594d6dea5110fbc5b1a2a71ad1b",
-    "purpose": "Preserve all published Stage 1 passes and report incremental costs; the older accepted performance reference remains unchanged."
+    "reference": "references/stage2-publication-1.json",
+    "sha256": "04ce6d4f5630079798bcd0fe3090aeb2951ddb0d623c2dee947be2377f34fead",
+    "tested_commit": "d5c71bd59902e7350b773a306d93f1947626b1b0",
+    "purpose": "Preserve every published Stage 2 PASS, including all prior Stage 1 improvements, and report incremental costs. The older accepted performance reference remains unchanged."
   },
   "accepted_reference": {
     "schema": 1,
@@ -46,5 +73,7 @@
     "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
     "note": "Last accepted main before Stage 1; not advanced by failing attempts."
   },
-  "tested_input_sha256": "0c4456b8f17af803344b7ad73a2b75e14c0e65c7b8d2be53be43891cd08ff6e1"
+  "tested_input_sha256": "9987450d8d8b8e21ac33e3382edc17dd4186aded7abfb10e23ffe5c9e8f5a6d5",
+  "native_timing_investigations": [],
+  "native_allocation_investigations": []
 }

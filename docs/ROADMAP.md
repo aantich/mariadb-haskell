@@ -82,7 +82,11 @@ full runs and the 38.2% large-registry diagnostic improvement are recorded in th
 [review-fix evidence](STAGE3_IMPLEMENTATION.md#review-fix-validation-and-measurements).
 
 - [x] Review Stage 3 and authorize publication using the committed-input workflow.
-      The live report identifies the implementation revision tested for publication.
+- [x] Test committed implementation `ef4e52b23418` on `main` and record the
+      full publication results: wrapper exit 0, all 56 Stage 3 cases passing,
+      nine stricter ordinary timing investigations and no allocation signals.
+      [Publication evidence](STAGE3_IMPLEMENTATION.md#committed-publication--7-november-2026)
+      retains the historical timing alarms; performance acceptance remains open.
 - [ ] Resume with **step 3 planning: clean-session reset and public session-state
       reporting**, after approval. Keep default timeout retirement; never reset
       an out-of-sync transport or silently replay statements.
