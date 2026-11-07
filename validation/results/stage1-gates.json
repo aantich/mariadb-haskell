@@ -6,70 +6,39 @@
   "timing_investigations": [
     {
       "reference": "original",
-      "id": "connector-c/read.text.wide",
-      "percent": 11.215669688879505
-    },
-    {
-      "reference": "original",
       "id": "haskell/latency.text",
-      "percent": 6.418661381308133
+      "percent": 5.0566651420440145
     },
     {
       "reference": "original",
       "id": "haskell/write.text",
-      "percent": 8.435967018056578
+      "percent": 7.830602233587314
     },
     {
       "reference": "original",
-      "id": "haskell/read.socket.narrow",
-      "percent": 7.864638603938223
-    },
-    {
-      "reference": "original",
-      "id": "haskell/read.tls.narrow",
-      "percent": 7.4315937179556535
-    },
-    {
-      "reference": "original",
-      "id": "haskell/latency.prepared",
-      "percent": 13.350547506335776
-    },
-    {
-      "reference": "original",
-      "id": "haskell/read.text.narrow",
-      "percent": 5.27694120728035
-    },
-    {
-      "reference": "original",
-      "id": "connector-c/blob.text",
-      "percent": 5.30374271205567
-    },
-    {
-      "reference": "accepted",
-      "id": "connector-c/read.text.wide",
-      "percent": 16.817058611211387
+      "id": "connector-c/read.text.narrow",
+      "percent": 5.7739059967585105
     },
     {
       "reference": "accepted",
       "id": "haskell/read.parallel-4",
-      "percent": 13.987178419781877
-    },
-    {
-      "reference": "accepted",
-      "id": "haskell/read.tls.narrow",
-      "percent": 7.408406626018449
-    },
-    {
-      "reference": "accepted",
-      "id": "haskell/latency.prepared",
-      "percent": 17.479433045891568
+      "percent": 18.649571226375826
     }
   ],
   "allocation_investigations": [],
   "target_passes": 23,
   "target_count": 23,
+  "native_target_passes": 14,
+  "native_target_count": 14,
   "correctness_accepted": true,
   "performance_requires_confirmation": true,
+  "previous_stage_reference": {
+    "schema": 1,
+    "reference": "references/stage1-publication-1.json",
+    "sha256": "e9ecaff3279e69ed2658771a669b57dd4aa35f9b0b084c7e5f8d21d1a58af1ac",
+    "tested_commit": "0128b7908e8ac594d6dea5110fbc5b1a2a71ad1b",
+    "purpose": "Preserve all published Stage 1 passes and report incremental costs; the older accepted performance reference remains unchanged."
+  },
   "accepted_reference": {
     "schema": 1,
     "reference": "references/pre-stage1.json",
@@ -77,5 +46,5 @@
     "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
     "note": "Last accepted main before Stage 1; not advanced by failing attempts."
   },
-  "tested_input_sha256": "835058eb17a5c841fc1e038764a295c70aac439e8ae5bd09ed11dbd79c50cce8"
+  "tested_input_sha256": "0c4456b8f17af803344b7ad73a2b75e14c0e65c7b8d2be53be43891cd08ff6e1"
 }

@@ -132,6 +132,10 @@ Current live heap after GC remains bounded in the tested paths. These memory exp
 
 The 100-fold row-count increase does not produce proportional retained heap. Holding one exact byte after a 16 MiB result releases the large payload in the tested path.
 
+## Committed publication
+
+After review approval, the full `python3 validation/check.py` run tested implementation commit [`d5c71bd`](https://github.com/aantich/mariadb-haskell/commit/d5c71bd59902e7350b773a306d93f1947626b1b0) on `main` with clean committed executable inputs. Its input fingerprint matches the retained idle review window. The [publication result](../validation/results/references/stage2-publication-1.json) records **401 PASS / 19 FAIL / 11 UNSUPPORTED / 2 ENVIRONMENT_UNAVAILABLE**, all 24 runnable benchmark profiles with seven repetitions, and exit **0**. There are no original >20% timing alarms or >5% allocation investigations; four stricter reference/profile timing signals remain visible and unaccepted. The live report publishes this committed run; the earlier review windows remain historical evidence. The original and accepted references are unchanged.
+
 ## Remaining work
 
 The remaining 19 original failures consist of 16 CDC cases, two prepared-OUT cases and the original timeout-reuse expectation that conflicts with safe retirement. The 11 missing-API and two unavailable-environment entries remain explicit. Windows, other Linux architectures and other MariaDB versions need separate profiles. The Linux workflow is included for future repository CI; this local run does not claim a GitHub Actions execution.

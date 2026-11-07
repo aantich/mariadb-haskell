@@ -6,23 +6,25 @@ Current measured source, compared with the original unchanged-driver baseline. U
 
 [Correctness](#correctness) · [Benchmarks](#benchmarks) · [Run details](#run-details) · [Raw results](results/current.json) · [Original baseline](baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md)
 
-## Stage 1 acceptance
+## Implementation acceptance
 
-Original targeted failures now passing: **23 / 23**. Original-baseline and last-accepted correctness protection: **PASS**.
+Stage 1 targeted failures now passing: **23 / 23**. Original-baseline and last-accepted correctness protection: **PASS**.
 
-Timing investigations above 5%: **12**; allocation investigations above 5%: **0**. These are investigation signals, not automatically accepted costs.
+Timing investigations above 5%: **4**; allocation investigations above 5%: **0**. These are investigation signals, not automatically accepted costs.
 
 The frozen baseline retains its original meaning in all comparison tables. The last-accepted reference separately prevents an improvement being lost. [Acceptance evidence](results/stage1-gates.json) · [Confirmation history](results/stage1-confirmation.json) · [Supplementary evidence](results/references/stage1-after-final.json) · [Review notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).
 
 Confirmation and supplementary files identify their own input fingerprints. Evidence with a different fingerprint is historical and does not confirm the current source.
 
+Stage 2 native-connection targets passing: **14 / 14**. Published Stage 1 correctness is separately protected. [Stage 2 implementation and validation](../docs/STAGE2_IMPLEMENTATION.md).
+
 > [!WARNING]
 > **Performance acceptance remains open.** Timing/allocation signals require investigation across the entire confirmation window; they have not been waived or accepted automatically.
 
 > [!CAUTION]
-> **33 failed or timed-out check records remain.** Missing APIs and environment gaps are tracked separately; they are not passing tests.
+> **19 failed or timed-out check records remain.** Missing APIs and environment gaps are tracked separately; they are not passing tests.
 
-**Baseline comparison: 🟢 No new regression signals** · 0 regression signals · 23 newly passing checks.
+**Baseline comparison: 🟢 No new regression signals** · 0 regression signals · 37 newly passing checks.
 
 A passing comparison does not mean all functionality passes.
 
@@ -33,11 +35,22 @@ A passing comparison does not mean all functionality passes.
 - `protocol.large-row-is-not-eof`
 - `protocol.unsigned-last-insert-id`
 - `protocol.column-definition-roundtrip`
+- `protocol.binary-plugin-challenge`
+- `protocol.unknown-plugin-rejected`
+- `protocol.native-extension-handshake`
 - `protocol.empty-packet-predicate`
 - `protocol.text-field-trailing-data`
 - `protocol.text-field-integer-overflow`
 - `protocol.reset-does-not-consume-pending-row`
 - `connection.default-full-unicode`
+- `auth.ed25519.tcp`
+- `auth.ed25519.tls`
+- `auth.ed25519.socket`
+- `auth.parsec.tcp`
+- `auth.parsec.tls`
+- `auth.parsec.socket`
+- `auth.sha2.tcp`
+- `auth.sha2.socket`
 - `sql.zero-date-preservation`
 - `sql.unsigned-generated-id`
 - `parameters.literal-question-mark`
@@ -51,14 +64,17 @@ A passing comparison does not mean all functionality passes.
 - `reliability.reset-unread-result`
 - `reliability.server-kill-query`
 - `reliability.tls-cancellation-propagates`
+- `connection.localhost-address-fallback`
 - `types.non-utf8-results`
+- `auth.mutual-tls-helper-client`
+- `connection.mozilla-ca-store-installed`
 
 </details>
 
 | Reference | Commit |
 | --- | --- |
 | **Baseline** · original unchanged-driver run | `5deb205d5835` |
-| **Current** · latest completed run | `0128b7908e8a` |
+| **Current** · latest completed run | `d5c71bd59902` |
 
 Both comparison tables use these same two runs.
 
@@ -68,34 +84,20 @@ Counts include two aggregate records for the inherited unit/property and integra
 
 | Status | Baseline | Current | Change vs baseline |
 | --- | ---: | ---: | ---: |
-| 🟢 PASS | 246 | **357** | 🟢 +111 |
-| 🔴 FAIL | 56 | **33** | 🟢 -23 |
+| 🟢 PASS | 246 | **401** | 🟢 +155 |
+| 🔴 FAIL | 56 | **19** | 🟢 -37 |
 | 🟠 TIMEOUT | 0 | **0** | 0 |
 | 🔵 UNSUPPORTED | 11 | **11** | 0 |
 | 🟡 ENVIRONMENT_UNAVAILABLE | 2 | **2** | 0 |
 
 <details>
-<summary>🔴 Failed or timed-out checks (33) — expand all findings</summary>
+<summary>🔴 Failed or timed-out checks (19) — expand all findings</summary>
 
 | Test | Current status | Detail |
 | --- | --- | --- |
-| `protocol.binary-plugin-challenge` | 🔴 FAIL | user error (binary challenge: expected "\SOH\STX\ETX\EOT\ENQ\ACK\a\b\t\NUL\v\f\r\SO\SI\DLE\DC1\DC2\DC3\DC4\NAK\SYN\ETB\CAN\EM\SUB\ESC\FS\GS\RS\US ", got "\SOH\STX\ETX\EOT\ENQ\ACK\a\b\t") |
-| `protocol.unknown-plugin-rejected` | 🔴 FAIL | user error (operation unexpectedly succeeded) |
-| `protocol.native-extension-handshake` | 🔴 FAIL | user error (CLIENT_MYSQL legacy marker is still advertised) |
 | `protocol.prepared-out-capability` | 🔴 FAIL | user error (CLIENT_PS_MULTI_RESULTS is absent) |
-| `auth.ed25519.tcp` | 🔴 FAIL | ERRException (ERR {errCode = 1045, errState = "28000", errMsg = "Access denied for user 'mariadb_ed25519'@'localhost' (using password: YES)"}) |
-| `auth.ed25519.tls` | 🔴 FAIL | ERRException (ERR {errCode = 1045, errState = "28000", errMsg = "Access denied for user 'mariadb_ed25519'@'localhost' (using password: YES)"}) |
-| `auth.ed25519.socket` | 🔴 FAIL | ERRException (ERR {errCode = 1045, errState = "28000", errMsg = "Access denied for user 'mariadb_ed25519'@'localhost' (using password: YES)"}) |
-| `auth.parsec.tcp` | 🔴 FAIL | ERRException (ERR {errCode = 1045, errState = "28000", errMsg = "Access denied for user 'mariadb_parsec'@'localhost' (using password: NO)"}) |
-| `auth.parsec.tls` | 🔴 FAIL | ERRException (ERR {errCode = 1045, errState = "28000", errMsg = "Access denied for user 'mariadb_parsec'@'localhost' (using password: NO)"}) |
-| `auth.parsec.socket` | 🔴 FAIL | ERRException (ERR {errCode = 1045, errState = "28000", errMsg = "Access denied for user 'mariadb_parsec'@'localhost' (using password: NO)"}) |
-| `auth.sha2.tcp` | 🔴 FAIL | ERRException (ERR {errCode = 1045, errState = "28000", errMsg = "Access denied for user 'mariadb_sha2'@'localhost' (using password: YES)"}) |
-| `auth.sha2.socket` | 🔴 FAIL | user error (RSA key parse: empty PEM) |
 | `sql.procedure-prepared-out` | 🔴 FAIL | user error (prepared OUT result: expected [[42]], got []) |
 | `reliability.timeout-before-metadata` | 🔴 FAIL | ConnectionUnavailable Broken |
-| `connection.localhost-address-fallback` | 🔴 FAIL | Network.Socket.connect: <socket: 14>: does not exist (Connection refused) |
-| `auth.mutual-tls-helper-client` | 🔴 FAIL | ERRException (ERR {errCode = 1045, errState = "28000", errMsg = "Access denied for user 'mariadb_x509'@'localhost' (using password: YES)"}) |
-| `connection.mozilla-ca-store-installed` | 🔴 FAIL | /Users/aantich/.cabal/share/aarch64-osx-ghc-9.10.3-fe9c/mysql-haskell-1.3.3/mozillaCAStore.pem: withBinaryFile: does not exist (No such file or directory) |
 | `cdc.multiple-table-maps` | 🔴 FAIL | user error (both mapped row events: expected 2, got 0) |
 | `cdc.repeated-row-events` | 🔴 FAIL | user error (map reused for both row events: expected 2, got 1) |
 | `cdc.table-id-mismatch` | 🔴 FAIL | user error (row matched correct table ID: expected 1, got 2) |
@@ -159,37 +161,37 @@ Environment, compiler, dependencies and benchmark workloads match the original b
 
 | Workload | Baseline (ns/unit) | Current (ns/unit) | Change vs baseline | Current p95 (ms) | Current status |
 | --- | ---: | ---: | --- | ---: | --- |
-| `blob.prepared` | 3.1 | **3.2** | 🟡 +2.2% slower | 3.904 | 🟢 PASS |
-| `blob.text` | 3.2 | **3.2** | 🟢 -0.2% faster | 4.178 | 🟢 PASS |
-| `latency.prepared` | 41826.0 | **47410.0** | 🟡 +13.4% slower | 0.081 | 🟢 PASS |
-| `latency.text` | 39354.0 | **41880.0** | 🟡 +6.4% slower | 0.068 | 🟢 PASS |
-| `micro.binary-row` | 246.1 | **245.2** | 🟢 -0.4% faster | 25.625 | 🟢 PASS |
-| `micro.text-row` | 313.2 | **289.3** | 🟢 -7.6% faster | 31.041 | 🟢 PASS |
+| `blob.prepared` | 3.1 | **3.1** | 🟢 -1.4% faster | 4.478 | 🟢 PASS |
+| `blob.text` | 3.2 | **3.1** | 🟢 -2.4% faster | 4.635 | 🟢 PASS |
+| `latency.prepared` | 41826.0 | **38084.0** | 🟢 -8.9% faster | 0.081 | 🟢 PASS |
+| `latency.text` | 39354.0 | **41344.0** | 🟡 +5.1% slower | 0.073 | 🟢 PASS |
+| `micro.binary-row` | 246.1 | **237.0** | 🟢 -3.7% faster | 23.925 | 🟢 PASS |
+| `micro.text-row` | 313.2 | **287.1** | 🟢 -8.3% faster | 29.079 | 🟢 PASS |
 | `native.bulk` | — | — | — | — | 🔵 UNSUPPORTED |
 | `native.metadata-cache` | — | — | — | — | 🔵 UNSUPPORTED |
-| `read.parallel-16` | 107.6 | **104.9** | 🟢 -2.5% faster | 21.262 | 🟢 PASS |
-| `read.parallel-4` | 118.0 | **114.1** | 🟢 -3.3% faster | 6.865 | 🟢 PASS |
-| `read.prepared.narrow` | 314.6 | **285.7** | 🟢 -9.2% faster | 3.871 | 🟢 PASS |
-| `read.prepared.wide` | 2425.1 | **2409.6** | 🟢 -0.6% faster | 26.216 | 🟢 PASS |
-| `read.socket.narrow` | 339.2 | **365.9** | 🟡 +7.9% slower | 4.319 | 🟢 PASS |
-| `read.text.narrow` | 305.5 | **321.6** | 🟡 +5.3% slower | 3.457 | 🟢 PASS |
-| `read.text.wide` | 2876.4 | **2869.9** | 🟢 -0.2% faster | 30.741 | 🟢 PASS |
-| `read.tls.narrow` | 370.6 | **398.1** | 🟡 +7.4% slower | 5.383 | 🟢 PASS |
-| `read.vector.narrow` | 365.8 | **347.7** | 🟢 -5.0% faster | 4.502 | 🟢 PASS |
-| `write.execute-many` | 9670.0 | **9199.0** | 🟢 -4.9% faster | 12.964 | 🟢 PASS |
-| `write.prepared` | 39408.0 | **38480.0** | 🟢 -2.4% faster | 42.431 | 🟢 PASS |
-| `write.text` | 38324.0 | **41557.0** | 🟡 +8.4% slower | 45.272 | 🟢 PASS |
+| `read.parallel-16` | 107.6 | **100.3** | 🟢 -6.8% faster | 17.398 | 🟢 PASS |
+| `read.parallel-4` | 118.0 | **118.8** | 🟡 +0.7% slower | 6.536 | 🟢 PASS |
+| `read.prepared.narrow` | 314.6 | **281.6** | 🟢 -10.5% faster | 4.457 | 🟢 PASS |
+| `read.prepared.wide` | 2425.1 | **2303.4** | 🟢 -5.0% faster | 23.661 | 🟢 PASS |
+| `read.socket.narrow` | 339.2 | **337.9** | 🟢 -0.4% faster | 3.557 | 🟢 PASS |
+| `read.text.narrow` | 305.5 | **317.2** | 🟡 +3.8% slower | 3.381 | 🟢 PASS |
+| `read.text.wide` | 2876.4 | **2654.5** | 🟢 -7.7% faster | 27.599 | 🟢 PASS |
+| `read.tls.narrow` | 370.6 | **374.9** | 🟡 +1.2% slower | 5.102 | 🟢 PASS |
+| `read.vector.narrow` | 365.8 | **342.9** | 🟢 -6.3% faster | 3.749 | 🟢 PASS |
+| `write.execute-many` | 9670.0 | **7959.0** | 🟢 -17.7% faster | 8.655 | 🟢 PASS |
+| `write.prepared` | 39408.0 | **38399.0** | 🟢 -2.6% faster | 39.379 | 🟢 PASS |
+| `write.text` | 38324.0 | **41325.0** | 🟡 +7.8% slower | 41.552 | 🟢 PASS |
 
 ### MariaDB Connector/C control
 
 | Workload | Baseline (ns/unit) | Current (ns/unit) | Change vs baseline | Current p95 (ms) | Current status |
 | --- | ---: | ---: | --- | ---: | --- |
-| `blob.text` | 3.0 | **3.2** | 🟡 +5.3% slower | 4.071 | 🟢 PASS |
-| `latency.text` | 26568.0 | **26662.0** | 🟡 +0.4% slower | 0.057 | 🟢 PASS |
-| `read.text.narrow` | 197.4 | **205.5** | 🟡 +4.1% slower | 2.238 | 🟢 PASS |
-| `read.text.wide` | 1261.0 | **1402.5** | 🟡 +11.2% slower | 15.311 | 🟢 PASS |
-| `write.execute-many` | 7635.0 | **7919.0** | 🟡 +3.7% slower | 9.582 | 🟢 PASS |
-| `write.text` | 28478.0 | **28554.0** | 🟡 +0.3% slower | 30.517 | 🟢 PASS |
+| `blob.text` | 3.0 | **3.1** | 🟡 +1.4% slower | 4.081 | 🟢 PASS |
+| `latency.text` | 26568.0 | **26768.0** | 🟡 +0.8% slower | 0.072 | 🟢 PASS |
+| `read.text.narrow` | 197.4 | **208.8** | 🟡 +5.8% slower | 2.230 | 🟢 PASS |
+| `read.text.wide` | 1261.0 | **1166.0** | 🟢 -7.5% faster | 12.682 | 🟢 PASS |
+| `write.execute-many` | 7635.0 | **7526.0** | 🟢 -1.4% faster | 7.692 | 🟢 PASS |
+| `write.text` | 28478.0 | **29571.0** | 🟡 +3.8% slower | 29.883 | 🟢 PASS |
 
 — means no successful measurement is available, or the runs cannot be compared for Change.
 
@@ -203,11 +205,11 @@ Each measured process has two warm-ups; this run has **7 repetitions** per profi
 | Field | Latest attempt |
 | --- | --- |
 | State / exit code | COMPLETED / 0 |
-| Parent commit (working-tree inputs are identified separately) | [`0128b7908e8ac594d6dea5110fbc5b1a2a71ad1b`](https://github.com/aantich/mariadb-haskell/commit/0128b7908e8ac594d6dea5110fbc5b1a2a71ad1b) |
+| Parent commit (working-tree inputs are identified separately) | [`d5c71bd59902e7350b773a306d93f1947626b1b0`](https://github.com/aantich/mariadb-haskell/commit/d5c71bd59902e7350b773a306d93f1947626b1b0) |
 | Branch | `main` |
-| Started / finished (UTC) | 2026-11-07T11:17:27.116561+00:00 / 2026-11-07T11:18:04.380558+00:00 |
-| Input fingerprint | `835058eb17a5c841fc1e038764a295c70aac439e8ae5bd09ed11dbd79c50cce8` |
-| Local logs and build plan | `validation/results/runs/stage1-publication-1` (ignored by Git) |
+| Started / finished (UTC) | 2026-11-07T12:59:44.630978+00:00 / 2026-11-07T13:00:22.659034+00:00 |
+| Input fingerprint | `0c4456b8f17af803344b7ad73a2b75e14c0e65c7b8d2be53be43891cd08ff6e1` |
+| Local logs and build plan | `validation/results/runs/stage2-publication-1` (ignored by Git) |
 | Server of completed run | 12.3.3-MariaDB-log |
 | Host | Apple M4 Max; macOS 26.4 |
 | Compiler / build tool | GHC 9.10.3; Cabal 3.16.1.0 |
