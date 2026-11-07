@@ -42,7 +42,10 @@ class CheckFailureTests(unittest.TestCase):
                   patch.object(check.run, "sql_client", return_value="12.3.3-MariaDB"),
                   patch.object(check.subprocess, "run") as build,
                   patch.object(check.subprocess, "call", side_effect=recorder),
+                  patch.object(check, "install_runtime_data", return_value=0) as install,
                   patch.object(check.live, "publish") as publish):
+                if failure_at == "install":
+                    install.side_effect = error
                 if failure_at == "build":
                     build.side_effect = error
                 else:
@@ -52,6 +55,35 @@ class CheckFailureTests(unittest.TestCase):
             self.assertEqual("FAILED", attempt["state"])
             self.assertEqual(stage, attempt["stage"])
             self.assertIsNone(data)
+
+    def test_runtime_data_installation_failure_is_recorded(self):
+        self.check_process_failure("install", OSError("copy failed"), "runtime data installation")
+
+    def test_runtime_data_installation_interruption_is_recorded(self):
+        self.check_process_failure("install", KeyboardInterrupt(), "runtime data installation", expected_status=130)
+
+    def test_install_selects_library_not_executable_setup(self):
+        with tempfile.TemporaryDirectory() as folder:
+            package = Path(folder)/"mysql-haskell-1.3.3"
+            library = package/"opt"
+            component = package/"x/mariadb-validation/opt"
+            for build in [library, component]:
+                build.mkdir(parents=True)
+                (build/"setup-config").touch()
+            module = library/"build/Database/MySQL/Connection.hi"
+            module.parent.mkdir(parents=True)
+            module.touch()
+            binary = component/"build/mariadb-validation/mariadb-validation"
+            with (patch.object(check.run, "executable", return_value=str(binary)),
+                  patch.object(check.subprocess, "run") as copy):
+                copy.return_value.returncode=0
+                self.assertEqual(0, check.install_runtime_data())
+                self.assertIn("--builddir="+str(library), copy.call_args.args[0])
+
+    def test_missing_library_install_configuration_is_rejected(self):
+        with patch.object(check.run, "executable", return_value="/no/library/executable"):
+            with self.assertRaisesRegex(RuntimeError, "Setup configuration"):
+                check.install_runtime_data()
 
     def test_bad_reference_publishes_failed_attempt_and_retains_raw_candidate(self):
         self.check_reference_failure(ValueError("hash mismatch"))
@@ -85,6 +117,7 @@ class CheckFailureTests(unittest.TestCase):
                   patch.object(check.subprocess, "call", side_effect=recorder),
                   patch.object(check.stage1_gates, "reference", side_effect=error) as reference,
                   patch.object(Path, "exists", exists),
+                  patch.object(check, "install_runtime_data", return_value=0) as install,
                   patch.object(check.live, "publish") as publish):
                 build.return_value.returncode = 0
                 self.assertEqual(1, check.main())

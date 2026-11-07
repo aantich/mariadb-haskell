@@ -15,6 +15,23 @@ import publish_results as live
 import stage1_gates
 
 
+def install_runtime_data():
+    """Exercise Cabal installation, rather than making CA lookup depend on cwd.
+
+    Reuse the successful v2 build's Setup configuration. Cabal copies the data
+    declared by this package, including the CA snapshot, to its configured
+    installation prefix; it does not register or resolve another library build.
+    """
+    binary = Path(run.executable("exe:mariadb-validation"))
+    build = next((parent / "opt" for parent in binary.parents
+                  if (parent / "opt/setup-config").is_file()
+                  and (parent / "opt/build/Database/MySQL/Connection.hi").is_file()), None)
+    if build is None:
+        raise RuntimeError("library Setup configuration not found for runtime data installation")
+    return subprocess.run(["cabal", "v1-copy", "lib:mysql-haskell", "--builddir=" + str(build)],
+                          cwd=run.ROOT).returncode
+
+
 def main():
     if "--help" in sys.argv or "-h" in sys.argv:
         status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
@@ -52,7 +69,9 @@ def main():
                 try:
                     accepted,manifest = stage1_gates.reference()
                     original = json.loads(live.BASELINE.read_text())
-                    gate = stage1_gates.compare(data,accepted,original)
+                    previous_stage, stage_manifest = stage1_gates.reference(run.HERE / "results/previous-stage.json")
+                    gate = stage1_gates.compare(data,accepted,original,previous_stage=previous_stage)
+                    gate["previous_stage_reference"] = stage_manifest
                     gate.update(accepted_reference=manifest,tested_input_sha256=inputs['sha256'])
                     (run.HERE / "results/stage1-gates.json").write_text(json.dumps(gate,indent=2)+"\n")
                     if not gate['correctness_accepted'] or not gate['evidence_accepted']:
@@ -88,6 +107,15 @@ def main():
         return finish(130, "Validation interrupted during build.")
     if build.returncode:
         return finish(build.returncode,"Current source did not build; no suite results were produced.")
+    attempt["stage"]="runtime data installation"
+    try:
+        installed = install_runtime_data()
+    except (OSError, RuntimeError) as error:
+        return finish(1, "Runtime data installation failed: " + str(error))
+    except KeyboardInterrupt:
+        return finish(130, "Validation interrupted during runtime data installation.")
+    if installed:
+        return finish(installed, "Runtime data installation failed; no suite results were produced.")
     attempt["stage"]="suite"
     options = [*[arg for arg in sys.argv[1:] if arg != "--working-tree"],"--output",str(output)]
     if full and not args.compare and not args.freeze:

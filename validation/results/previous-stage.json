@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "reference": "references/stage1-publication-1.json",
+  "sha256": "e9ecaff3279e69ed2658771a669b57dd4aa35f9b0b084c7e5f8d21d1a58af1ac",
+  "tested_commit": "0128b7908e8ac594d6dea5110fbc5b1a2a71ad1b",
+  "purpose": "Preserve all published Stage 1 passes and report incremental costs; the older accepted performance reference remains unchanged."
+}

@@ -80,6 +80,7 @@ module Database.MySQL.Base
     , Stream.skipToEof
       -- * Exceptions
     , NetworkException(..)
+    , AuthException(..)
     , UnconsumedResultSet(..)
     , ERRException(..)
     , UnexpectedPacket(..)

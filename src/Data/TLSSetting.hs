@@ -17,6 +17,7 @@ module Data.TLSSetting
     , mozillaCAStorePath
     ) where
 
+import           Control.Monad (when)
 import qualified Data.ByteString            as B
 import qualified Data.PEM                   as X509
 import qualified Data.X509                  as X509
@@ -50,12 +51,11 @@ makeCAStore SystemCAStore       = X509.getSystemCertificateStore
 makeCAStore MozillaCAStore      = makeCAStore . CustomCAStore =<< mozillaCAStorePath
 makeCAStore (CustomCAStore fp)  = do
     bs <- B.readFile fp
-    let pems = case X509.pemParseBS bs of
-          Right pms -> pms
-          Left err -> error err
+    pems <- either (ioError . userError) pure (X509.pemParseBS bs)
+    when (null pems) (ioError (userError "CA file contains no certificates"))
     case mapM (X509.decodeSignedCertificate . X509.pemContent) pems of
         Right cas -> return (X509.makeCertificateStore cas)
-        Left err  -> error err
+        Left err  -> ioError (userError err)
 
 -- | make a simple tls 'TLS.ClientParams' that will validate server and use tls connection
 -- without providing client's own certificate. suitable for connecting server which don't
@@ -83,7 +83,9 @@ makeClientParams tca = do
 -- while providing client's own certificate as well. suitable for connecting server which
 -- validate clients.
 --
--- Also only accept v3 certificate.
+-- The helper installs the sole supplied credential in the certificate-request
+-- hook; sharedCredentials alone does not answer a server's client-cert request.
+-- Server identity is still verified against the supplied CA store.
 --
 makeClientParams' :: FilePath       -- ^ public certificate (X.509 format).
                   -> [FilePath]     -- ^ chain certificates (X.509 format).
@@ -98,12 +100,14 @@ makeClientParams' pub certs priv tca = do
     case c of
         Right c' ->
             return p
-                {   TLS.clientShared = (TLS.clientShared p)
+                {   TLS.clientHooks = (TLS.clientHooks p)
+                    { TLS.onCertificateRequest = \_ -> pure (Just c') }
+                ,   TLS.clientShared = (TLS.clientShared p)
                     {
                         TLS.sharedCredentials = TLS.Credentials [c']
                     }
                 }
-        Left err -> error err
+        Left err -> ioError (userError err)
 
 -- | make a simple tls 'TLS.ServerParams' without validating client's certificate.
 --
@@ -125,7 +129,7 @@ makeServerParams pub certs priv = do
                     }
                 ,   TLS.serverSupported = defaultSupported' { TLS.supportedCiphers = TLS.ciphersuite_strong }
                 }
-        Left err -> error err
+        Left err -> ioError (userError err)
 
 -- | make a tls 'TLS.ServerParams' that also validating client's certificate.
 --

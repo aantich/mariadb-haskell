@@ -1,0 +1,34 @@
+name: MariaDB Linux integration
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build isolated Linux MariaDB and Haskell profile
+        run: docker build -f validation/linux/Dockerfile -t mariadb-haskell-linux .
+      - name: Run unchanged correctness suite and additive regressions
+        run: |
+          mkdir -p validation/results/runs/stage2-linux
+          docker run --name mariadb-haskell-linux mariadb-haskell-linux
+      - name: Preserve all Linux evidence
+        if: always()
+        run: docker cp mariadb-haskell-linux:/workspace/validation/results/runs/stage2-linux/. validation/results/runs/stage2-linux/ || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mariadb-linux-evidence
+          path: validation/results/runs/stage2-linux
+      - name: Remove disposable profile
+        if: always()
+        run: docker rm -f mariadb-haskell-linux || true

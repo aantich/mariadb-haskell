@@ -80,3 +80,18 @@ Capability inventory entries explicitly report `UNSUPPORTED` where the current d
 The C control links the **installed MariaDB Connector/C** and consumes the same text-protocol SQL, ASCII fields, integer values and checksums. Binary prepared, vector, TLS, socket, concurrency and decoder microbenchmarks are currently Haskell-only and must not be presented as C comparisons. The write workload includes table truncation, a transaction, all inserts, commit and count/sum verification on both clients. Its operation latency is the whole transaction, not one insert.
 
 Benchmark ns/unit uses rows for SELECT/INSERT, bytes for the 1 MiB BLOB workload and decoded rows for microbenchmarks. p50/p95/p99 operation latency uses complete queries, transactions or decoder batches. Large scans have few operation samples, so their tail percentiles are descriptive. RTS allocations/GC/live heap are Haskell metrics; unavailable C metrics are null. Connection and statement creation happen outside timing, including for concurrent readers. `-O2`, `+RTS -N4 -T`, warm-ups, repetition counts and durability settings are recorded.
+
+## Stage 2 data installation and Linux profile
+
+After a successful build, `check.py` uses the built library's Cabal Setup configuration to copy declared runtime data into its installation prefix. This tests the installed CA snapshot independently of the working directory and avoids stale package data. A copy failure or interruption is a visible failed attempt; no older binary/data combination is measured.
+
+Linux integration is defined in `.github/workflows/mariadb-linux.yml` and `validation/linux/Dockerfile`. The pinned official MariaDB image and the current signed-index Cabal client provide disposable server, authentication, TLS and certificate fixtures. The source checkout must include Git history because the unchanged recorder verifies the original source revision. Run from the repository root:
+
+```sh
+docker build -f validation/linux/Dockerfile -t mariadb-haskell-linux .
+docker run --name mariadb-haskell-linux --tmpfs /var/lib/mysql:size=2147483648 mariadb-haskell-linux
+docker cp mariadb-haskell-linux:/workspace/validation/results/runs/stage2-linux ./validation/results/runs/
+docker rm -v mariadb-haskell-linux
+```
+
+Use a new container name/output location for each retained run. Linux correctness requires every published Stage 1 pass, every Stage 2 native target and every additive Stage 2 case. Its results stay separate from the Mac live benchmark profile. The container uses its own database and private test CA; it does not install trust roots or change the host MariaDB service. Ensure sufficient Docker disk/build space; the local Stage 2 run used separate task-local build storage after encountering the existing Docker disk limit.

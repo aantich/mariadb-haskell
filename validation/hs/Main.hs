@@ -16,9 +16,10 @@ import qualified Validation.CDC as CDC
 import qualified Validation.Benchmark as Benchmark
 import qualified Validation.Supplementary as Supplementary
 import qualified Validation.Stage1 as Stage1
+import qualified Validation.Stage2 as Stage2
 
 allCases :: [Case]
-allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases
+allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases
 
 main :: IO ()
 main=do

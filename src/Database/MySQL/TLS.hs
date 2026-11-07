@@ -23,17 +23,12 @@ module Database.MySQL.TLS (
 import           Control.Exception              (bracketOnError, throwIO, finally)
 import qualified Data.Binary                    as Binary
 import qualified Data.Binary.Put                as Binary
-import           Data.ByteString                (ByteString)
-import qualified Data.ByteString                as B
-import qualified Data.ByteString.Lazy           as L
-import           Data.Word                      (Word8)
 import qualified Data.Connection                as Conn
 import           Data.IORef                     (writeIORef)
 import           Data.TLSSetting
 import           Database.MySQL.Connection      hiding (connect, connectDetail, connectWithOptions, connectDetailWithOptions)
 import           Database.MySQL.Protocol.Auth
 import           Database.MySQL.Protocol.Packet
-import           System.IO.Streams               (InputStream)
 import qualified Network.TLS                    as TLS
 import qualified System.IO.Streams.TCP          as TCP
 import qualified System.IO.Streams.TLS          as TLS
@@ -54,16 +49,17 @@ connectDetail = connectDetailWithOptions defaultConnectionOptions
 -- | Explicit-options variant of 'connectDetail'. The plaintext greeting uses
 -- sequence zero, SSLRequest one and the authenticated TLS response sequence two.
 connectDetailWithOptions :: ConnectionOptions -> ConnectInfo -> (TLS.ClientParams,String) -> IO (Greeting,MySQLConn)
-connectDetailWithOptions options ci (params,name) = do
+connectDetailWithOptions options ci (params,name) = withConnectDeadline options $ do
     validateOptions options
-    bracketOnError (TCP.connectSocket (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
+    bracketOnError (TCP.connectSocketTimeout (connectTimeoutMicros options) (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
         input <- decodeInputStreamWithLimit (maximumMessageBytes options) (Conn.source raw)
         packet <- readPacket input
         if pSeqN packet /= 0 then throwIO (ProtocolError "invalid greeting sequence") else pure ()
-        greeting <- decodeFromPacket packet
+        if isERR packet then decodeFromPacket packet >>= throwIO . ERRException else pure ()
+        greeting <- getFromPacketExact getGreeting packet
         if not (supportTLS (greetingCaps greeting)) then throwIO (AuthException "MariaDB server does not offer TLS") else pure ()
         let caps=negotiatedCapabilities options greeting
-            params'=params {TLS.clientUseServerNameIndication=False,TLS.clientServerIdentification=(name,"")}
+            params'=params {TLS.clientServerIdentification=(name,"")}
             (sock,addr)=Conn.connExtraInfo raw
             ssl=SSLRequest (caps + 0x800) (fromIntegral (maximumMessageBytes options)) (ciCharset ci)
         Conn.send raw (Binary.runPut (Binary.put (encodeToPacket 1 ssl)))
@@ -75,19 +71,6 @@ connectDetailWithOptions options ci (params,name) = do
             writeIORef (connectionCapabilities conn) (caps+0x800)
             mysqlWrite conn (encodeToPacket 2 (mkAuthWithOptions options (caps+0x800) ci greeting))
             response <- readConnPacket conn
-            completeAuth (mysqlRead conn) (mysqlWrite conn) (ciPassword ci) response tlsFullAuth
+            completeAuth conn greeting True (ciPassword ci) response
             initializeSession conn
             pure (greeting,conn)
-
--- | Full auth handler for TLS connections: sends the cleartext password
--- as a NUL-terminated packet on the encrypted transport.
-tlsFullAuth :: Word8 -> ByteString -> (Packet -> IO ()) -> InputStream Packet -> IO ()
-tlsFullAuth seqN pass writePacket is = do
-    let payload = pass `B.append` "\0"
-        body = L.fromStrict payload
-        pkt = Packet (fromIntegral (B.length payload)) seqN body
-    writePacket pkt
-    q <- readPacket is
-    if isOK q
-        then return ()
-        else decodeFromPacket q >>= throwIO . ERRException

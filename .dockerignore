@@ -1,0 +1,7 @@
+dist*
+validation/.local
+validation/results/runs
+validation/__pycache__
+cabal.project.local
+*.o
+*.hi

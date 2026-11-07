@@ -1,0 +1,4213 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-11-07T12:06:37.399237+00:00",
+  "complete_suite": false,
+  "build": {
+    "git_commit": "b1cf486d954a7d41df871cb7710a2876cd673f71",
+    "git_branch": "codex/stage2-native-connections",
+    "driver_source_files": {
+      "src/Data/Binary/Parser/Numeric.hs": "d11b483f5f0d41481bbef35edad7e6d02539f2004f35f02c38326ef7f9aa999b",
+      "src/Data/Binary/Parser/Word8.hs": "9137cdf8a3dea06323c95ecc6866dd4eca4dc02cf2675b66804e490d75dfda30",
+      "src/Data/Binary/Parser.hs": "ec8b2b63bb165227f721baba51cf265c8483ff0266b7d2d8e6db83e753a72dd8",
+      "src/Data/Connection.hs": "0a6bb6b888d971e02fc0b8e3723dae9dd8da6db78157924de5f485f06f8cfdc5",
+      "src/Data/Int/Int24.hs": "37f75aa6a046ecff79afa163a8fb0c1256461a9846cf481c0b47ce5572968832",
+      "src/Data/TLSSetting.hs": "798b710434551dfcd85f1ee56de957ab7e3ca8282de7b45f843b99b245e5530a",
+      "src/Data/Word/Word24.hs": "d44b3b63e7ae1e01b3db5fe7e02e72e3968b3bd0f7f544e7201282252573e218",
+      "src/Database/MySQL/Base.hs": "167174db5862a4e6a331130207f45dc191dc55b91cdfee4d51bc3353aee0b700",
+      "src/Database/MySQL/BinLog.hs": "6efa58ec1adae10b647da2f66f246b3944367c0348e7862321993e207c7e7699",
+      "src/Database/MySQL/BinLogProtocol/BinLogEvent.hs": "b1623bbe55fdf5a3b517eb96b0629fe259f584100d4633fa24e9c9a535231255",
+      "src/Database/MySQL/BinLogProtocol/BinLogMeta.hs": "eaba7042b9639e563598eeb7ac4fecda0dee73aff84fa2fde671a707cae6b743",
+      "src/Database/MySQL/BinLogProtocol/BinLogValue.hs": "52f1754ae8b0fb7df42791128f25bcdab4da82be590238b0632ed6274f05d023",
+      "src/Database/MySQL/Connection.hs": "db3eb0193cff17b49347685b3cfcde152bc3ba8b09429d3a7cb58fe86d181b8f",
+      "src/Database/MySQL/Field.hs": "e4469124ba21b73d619564c74935db2e1172c42abcf08d293aea1a5a3825d0f5",
+      "src/Database/MySQL/Protocol/Auth.hs": "c186879b7860bcc6c23e8b023513e6a20938ad1c6d8acf780644c6d3eb6a7992",
+      "src/Database/MySQL/Protocol/ColumnDef.hs": "967f562d25362d654a5b776d01e6a537e0680d1a0d0977750867beda3abca2a8",
+      "src/Database/MySQL/Protocol/Command.hs": "7c2cbcde15da98ce6bfe5256513aa18cb91fc6aa260476ff9f35a1184ce53180",
+      "src/Database/MySQL/Protocol/Escape.hs": "cb75d67f1f1119a477e037675fc971373152d0eea9252675a5fe67427fcf2393",
+      "src/Database/MySQL/Protocol/MySQLValue.hs": "7d384ed76c6abeab10edddc5babd5283b02a6d4ce2ad6a5d09ae004610bc6a06",
+      "src/Database/MySQL/Protocol/Packet.hs": "9ce903e8528055edad4791cd308d402ffcb3299c6fa86df9883a9b5531ef6d15",
+      "src/Database/MySQL/Query.hs": "1b0a3dc15abae0a4ffdd7f309cecf1c6731932c85b2df64fda5378f4dedd4838",
+      "src/Database/MySQL/TLS.hs": "806c17fdb33324015967560490735d45ca2d2c0cfa68f03a1a532c3551f4a8a7",
+      "src/System/IO/Streams/TCP.hs": "b4c5d511f026ca13d2f9105d13881feb746c32f9caee648b3581da10d5c29d5e",
+      "src/System/IO/Streams/TLS.hs": "72fd94a96fbb7a764c7c439bcc898767146b171de608f187c920eed97e1ac6e0"
+    },
+    "library_cabal_sha256": "3ee34b4419b969be074f4f617ae2540c13fe9f24b412217e4153c46ceb37a0f2",
+    "workload_files": {
+      "validation/connector_c.c": "f3258db4fda91dcc2e151d26e924ad33a85f41bad4f638065d974409a81d5980",
+      "validation/hs/Main.hs": "18976aa59260c68b1bfd35f39aab20f86292c1710a34fa665ad084b782e568e6",
+      "validation/hs/Validation/Benchmark.hs": "7fc5450494568f81376818494f9d748a45dc7c7ba8376ea9d420c813810187e0",
+      "validation/hs/Validation/CDC.hs": "69ddf52b76190bd8fde3782147de8fb7e8af9167724bd462f0d03654347225d5",
+      "validation/hs/Validation/Common.hs": "07bcf4b72feaa294c133f4f396c87e1fae18b05400f1075534a33b6b3f0e0056",
+      "validation/hs/Validation/FaultTransport.hs": "03e4391b64d0527efeb7bc2f662c27d5efc70d2a071a06746649af094b61f0e1",
+      "validation/hs/Validation/Functional.hs": "28c7d66dbfb57a71486f520057c77e1f61434c8e0e57b904529b1416c21ac49d",
+      "validation/hs/Validation/Protocol.hs": "dda245b79359a64be740f95aa1ca7e1686288bfa03934b4621ff21c668a98f93",
+      "validation/hs/Validation/Reliability.hs": "234af0a8c3bd957587c78120700a4c23790a5cecb070c7cda3dde4138b1a7a44",
+      "validation/hs/Validation/Security.hs": "ef1e7b09f8e7806e471e0511fd4b4cf143a478005ca1d5fd19679ce16009f3dd",
+      "validation/hs/Validation/Stage1.hs": "12fdb17bc740710c79862f38b1454096d3a1dcd1ac5e69f6bb62ec35d35faa35",
+      "validation/hs/Validation/Stage2.hs": "a7dc4865351cb1769978fa8d193a385e15cd6712057e70aa17129db9b0702fce",
+      "validation/hs/Validation/Supplementary.hs": "c8dbcb86cb945a866aeb4552b7a2d41b26f3fb619651cda97fe394107dbcd594",
+      "validation/run.py": "e756bc0f593b54bc9207fd88d2a53120a4654832650d0a148555a69ebd413346"
+    },
+    "ghc": "9.4.7",
+    "cabal": "3.14.1.1",
+    "reference_driver_commit": "92a94012bc553a672c73d409dad1d17e9db1e53f",
+    "driver_matches_reference": false,
+    "library_configuration_matches_reference": true
+  },
+  "server": {
+    "identity": [
+      "12.3.3-MariaDB-ubu2404-log",
+      "mariadb.org binary distribution",
+      "aarch64"
+    ],
+    "variables": {
+      "bind_address": "127.0.0.1",
+      "binlog_checksum": "CRC32",
+      "binlog_format": "ROW",
+      "binlog_row_image": "FULL",
+      "character_set_server": "utf8mb4",
+      "collation_server": "utf8mb4_unicode_ci",
+      "have_ssl": "YES",
+      "innodb_buffer_pool_size": "134217728",
+      "innodb_flush_log_at_trx_commit": "1",
+      "log_bin": "ON",
+      "lower_case_table_names": "0",
+      "max_allowed_packet": "402653184",
+      "max_connections": "151",
+      "port": "3306",
+      "sql_mode": "STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION",
+      "sync_binlog": "0",
+      "time_zone": "+00:00"
+    }
+  },
+  "dependencies": [
+    [
+      "Glob",
+      "0.10.2"
+    ],
+    [
+      "OneTuple",
+      "0.4.3"
+    ],
+    [
+      "Only",
+      "0.1"
+    ],
+    [
+      "QuickCheck",
+      "2.18.0.0"
+    ],
+    [
+      "StateVar",
+      "1.2.2"
+    ],
+    [
+      "aeson",
+      "2.3.2.0"
+    ],
+    [
+      "ansi-terminal",
+      "1.1.5"
+    ],
+    [
+      "ansi-terminal-types",
+      "1.1.3"
+    ],
+    [
+      "appar",
+      "0.1.8"
+    ],
+    [
+      "array",
+      "0.5.4.0"
+    ],
+    [
+      "asn1-encoding",
+      "0.9.6"
+    ],
+    [
+      "asn1-types",
+      "0.3.4"
+    ],
+    [
+      "assoc",
+      "1.1.1"
+    ],
+    [
+      "async",
+      "2.2.6"
+    ],
+    [
+      "attoparsec",
+      "0.14.4"
+    ],
+    [
+      "base",
+      "4.17.2.0"
+    ],
+    [
+      "base-compat",
+      "0.15.0"
+    ],
+    [
+      "base-compat-batteries",
+      "0.15.0"
+    ],
+    [
+      "base-orphans",
+      "0.9.4"
+    ],
+    [
+      "base16",
+      "1.0"
+    ],
+    [
+      "base16-bytestring",
+      "1.0.2.0"
+    ],
+    [
+      "base64",
+      "0.4.2.4"
+    ],
+    [
+      "basement",
+      "0.0.16"
+    ],
+    [
+      "bifunctors",
+      "5.6.3"
+    ],
+    [
+      "binary",
+      "0.8.9.1"
+    ],
+    [
+      "binary-orphans",
+      "1.0.6"
+    ],
+    [
+      "bitvec",
+      "1.1.6.0"
+    ],
+    [
+      "blaze-builder",
+      "0.4.4.1"
+    ],
+    [
+      "blaze-textual",
+      "0.2.3.1"
+    ],
+    [
+      "bytestring",
+      "0.11.5.2"
+    ],
+    [
+      "bytestring-lexing",
+      "0.5.0.16"
+    ],
+    [
+      "call-stack",
+      "0.4.0"
+    ],
+    [
+      "case-insensitive",
+      "1.2.2.0"
+    ],
+    [
+      "cassava",
+      "0.5.4.1"
+    ],
+    [
+      "cborg",
+      "0.2.10.0"
+    ],
+    [
+      "cereal",
+      "0.5.8.3"
+    ],
+    [
+      "character-ps",
+      "0.1"
+    ],
+    [
+      "code-page",
+      "0.2.1"
+    ],
+    [
+      "colour",
+      "2.3.7"
+    ],
+    [
+      "comonad",
+      "5.0.10"
+    ],
+    [
+      "containers",
+      "0.6.7"
+    ],
+    [
+      "contravariant",
+      "1.5.6"
+    ],
+    [
+      "criterion",
+      "1.6.5.0"
+    ],
+    [
+      "criterion-measurement",
+      "0.2.5.0"
+    ],
+    [
+      "crypton",
+      "2.1.12"
+    ],
+    [
+      "crypton-asn1-encoding",
+      "0.10.0"
+    ],
+    [
+      "crypton-asn1-parse",
+      "0.10.0"
+    ],
+    [
+      "crypton-asn1-types",
+      "0.4.1"
+    ],
+    [
+      "crypton-pem",
+      "0.3.0"
+    ],
+    [
+      "crypton-x509",
+      "1.10.1"
+    ],
+    [
+      "crypton-x509-store",
+      "1.10.0"
+    ],
+    [
+      "crypton-x509-system",
+      "1.10.0"
+    ],
+    [
+      "crypton-x509-validation",
+      "1.10.1"
+    ],
+    [
+      "data-default",
+      "0.8.0.2"
+    ],
+    [
+      "data-default-class",
+      "0.2.0.0"
+    ],
+    [
+      "data-fix",
+      "0.3.4"
+    ],
+    [
+      "deepseq",
+      "1.4.8.0"
+    ],
+    [
+      "dense-linear-algebra",
+      "0.1.0.0"
+    ],
+    [
+      "directory",
+      "1.3.7.1"
+    ],
+    [
+      "distributive",
+      "0.6.3"
+    ],
+    [
+      "dlist",
+      "1.0"
+    ],
+    [
+      "ech-config",
+      "0.0.2"
+    ],
+    [
+      "exceptions",
+      "0.10.5"
+    ],
+    [
+      "fail",
+      "4.9.0.0"
+    ],
+    [
+      "filepath",
+      "1.4.2.2"
+    ],
+    [
+      "foldable1-classes-compat",
+      "0.1.3"
+    ],
+    [
+      "ghc-bignum",
+      "1.3"
+    ],
+    [
+      "ghc-boot-th",
+      "9.4.7"
+    ],
+    [
+      "ghc-prim",
+      "0.9.1"
+    ],
+    [
+      "half",
+      "0.3.3"
+    ],
+    [
+      "hashable",
+      "1.4.7.0"
+    ],
+    [
+      "hourglass",
+      "0.2.12"
+    ],
+    [
+      "hpke",
+      "0.4.0"
+    ],
+    [
+      "hsc2hs",
+      "0.68.10"
+    ],
+    [
+      "http-types",
+      "0.12.6"
+    ],
+    [
+      "indexed-traversable",
+      "0.1.5"
+    ],
+    [
+      "indexed-traversable-instances",
+      "0.1.2.1"
+    ],
+    [
+      "integer-conversion",
+      "0.1.1"
+    ],
+    [
+      "integer-gmp",
+      "1.1"
+    ],
+    [
+      "integer-logarithms",
+      "1.0.5"
+    ],
+    [
+      "io-streams",
+      "1.5.2.2"
+    ],
+    [
+      "iproute",
+      "1.8.0"
+    ],
+    [
+      "js-chart",
+      "2.9.4.1"
+    ],
+    [
+      "math-functions",
+      "0.3.4.4"
+    ],
+    [
+      "memory",
+      "0.18.0"
+    ],
+    [
+      "microstache",
+      "1.0.3.1"
+    ],
+    [
+      "monad-loops",
+      "0.4.3"
+    ],
+    [
+      "mtl",
+      "2.2.2"
+    ],
+    [
+      "mwc-random",
+      "0.15.3.0"
+    ],
+    [
+      "network",
+      "3.2.12.0"
+    ],
+    [
+      "network-byte-order",
+      "0.1.9"
+    ],
+    [
+      "network-uri",
+      "2.6.4.2"
+    ],
+    [
+      "old-locale",
+      "1.0.0.7"
+    ],
+    [
+      "old-time",
+      "1.1.1.0"
+    ],
+    [
+      "optparse-applicative",
+      "0.19.0.0"
+    ],
+    [
+      "os-string",
+      "2.0.11"
+    ],
+    [
+      "parallel",
+      "3.3.0.0"
+    ],
+    [
+      "parsec",
+      "3.1.16.1"
+    ],
+    [
+      "pretty",
+      "1.1.3.6"
+    ],
+    [
+      "prettyprinter",
+      "1.7.2"
+    ],
+    [
+      "prettyprinter-ansi-terminal",
+      "1.1.4"
+    ],
+    [
+      "primitive",
+      "0.9.1.0"
+    ],
+    [
+      "process",
+      "1.6.17.0"
+    ],
+    [
+      "quickcheck-instances",
+      "0.4"
+    ],
+    [
+      "ram",
+      "0.22.1"
+    ],
+    [
+      "random",
+      "1.3.1"
+    ],
+    [
+      "rts",
+      "1.0.2"
+    ],
+    [
+      "scanner",
+      "0.3.2"
+    ],
+    [
+      "scientific",
+      "0.3.10.0"
+    ],
+    [
+      "semialign",
+      "1.4"
+    ],
+    [
+      "semigroupoids",
+      "6.0.2"
+    ],
+    [
+      "serialise",
+      "0.2.6.1"
+    ],
+    [
+      "splitmix",
+      "0.1.3.2"
+    ],
+    [
+      "statistics",
+      "0.16.5.0"
+    ],
+    [
+      "stm",
+      "2.5.1.0"
+    ],
+    [
+      "strict",
+      "0.5.1"
+    ],
+    [
+      "tagged",
+      "0.8.11"
+    ],
+    [
+      "tasty",
+      "1.5.5"
+    ],
+    [
+      "tasty-expected-failure",
+      "0.12.3"
+    ],
+    [
+      "tasty-hunit",
+      "0.10.2"
+    ],
+    [
+      "tasty-quickcheck",
+      "0.11.1"
+    ],
+    [
+      "template-haskell",
+      "2.19.0.0"
+    ],
+    [
+      "terminal-size",
+      "0.3.4"
+    ],
+    [
+      "text",
+      "2.0.2"
+    ],
+    [
+      "text-iso8601",
+      "0.2.0.0"
+    ],
+    [
+      "text-short",
+      "0.1.6.1"
+    ],
+    [
+      "th-abstraction",
+      "0.7.2.0"
+    ],
+    [
+      "th-compat",
+      "0.1.7"
+    ],
+    [
+      "these",
+      "1.2.1"
+    ],
+    [
+      "time",
+      "1.12.2"
+    ],
+    [
+      "time-compat",
+      "1.9.9"
+    ],
+    [
+      "time-hourglass",
+      "0.3.0"
+    ],
+    [
+      "tls",
+      "2.4.14"
+    ],
+    [
+      "transformers",
+      "0.5.6.2"
+    ],
+    [
+      "transformers-compat",
+      "0.8"
+    ],
+    [
+      "unbounded-delays",
+      "0.1.1.1"
+    ],
+    [
+      "unix",
+      "2.7.3"
+    ],
+    [
+      "unix-time",
+      "0.5.1"
+    ],
+    [
+      "unordered-containers",
+      "0.2.21"
+    ],
+    [
+      "uuid-types",
+      "1.0.6.1"
+    ],
+    [
+      "vector",
+      "0.13.2.0"
+    ],
+    [
+      "vector-algorithms",
+      "0.9.1.0"
+    ],
+    [
+      "vector-binary-instances",
+      "0.2.5.2"
+    ],
+    [
+      "vector-stream",
+      "0.1.0.1"
+    ],
+    [
+      "vector-th-unbox",
+      "0.2.2"
+    ],
+    [
+      "witherable",
+      "0.5"
+    ],
+    [
+      "word-compat",
+      "0.0.6"
+    ],
+    [
+      "zlib",
+      "0.7.1.1"
+    ],
+    [
+      "zlib-bindings",
+      "0.1.1.5"
+    ]
+  ],
+  "dependency_plan_sha256": "36729a3a83dfea463be55abe5d65fc13da55a458d96cc89a5c8e50005f8a2e77",
+  "machine": {
+    "system": "Linux",
+    "release": "6.10.14-linuxkit",
+    "machine": "aarch64",
+    "macos": "",
+    "cpu_count": 16,
+    "cpu_model": "aarch64"
+  },
+  "correctness": [
+    {
+      "id": "protocol.length-0",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.016311041079461575,
+      "detail": "PASS\tprotocol.length-0\n"
+    },
+    {
+      "id": "protocol.length-1",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015089042484760284,
+      "detail": "PASS\tprotocol.length-1\n"
+    },
+    {
+      "id": "protocol.length-250",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014163458719849586,
+      "detail": "PASS\tprotocol.length-250\n"
+    },
+    {
+      "id": "protocol.length-251",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014468000270426273,
+      "detail": "PASS\tprotocol.length-251\n"
+    },
+    {
+      "id": "protocol.length-255",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01525895856320858,
+      "detail": "PASS\tprotocol.length-255\n"
+    },
+    {
+      "id": "protocol.length-256",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015290041454136372,
+      "detail": "PASS\tprotocol.length-256\n"
+    },
+    {
+      "id": "protocol.length-65535",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014384499751031399,
+      "detail": "PASS\tprotocol.length-65535\n"
+    },
+    {
+      "id": "protocol.length-65536",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01497037522494793,
+      "detail": "PASS\tprotocol.length-65536\n"
+    },
+    {
+      "id": "protocol.length-16777215",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014755542390048504,
+      "detail": "PASS\tprotocol.length-16777215\n"
+    },
+    {
+      "id": "protocol.length-16777216",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015054207295179367,
+      "detail": "PASS\tprotocol.length-16777216\n"
+    },
+    {
+      "id": "protocol.length-2147483647",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015685499645769596,
+      "detail": "PASS\tprotocol.length-2147483647\n"
+    },
+    {
+      "id": "protocol.packet-size-0",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01428312435746193,
+      "detail": "PASS\tprotocol.packet-size-0\n"
+    },
+    {
+      "id": "protocol.packet-size-1",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01412870828062296,
+      "detail": "PASS\tprotocol.packet-size-1\n"
+    },
+    {
+      "id": "protocol.packet-size-255",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01506141759455204,
+      "detail": "PASS\tprotocol.packet-size-255\n"
+    },
+    {
+      "id": "protocol.packet-size-256",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014368999749422073,
+      "detail": "PASS\tprotocol.packet-size-256\n"
+    },
+    {
+      "id": "protocol.packet-size-65535",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.013816333375871181,
+      "detail": "PASS\tprotocol.packet-size-65535\n"
+    },
+    {
+      "id": "protocol.fragment-split-1",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014247500337660313,
+      "detail": "PASS\tprotocol.fragment-split-1\n"
+    },
+    {
+      "id": "protocol.fragment-split-2",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014182500541210175,
+      "detail": "PASS\tprotocol.fragment-split-2\n"
+    },
+    {
+      "id": "protocol.fragment-split-3",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014149583876132965,
+      "detail": "PASS\tprotocol.fragment-split-3\n"
+    },
+    {
+      "id": "protocol.fragment-split-4",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015521334484219551,
+      "detail": "PASS\tprotocol.fragment-split-4\n"
+    },
+    {
+      "id": "protocol.fragment-split-5",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014699124731123447,
+      "detail": "PASS\tprotocol.fragment-split-5\n"
+    },
+    {
+      "id": "protocol.fragment-split-6",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014908332377672195,
+      "detail": "PASS\tprotocol.fragment-split-6\n"
+    },
+    {
+      "id": "protocol.fragment-split-7",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014238834381103516,
+      "detail": "PASS\tprotocol.fragment-split-7\n"
+    },
+    {
+      "id": "protocol.fragment-split-8",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01468045823276043,
+      "detail": "PASS\tprotocol.fragment-split-8\n"
+    },
+    {
+      "id": "protocol.fragment-split-9",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.013524250127375126,
+      "detail": "PASS\tprotocol.fragment-split-9\n"
+    },
+    {
+      "id": "protocol.fragment-split-10",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015610083937644958,
+      "detail": "PASS\tprotocol.fragment-split-10\n"
+    },
+    {
+      "id": "protocol.fragment-split-11",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015643207356333733,
+      "detail": "PASS\tprotocol.fragment-split-11\n"
+    },
+    {
+      "id": "protocol.fragment-split-12",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015422750264406204,
+      "detail": "PASS\tprotocol.fragment-split-12\n"
+    },
+    {
+      "id": "protocol.fragment-split-13",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01534500066190958,
+      "detail": "PASS\tprotocol.fragment-split-13\n"
+    },
+    {
+      "id": "protocol.fragment-split-14",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015389250591397285,
+      "detail": "PASS\tprotocol.fragment-split-14\n"
+    },
+    {
+      "id": "protocol.fragment-split-15",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014560749754309654,
+      "detail": "PASS\tprotocol.fragment-split-15\n"
+    },
+    {
+      "id": "protocol.fragment-split-16",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014072208665311337,
+      "detail": "PASS\tprotocol.fragment-split-16\n"
+    },
+    {
+      "id": "protocol.fragment-split-17",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015235332772135735,
+      "detail": "PASS\tprotocol.fragment-split-17\n"
+    },
+    {
+      "id": "protocol.fragment-split-18",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014903834089636803,
+      "detail": "PASS\tprotocol.fragment-split-18\n"
+    },
+    {
+      "id": "protocol.fragment-split-19",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014600374735891819,
+      "detail": "PASS\tprotocol.fragment-split-19\n"
+    },
+    {
+      "id": "protocol.fragment-split-20",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015272541902959347,
+      "detail": "PASS\tprotocol.fragment-split-20\n"
+    },
+    {
+      "id": "protocol.coalesced-packets",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014037124812602997,
+      "detail": "PASS\tprotocol.coalesced-packets\n"
+    },
+    {
+      "id": "protocol.truncated-header",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014788624830543995,
+      "detail": "PASS\tprotocol.truncated-header\n"
+    },
+    {
+      "id": "protocol.truncated-body",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014656624756753445,
+      "detail": "PASS\tprotocol.truncated-body\n"
+    },
+    {
+      "id": "protocol.continuation-sequence-rejected",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014784416183829308,
+      "detail": "PASS\tprotocol.continuation-sequence-rejected\n"
+    },
+    {
+      "id": "protocol.continuation-sequence-wrap",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014103541150689125,
+      "detail": "PASS\tprotocol.continuation-sequence-wrap\n"
+    },
+    {
+      "id": "protocol.large-row-is-not-eof",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015640624798834324,
+      "detail": "PASS\tprotocol.large-row-is-not-eof\n"
+    },
+    {
+      "id": "protocol.unsigned-last-insert-id",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014298000372946262,
+      "detail": "PASS\tprotocol.unsigned-last-insert-id\n"
+    },
+    {
+      "id": "protocol.column-definition-roundtrip",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01497954223304987,
+      "detail": "PASS\tprotocol.column-definition-roundtrip\n"
+    },
+    {
+      "id": "protocol.binary-plugin-challenge",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015079166740179062,
+      "detail": "PASS\tprotocol.binary-plugin-challenge\n"
+    },
+    {
+      "id": "protocol.unknown-plugin-rejected",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01544087566435337,
+      "detail": "PASS\tprotocol.unknown-plugin-rejected\n"
+    },
+    {
+      "id": "protocol.native-extension-handshake",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014846124686300755,
+      "detail": "PASS\tprotocol.native-extension-handshake\n"
+    },
+    {
+      "id": "protocol.prepared-out-capability",
+      "area": "protocol",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014969166368246078,
+      "detail": "user error (CLIENT_PS_MULTI_RESULTS is absent)\n"
+    },
+    {
+      "id": "protocol.empty-packet-predicate",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015055582858622074,
+      "detail": "PASS\tprotocol.empty-packet-predicate\n"
+    },
+    {
+      "id": "protocol.text-field-trailing-data",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015066666528582573,
+      "detail": "PASS\tprotocol.text-field-trailing-data\n"
+    },
+    {
+      "id": "protocol.text-field-integer-overflow",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015777667053043842,
+      "detail": "PASS\tprotocol.text-field-integer-overflow\n"
+    },
+    {
+      "id": "protocol.reset-does-not-consume-pending-row",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015556625090539455,
+      "detail": "PASS\tprotocol.reset-does-not-consume-pending-row\n"
+    },
+    {
+      "id": "protocol.null-bitmap-0",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.016376790590584278,
+      "detail": "PASS\tprotocol.null-bitmap-0\n"
+    },
+    {
+      "id": "protocol.null-bitmap-1",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0158955417573452,
+      "detail": "PASS\tprotocol.null-bitmap-1\n"
+    },
+    {
+      "id": "protocol.null-bitmap-2",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015152917243540287,
+      "detail": "PASS\tprotocol.null-bitmap-2\n"
+    },
+    {
+      "id": "protocol.null-bitmap-7",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015702917240560055,
+      "detail": "PASS\tprotocol.null-bitmap-7\n"
+    },
+    {
+      "id": "protocol.null-bitmap-8",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0155499167740345,
+      "detail": "PASS\tprotocol.null-bitmap-8\n"
+    },
+    {
+      "id": "protocol.null-bitmap-9",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015143124386668205,
+      "detail": "PASS\tprotocol.null-bitmap-9\n"
+    },
+    {
+      "id": "protocol.null-bitmap-15",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01604154147207737,
+      "detail": "PASS\tprotocol.null-bitmap-15\n"
+    },
+    {
+      "id": "protocol.null-bitmap-16",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015378125011920929,
+      "detail": "PASS\tprotocol.null-bitmap-16\n"
+    },
+    {
+      "id": "protocol.null-bitmap-17",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01593020837754011,
+      "detail": "PASS\tprotocol.null-bitmap-17\n"
+    },
+    {
+      "id": "protocol.null-bitmap-63",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.016488750465214252,
+      "detail": "PASS\tprotocol.null-bitmap-63\n"
+    },
+    {
+      "id": "protocol.null-bitmap-64",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.016207042150199413,
+      "detail": "PASS\tprotocol.null-bitmap-64\n"
+    },
+    {
+      "id": "protocol.null-bitmap-65",
+      "area": "protocol",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.036455417051911354,
+      "detail": "PASS\tprotocol.null-bitmap-65\n"
+    },
+    {
+      "id": "connection.tcp-native",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02662820927798748,
+      "detail": "PASS\tconnection.tcp-native\n"
+    },
+    {
+      "id": "connection.unix-socket",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.028444583527743816,
+      "detail": "PASS\tconnection.unix-socket\n"
+    },
+    {
+      "id": "connection.tls-verified",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0782134160399437,
+      "detail": "PASS\tconnection.tls-verified\n"
+    },
+    {
+      "id": "connection.tls-wrong-hostname",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027166916988790035,
+      "detail": "PASS\tconnection.tls-wrong-hostname\n"
+    },
+    {
+      "id": "connection.wrong-password",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.017570000141859055,
+      "detail": "PASS\tconnection.wrong-password\n"
+    },
+    {
+      "id": "connection.unknown-user",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01613116730004549,
+      "detail": "PASS\tconnection.unknown-user\n"
+    },
+    {
+      "id": "connection.missing-database",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01644133310765028,
+      "detail": "PASS\tconnection.missing-database\n"
+    },
+    {
+      "id": "connection.default-full-unicode",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01509358361363411,
+      "detail": "PASS\tconnection.default-full-unicode\n"
+    },
+    {
+      "id": "auth.ed25519.tcp",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015374042093753815,
+      "detail": "PASS\tauth.ed25519.tcp\n"
+    },
+    {
+      "id": "auth.ed25519.tls",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.05722441617399454,
+      "detail": "PASS\tauth.ed25519.tls\n"
+    },
+    {
+      "id": "auth.ed25519.socket",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014798125252127647,
+      "detail": "PASS\tauth.ed25519.socket\n"
+    },
+    {
+      "id": "auth.parsec.tcp",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01480204239487648,
+      "detail": "PASS\tauth.parsec.tcp\n"
+    },
+    {
+      "id": "auth.parsec.tls",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.06568879168480635,
+      "detail": "PASS\tauth.parsec.tls\n"
+    },
+    {
+      "id": "auth.parsec.socket",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014737999998033047,
+      "detail": "PASS\tauth.parsec.socket\n"
+    },
+    {
+      "id": "auth.sha2.tcp",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026593499816954136,
+      "detail": "PASS\tauth.sha2.tcp\n"
+    },
+    {
+      "id": "auth.sha2.tls",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.054329042322933674,
+      "detail": "PASS\tauth.sha2.tls\n"
+    },
+    {
+      "id": "auth.sha2.socket",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015104083344340324,
+      "detail": "PASS\tauth.sha2.socket\n"
+    },
+    {
+      "id": "types.text.int8-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014618665911257267,
+      "detail": "PASS\ttypes.text.int8-min\n"
+    },
+    {
+      "id": "types.text.int8-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014169917441904545,
+      "detail": "PASS\ttypes.text.int8-max\n"
+    },
+    {
+      "id": "types.text.uint8-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014647833071649075,
+      "detail": "PASS\ttypes.text.uint8-max\n"
+    },
+    {
+      "id": "types.text.int16-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014925540424883366,
+      "detail": "PASS\ttypes.text.int16-min\n"
+    },
+    {
+      "id": "types.text.int16-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014676916413009167,
+      "detail": "PASS\ttypes.text.int16-max\n"
+    },
+    {
+      "id": "types.text.uint16-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014914041385054588,
+      "detail": "PASS\ttypes.text.uint16-max\n"
+    },
+    {
+      "id": "types.text.int24-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01497962512075901,
+      "detail": "PASS\ttypes.text.int24-min\n"
+    },
+    {
+      "id": "types.text.int24-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01414570864289999,
+      "detail": "PASS\ttypes.text.int24-max\n"
+    },
+    {
+      "id": "types.text.uint24-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015395374968647957,
+      "detail": "PASS\ttypes.text.uint24-max\n"
+    },
+    {
+      "id": "types.text.int32-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014770499430596828,
+      "detail": "PASS\ttypes.text.int32-min\n"
+    },
+    {
+      "id": "types.text.int32-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014593707397580147,
+      "detail": "PASS\ttypes.text.int32-max\n"
+    },
+    {
+      "id": "types.text.uint32-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014793041162192822,
+      "detail": "PASS\ttypes.text.uint32-max\n"
+    },
+    {
+      "id": "types.text.int64-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015408415347337723,
+      "detail": "PASS\ttypes.text.int64-min\n"
+    },
+    {
+      "id": "types.text.int64-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015347916632890701,
+      "detail": "PASS\ttypes.text.int64-max\n"
+    },
+    {
+      "id": "types.text.uint64-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014457791112363338,
+      "detail": "PASS\ttypes.text.uint64-max\n"
+    },
+    {
+      "id": "types.text.decimal-65-30",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026490707881748676,
+      "detail": "PASS\ttypes.text.decimal-65-30\n"
+    },
+    {
+      "id": "types.text.decimal-65-38",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02434037532657385,
+      "detail": "PASS\ttypes.text.decimal-65-38\n"
+    },
+    {
+      "id": "types.text.decimal-zero",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014236667193472385,
+      "detail": "PASS\ttypes.text.decimal-zero\n"
+    },
+    {
+      "id": "types.text.float-exact",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015184500254690647,
+      "detail": "PASS\ttypes.text.float-exact\n"
+    },
+    {
+      "id": "types.text.double-exact",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014868499711155891,
+      "detail": "PASS\ttypes.text.double-exact\n"
+    },
+    {
+      "id": "types.text.bit-1",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015409458428621292,
+      "detail": "PASS\ttypes.text.bit-1\n"
+    },
+    {
+      "id": "types.text.bit-8",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025023999623954296,
+      "detail": "PASS\ttypes.text.bit-8\n"
+    },
+    {
+      "id": "types.text.bit-16",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026139416731894016,
+      "detail": "PASS\ttypes.text.bit-16\n"
+    },
+    {
+      "id": "types.text.bit-64",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025613500736653805,
+      "detail": "PASS\ttypes.text.bit-64\n"
+    },
+    {
+      "id": "types.text.year-zero",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015446458011865616,
+      "detail": "PASS\ttypes.text.year-zero\n"
+    },
+    {
+      "id": "types.text.year-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025692999362945557,
+      "detail": "PASS\ttypes.text.year-min\n"
+    },
+    {
+      "id": "types.text.year-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025500750169157982,
+      "detail": "PASS\ttypes.text.year-max\n"
+    },
+    {
+      "id": "types.text.date-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015055707655847073,
+      "detail": "PASS\ttypes.text.date-min\n"
+    },
+    {
+      "id": "types.text.date-leap",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014429083094000816,
+      "detail": "PASS\ttypes.text.date-leap\n"
+    },
+    {
+      "id": "types.text.date-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025635416619479656,
+      "detail": "PASS\ttypes.text.date-max\n"
+    },
+    {
+      "id": "types.text.datetime-fraction",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0155324162915349,
+      "detail": "PASS\ttypes.text.datetime-fraction\n"
+    },
+    {
+      "id": "types.text.datetime-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015400707721710205,
+      "detail": "PASS\ttypes.text.datetime-max\n"
+    },
+    {
+      "id": "types.text.timestamp-fraction",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014993333257734776,
+      "detail": "PASS\ttypes.text.timestamp-fraction\n"
+    },
+    {
+      "id": "types.text.timestamp-after-2038",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015351790934801102,
+      "detail": "PASS\ttypes.text.timestamp-after-2038\n"
+    },
+    {
+      "id": "types.text.time-zero",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.013925625011324883,
+      "detail": "PASS\ttypes.text.time-zero\n"
+    },
+    {
+      "id": "types.text.time-positive-limit",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014438583515584469,
+      "detail": "PASS\ttypes.text.time-positive-limit\n"
+    },
+    {
+      "id": "types.text.time-negative-limit",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015719249844551086,
+      "detail": "PASS\ttypes.text.time-negative-limit\n"
+    },
+    {
+      "id": "types.text.text-empty",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015293083153665066,
+      "detail": "PASS\ttypes.text.text-empty\n"
+    },
+    {
+      "id": "types.text.text-unicode",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01530691608786583,
+      "detail": "PASS\ttypes.text.text-unicode\n"
+    },
+    {
+      "id": "types.text.text-emoji",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015005542896687984,
+      "detail": "PASS\ttypes.text.text-emoji\n"
+    },
+    {
+      "id": "types.text.text-combining",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014900458976626396,
+      "detail": "PASS\ttypes.text.text-combining\n"
+    },
+    {
+      "id": "types.text.text-controls",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01480045821517706,
+      "detail": "PASS\ttypes.text.text-controls\n"
+    },
+    {
+      "id": "types.text.bytes-all-256",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025277291424572468,
+      "detail": "PASS\ttypes.text.bytes-all-256\n"
+    },
+    {
+      "id": "types.text.bytes-empty",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027721750549972057,
+      "detail": "PASS\ttypes.text.bytes-empty\n"
+    },
+    {
+      "id": "types.text.null",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.024706125259399414,
+      "detail": "PASS\ttypes.text.null\n"
+    },
+    {
+      "id": "types.text.enum",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014498166739940643,
+      "detail": "PASS\ttypes.text.enum\n"
+    },
+    {
+      "id": "types.text.set",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015337000600993633,
+      "detail": "PASS\ttypes.text.set\n"
+    },
+    {
+      "id": "types.binary.int8-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015273500233888626,
+      "detail": "PASS\ttypes.binary.int8-min\n"
+    },
+    {
+      "id": "types.binary.int8-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015298416838049889,
+      "detail": "PASS\ttypes.binary.int8-max\n"
+    },
+    {
+      "id": "types.binary.uint8-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01519229169934988,
+      "detail": "PASS\ttypes.binary.uint8-max\n"
+    },
+    {
+      "id": "types.binary.int16-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02612741757184267,
+      "detail": "PASS\ttypes.binary.int16-min\n"
+    },
+    {
+      "id": "types.binary.int16-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02573758363723755,
+      "detail": "PASS\ttypes.binary.int16-max\n"
+    },
+    {
+      "id": "types.binary.uint16-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.024883165955543518,
+      "detail": "PASS\ttypes.binary.uint16-max\n"
+    },
+    {
+      "id": "types.binary.int24-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01508033461868763,
+      "detail": "PASS\ttypes.binary.int24-min\n"
+    },
+    {
+      "id": "types.binary.int24-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015160167589783669,
+      "detail": "PASS\ttypes.binary.int24-max\n"
+    },
+    {
+      "id": "types.binary.uint24-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014892292208969593,
+      "detail": "PASS\ttypes.binary.uint24-max\n"
+    },
+    {
+      "id": "types.binary.int32-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02474641613662243,
+      "detail": "PASS\ttypes.binary.int32-min\n"
+    },
+    {
+      "id": "types.binary.int32-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025304625742137432,
+      "detail": "PASS\ttypes.binary.int32-max\n"
+    },
+    {
+      "id": "types.binary.uint32-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025724082253873348,
+      "detail": "PASS\ttypes.binary.uint32-max\n"
+    },
+    {
+      "id": "types.binary.int64-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0152302086353302,
+      "detail": "PASS\ttypes.binary.int64-min\n"
+    },
+    {
+      "id": "types.binary.int64-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014579208567738533,
+      "detail": "PASS\ttypes.binary.int64-max\n"
+    },
+    {
+      "id": "types.binary.uint64-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014601124450564384,
+      "detail": "PASS\ttypes.binary.uint64-max\n"
+    },
+    {
+      "id": "types.binary.decimal-65-30",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025191625580191612,
+      "detail": "PASS\ttypes.binary.decimal-65-30\n"
+    },
+    {
+      "id": "types.binary.decimal-65-38",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.024468249641358852,
+      "detail": "PASS\ttypes.binary.decimal-65-38\n"
+    },
+    {
+      "id": "types.binary.decimal-zero",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015033291652798653,
+      "detail": "PASS\ttypes.binary.decimal-zero\n"
+    },
+    {
+      "id": "types.binary.float-exact",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015702832490205765,
+      "detail": "PASS\ttypes.binary.float-exact\n"
+    },
+    {
+      "id": "types.binary.double-exact",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01525941677391529,
+      "detail": "PASS\ttypes.binary.double-exact\n"
+    },
+    {
+      "id": "types.binary.bit-1",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015099165961146355,
+      "detail": "PASS\ttypes.binary.bit-1\n"
+    },
+    {
+      "id": "types.binary.bit-8",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015130584128201008,
+      "detail": "PASS\ttypes.binary.bit-8\n"
+    },
+    {
+      "id": "types.binary.bit-16",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014915499836206436,
+      "detail": "PASS\ttypes.binary.bit-16\n"
+    },
+    {
+      "id": "types.binary.bit-64",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01508770789951086,
+      "detail": "PASS\ttypes.binary.bit-64\n"
+    },
+    {
+      "id": "types.binary.year-zero",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015825750306248665,
+      "detail": "PASS\ttypes.binary.year-zero\n"
+    },
+    {
+      "id": "types.binary.year-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014798084273934364,
+      "detail": "PASS\ttypes.binary.year-min\n"
+    },
+    {
+      "id": "types.binary.year-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01552033331245184,
+      "detail": "PASS\ttypes.binary.year-max\n"
+    },
+    {
+      "id": "types.binary.date-min",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014887542463839054,
+      "detail": "PASS\ttypes.binary.date-min\n"
+    },
+    {
+      "id": "types.binary.date-leap",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025331166572868824,
+      "detail": "PASS\ttypes.binary.date-leap\n"
+    },
+    {
+      "id": "types.binary.date-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027335000224411488,
+      "detail": "PASS\ttypes.binary.date-max\n"
+    },
+    {
+      "id": "types.binary.datetime-fraction",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027669167146086693,
+      "detail": "PASS\ttypes.binary.datetime-fraction\n"
+    },
+    {
+      "id": "types.binary.datetime-max",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02584837470203638,
+      "detail": "PASS\ttypes.binary.datetime-max\n"
+    },
+    {
+      "id": "types.binary.timestamp-fraction",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.029058542102575302,
+      "detail": "PASS\ttypes.binary.timestamp-fraction\n"
+    },
+    {
+      "id": "types.binary.timestamp-after-2038",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027053125202655792,
+      "detail": "PASS\ttypes.binary.timestamp-after-2038\n"
+    },
+    {
+      "id": "types.binary.time-zero",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0274893743917346,
+      "detail": "PASS\ttypes.binary.time-zero\n"
+    },
+    {
+      "id": "types.binary.time-positive-limit",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02574729174375534,
+      "detail": "PASS\ttypes.binary.time-positive-limit\n"
+    },
+    {
+      "id": "types.binary.time-negative-limit",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015724499709904194,
+      "detail": "PASS\ttypes.binary.time-negative-limit\n"
+    },
+    {
+      "id": "types.binary.text-empty",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026006124913692474,
+      "detail": "PASS\ttypes.binary.text-empty\n"
+    },
+    {
+      "id": "types.binary.text-unicode",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.024953000247478485,
+      "detail": "PASS\ttypes.binary.text-unicode\n"
+    },
+    {
+      "id": "types.binary.text-emoji",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.028500583954155445,
+      "detail": "PASS\ttypes.binary.text-emoji\n"
+    },
+    {
+      "id": "types.binary.text-combining",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025356249883770943,
+      "detail": "PASS\ttypes.binary.text-combining\n"
+    },
+    {
+      "id": "types.binary.text-controls",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027111374773085117,
+      "detail": "PASS\ttypes.binary.text-controls\n"
+    },
+    {
+      "id": "types.binary.bytes-all-256",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014682957902550697,
+      "detail": "PASS\ttypes.binary.bytes-all-256\n"
+    },
+    {
+      "id": "types.binary.bytes-empty",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026020041666924953,
+      "detail": "PASS\ttypes.binary.bytes-empty\n"
+    },
+    {
+      "id": "types.binary.null",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027384374290704727,
+      "detail": "PASS\ttypes.binary.null\n"
+    },
+    {
+      "id": "types.binary.enum",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025926250033080578,
+      "detail": "PASS\ttypes.binary.enum\n"
+    },
+    {
+      "id": "types.binary.set",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025952666997909546,
+      "detail": "PASS\ttypes.binary.set\n"
+    },
+    {
+      "id": "sql.cte",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015167208388447762,
+      "detail": "PASS\tsql.cte\n"
+    },
+    {
+      "id": "sql.recursive-cte",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027454040944576263,
+      "detail": "PASS\tsql.recursive-cte\n"
+    },
+    {
+      "id": "sql.window",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014572583138942719,
+      "detail": "PASS\tsql.window\n"
+    },
+    {
+      "id": "sql.json-functions",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01499675028026104,
+      "detail": "PASS\tsql.json-functions\n"
+    },
+    {
+      "id": "sql.sequence-table",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01495341770350933,
+      "detail": "PASS\tsql.sequence-table\n"
+    },
+    {
+      "id": "sql.sequence-object",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01524920854717493,
+      "detail": "PASS\tsql.sequence-object\n"
+    },
+    {
+      "id": "sql.generated-column",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015192000195384026,
+      "detail": "PASS\tsql.generated-column\n"
+    },
+    {
+      "id": "sql.check-constraint",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015699208714067936,
+      "detail": "PASS\tsql.check-constraint\n"
+    },
+    {
+      "id": "sql.foreign-key",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02457999996840954,
+      "detail": "PASS\tsql.foreign-key\n"
+    },
+    {
+      "id": "sql.insert-returning",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.024300833232700825,
+      "detail": "PASS\tsql.insert-returning\n"
+    },
+    {
+      "id": "sql.prepared-returning",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014670459553599358,
+      "detail": "PASS\tsql.prepared-returning\n"
+    },
+    {
+      "id": "sql.procedure-multiple-results",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014481707476079464,
+      "detail": "PASS\tsql.procedure-multiple-results\n"
+    },
+    {
+      "id": "sql.procedure-prepared-out",
+      "area": "sql",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014751624315977097,
+      "detail": "user error (prepared OUT result: expected [[42]], got [])\n"
+    },
+    {
+      "id": "sql.oracle-mode",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014556542038917542,
+      "detail": "PASS\tsql.oracle-mode\n"
+    },
+    {
+      "id": "sql.system-versioning",
+      "area": "sql",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014306915923953056,
+      "detail": "PASS\tsql.system-versioning\n"
+    },
+    {
+      "id": "sql.json-native-column",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01544608362019062,
+      "detail": "PASS\tsql.json-native-column\n"
+    },
+    {
+      "id": "sql.uuid-native-column",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014644917100667953,
+      "detail": "PASS\tsql.uuid-native-column\n"
+    },
+    {
+      "id": "sql.inet-native-columns",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015155291184782982,
+      "detail": "PASS\tsql.inet-native-columns\n"
+    },
+    {
+      "id": "sql.vector-native-column",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01463658269494772,
+      "detail": "PASS\tsql.vector-native-column\n"
+    },
+    {
+      "id": "sql.geometry",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015087833628058434,
+      "detail": "PASS\tsql.geometry\n"
+    },
+    {
+      "id": "sql.zero-date-preservation",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014935042709112167,
+      "detail": "PASS\tsql.zero-date-preservation\n"
+    },
+    {
+      "id": "sql.unsigned-generated-id",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0147389592602849,
+      "detail": "PASS\tsql.unsigned-generated-id\n"
+    },
+    {
+      "id": "parameters.literal-question-mark",
+      "area": "parameters",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015385166741907597,
+      "detail": "PASS\tparameters.literal-question-mark\n"
+    },
+    {
+      "id": "parameters.comment-question-mark",
+      "area": "parameters",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015132666565477848,
+      "detail": "PASS\tparameters.comment-question-mark\n"
+    },
+    {
+      "id": "parameters.no-backslash-text",
+      "area": "parameters",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015215708874166012,
+      "detail": "PASS\tparameters.no-backslash-text\n"
+    },
+    {
+      "id": "parameters.no-backslash-binary",
+      "area": "parameters",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014736457727849483,
+      "detail": "PASS\tparameters.no-backslash-binary\n"
+    },
+    {
+      "id": "results.vector-api",
+      "area": "results",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014378540217876434,
+      "detail": "PASS\tresults.vector-api\n"
+    },
+    {
+      "id": "results.prepared-vector-api",
+      "area": "results",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015194750390946865,
+      "detail": "PASS\tresults.prepared-vector-api\n"
+    },
+    {
+      "id": "results.empty",
+      "area": "results",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0154386255890131,
+      "detail": "PASS\tresults.empty\n"
+    },
+    {
+      "id": "results.no-rowset",
+      "area": "results",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014800291508436203,
+      "detail": "PASS\tresults.no-rowset\n"
+    },
+    {
+      "id": "results.multi-statement",
+      "area": "results",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015270249918103218,
+      "detail": "PASS\tresults.multi-statement\n"
+    },
+    {
+      "id": "results.discard-and-reuse",
+      "area": "results",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015496917068958282,
+      "detail": "PASS\tresults.discard-and-reuse\n"
+    },
+    {
+      "id": "errors.syntax-and-reuse",
+      "area": "errors",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015107832849025726,
+      "detail": "PASS\terrors.syntax-and-reuse\n"
+    },
+    {
+      "id": "errors.missing-table-and-reuse",
+      "area": "errors",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014588584192097187,
+      "detail": "PASS\terrors.missing-table-and-reuse\n"
+    },
+    {
+      "id": "errors.duplicate-and-reuse",
+      "area": "errors",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014494082890450954,
+      "detail": "PASS\terrors.duplicate-and-reuse\n"
+    },
+    {
+      "id": "statements.reset-consumed",
+      "area": "statements",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01456366665661335,
+      "detail": "PASS\tstatements.reset-consumed\n"
+    },
+    {
+      "id": "statements.parameter-type-change",
+      "area": "statements",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014746666885912418,
+      "detail": "PASS\tstatements.parameter-type-change\n"
+    },
+    {
+      "id": "statements.ddl-reprepare",
+      "area": "statements",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025234166532754898,
+      "detail": "PASS\tstatements.ddl-reprepare\n"
+    },
+    {
+      "id": "statements.prepare-metadata",
+      "area": "statements",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02510158345103264,
+      "detail": "PASS\tstatements.prepare-metadata\n"
+    },
+    {
+      "id": "statements.wrong-parameter-count",
+      "area": "statements",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025781665928661823,
+      "detail": "PASS\tstatements.wrong-parameter-count\n"
+    },
+    {
+      "id": "statements.closed-id-rejected",
+      "area": "statements",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014845249243080616,
+      "detail": "PASS\tstatements.closed-id-rejected\n"
+    },
+    {
+      "id": "session.timestamp-timezone",
+      "area": "session",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02572029083967209,
+      "detail": "PASS\tsession.timestamp-timezone\n"
+    },
+    {
+      "id": "session.use-schema",
+      "area": "session",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026406042277812958,
+      "detail": "PASS\tsession.use-schema\n"
+    },
+    {
+      "id": "session.warning-count",
+      "area": "session",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027269749902188778,
+      "detail": "PASS\tsession.warning-count\n"
+    },
+    {
+      "id": "parameters.many-values",
+      "area": "parameters",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015246041119098663,
+      "detail": "PASS\tparameters.many-values\n"
+    },
+    {
+      "id": "parameters.empty-many",
+      "area": "parameters",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025615625083446503,
+      "detail": "PASS\tparameters.empty-many\n"
+    },
+    {
+      "id": "parameters.sql-injection-value",
+      "area": "parameters",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015423708595335484,
+      "detail": "PASS\tparameters.sql-injection-value\n"
+    },
+    {
+      "id": "batch.empty",
+      "area": "batch",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015613749623298645,
+      "detail": "PASS\tbatch.empty\n"
+    },
+    {
+      "id": "batch.ordered-errors",
+      "area": "batch",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01606983318924904,
+      "detail": "PASS\tbatch.ordered-errors\n"
+    },
+    {
+      "id": "types.binary.null-columns-1",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015332874841988087,
+      "detail": "PASS\ttypes.binary.null-columns-1\n"
+    },
+    {
+      "id": "types.binary.null-columns-2",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014347666874527931,
+      "detail": "PASS\ttypes.binary.null-columns-2\n"
+    },
+    {
+      "id": "types.binary.null-columns-7",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014502624981105328,
+      "detail": "PASS\ttypes.binary.null-columns-7\n"
+    },
+    {
+      "id": "types.binary.null-columns-8",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015204500406980515,
+      "detail": "PASS\ttypes.binary.null-columns-8\n"
+    },
+    {
+      "id": "types.binary.null-columns-9",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01514341775327921,
+      "detail": "PASS\ttypes.binary.null-columns-9\n"
+    },
+    {
+      "id": "types.binary.null-columns-15",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015252124518156052,
+      "detail": "PASS\ttypes.binary.null-columns-15\n"
+    },
+    {
+      "id": "types.binary.null-columns-16",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015233958140015602,
+      "detail": "PASS\ttypes.binary.null-columns-16\n"
+    },
+    {
+      "id": "types.binary.null-columns-17",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.024879041127860546,
+      "detail": "PASS\ttypes.binary.null-columns-17\n"
+    },
+    {
+      "id": "types.binary.null-columns-63",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01519749965518713,
+      "detail": "PASS\ttypes.binary.null-columns-63\n"
+    },
+    {
+      "id": "types.binary.null-columns-64",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01520837564021349,
+      "detail": "PASS\ttypes.binary.null-columns-64\n"
+    },
+    {
+      "id": "types.binary.null-columns-65",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015056165866553783,
+      "detail": "PASS\ttypes.binary.null-columns-65\n"
+    },
+    {
+      "id": "packets.live-blob-0",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015301249921321869,
+      "detail": "PASS\tpackets.live-blob-0\n"
+    },
+    {
+      "id": "packets.live-blob-1",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015844667330384254,
+      "detail": "PASS\tpackets.live-blob-1\n"
+    },
+    {
+      "id": "packets.live-blob-16383",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015808958560228348,
+      "detail": "PASS\tpackets.live-blob-16383\n"
+    },
+    {
+      "id": "packets.live-blob-16384",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014776250347495079,
+      "detail": "PASS\tpackets.live-blob-16384\n"
+    },
+    {
+      "id": "packets.live-blob-16385",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015216624364256859,
+      "detail": "PASS\tpackets.live-blob-16385\n"
+    },
+    {
+      "id": "packets.live-blob-1048576",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02466420829296112,
+      "detail": "PASS\tpackets.live-blob-1048576\n"
+    },
+    {
+      "id": "packets.live-blob-16777214",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.1262547904625535,
+      "detail": "PASS\tpackets.live-blob-16777214\n"
+    },
+    {
+      "id": "packets.live-blob-16777215",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.1178639167919755,
+      "detail": "PASS\tpackets.live-blob-16777215\n"
+    },
+    {
+      "id": "packets.live-blob-16777216",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.1181120416149497,
+      "detail": "PASS\tpackets.live-blob-16777216\n"
+    },
+    {
+      "id": "packets.live-blob-16777217",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.12851604167371988,
+      "detail": "PASS\tpackets.live-blob-16777217\n"
+    },
+    {
+      "id": "packets.live-blob-33554430",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.21921095810830593,
+      "detail": "PASS\tpackets.live-blob-33554430\n"
+    },
+    {
+      "id": "packets.prepared-outbound-blob-16384",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01597033254802227,
+      "detail": "PASS\tpackets.prepared-outbound-blob-16384\n"
+    },
+    {
+      "id": "packets.prepared-outbound-blob-16777214",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.05776683334261179,
+      "detail": "PASS\tpackets.prepared-outbound-blob-16777214\n"
+    },
+    {
+      "id": "packets.prepared-outbound-blob-16777215",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.05811179243028164,
+      "detail": "PASS\tpackets.prepared-outbound-blob-16777215\n"
+    },
+    {
+      "id": "packets.prepared-outbound-blob-16777216",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.05797325074672699,
+      "detail": "PASS\tpackets.prepared-outbound-blob-16777216\n"
+    },
+    {
+      "id": "packets.prepared-outbound-blob-16777217",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.056217167526483536,
+      "detail": "PASS\tpackets.prepared-outbound-blob-16777217\n"
+    },
+    {
+      "id": "packets.prepared-outbound-blob-33554430",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.1006045425310731,
+      "detail": "PASS\tpackets.prepared-outbound-blob-33554430\n"
+    },
+    {
+      "id": "packets.text-outbound-blob-16777214",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.19994141720235348,
+      "detail": "PASS\tpackets.text-outbound-blob-16777214\n"
+    },
+    {
+      "id": "packets.text-outbound-blob-16777215",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.1909757498651743,
+      "detail": "PASS\tpackets.text-outbound-blob-16777215\n"
+    },
+    {
+      "id": "packets.text-outbound-blob-16777216",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.1502095414325595,
+      "detail": "PASS\tpackets.text-outbound-blob-16777216\n"
+    },
+    {
+      "id": "packets.text-outbound-blob-16777217",
+      "area": "large-packets",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.16018166672438383,
+      "detail": "PASS\tpackets.text-outbound-blob-16777217\n"
+    },
+    {
+      "id": "transaction.commit",
+      "area": "transactions",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015029958449304104,
+      "detail": "PASS\ttransaction.commit\n"
+    },
+    {
+      "id": "transaction.rollback",
+      "area": "transactions",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014338375069200993,
+      "detail": "PASS\ttransaction.rollback\n"
+    },
+    {
+      "id": "transaction.savepoint",
+      "area": "transactions",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014744916930794716,
+      "detail": "PASS\ttransaction.savepoint\n"
+    },
+    {
+      "id": "transaction.partial-result-exception",
+      "area": "transactions",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014522207900881767,
+      "detail": "PASS\ttransaction.partial-result-exception\n"
+    },
+    {
+      "id": "transaction.nested-preserves-outer",
+      "area": "transactions",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014918791130185127,
+      "detail": "PASS\ttransaction.nested-preserves-outer\n"
+    },
+    {
+      "id": "transaction.read-committed-no-dirty-read",
+      "area": "transactions",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025683540850877762,
+      "detail": "PASS\ttransaction.read-committed-no-dirty-read\n"
+    },
+    {
+      "id": "transaction.lock-timeout-and-reuse",
+      "area": "transactions",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 1.0259937504306436,
+      "detail": "PASS\ttransaction.lock-timeout-and-reuse\n"
+    },
+    {
+      "id": "transaction.deadlock-and-reuse",
+      "area": "transactions",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.07707595825195312,
+      "detail": "PASS\ttransaction.deadlock-and-reuse\n"
+    },
+    {
+      "id": "transaction.ddl-implicit-commit",
+      "area": "transactions",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015042291954159737,
+      "detail": "PASS\ttransaction.ddl-implicit-commit\n"
+    },
+    {
+      "id": "reliability.reset-unread-result",
+      "area": "reliability",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015401958487927914,
+      "detail": "PASS\treliability.reset-unread-result\n"
+    },
+    {
+      "id": "reliability.timeout-before-metadata",
+      "area": "reliability",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.035544625483453274,
+      "detail": "ConnectionUnavailable Broken\n"
+    },
+    {
+      "id": "reliability.server-kill-query",
+      "area": "reliability",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.04416845925152302,
+      "detail": "PASS\treliability.server-kill-query\n"
+    },
+    {
+      "id": "reliability.peer-disconnect",
+      "area": "reliability",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01548166573047638,
+      "detail": "PASS\treliability.peer-disconnect\n"
+    },
+    {
+      "id": "reliability.unread-result-guard",
+      "area": "reliability",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014376374892890453,
+      "detail": "PASS\treliability.unread-result-guard\n"
+    },
+    {
+      "id": "reliability.tls-cancellation-propagates",
+      "area": "reliability",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.15436004102230072,
+      "detail": "PASS\treliability.tls-cancellation-propagates\n"
+    },
+    {
+      "id": "reliability.tcp-cancellation-propagates",
+      "area": "reliability",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.1264716675505042,
+      "detail": "PASS\treliability.tcp-cancellation-propagates\n"
+    },
+    {
+      "id": "connection.tls-untrusted-ca",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.048330625519156456,
+      "detail": "PASS\tconnection.tls-untrusted-ca\n"
+    },
+    {
+      "id": "connection.localhost-address-fallback",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014599000103771687,
+      "detail": "PASS\tconnection.localhost-address-fallback\n"
+    },
+    {
+      "id": "types.non-utf8-results",
+      "area": "types",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01447383314371109,
+      "detail": "PASS\ttypes.non-utf8-results\n"
+    },
+    {
+      "id": "capability.binary-bulk",
+      "area": "capabilities",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.014588125050067902,
+      "detail": "no COM_STMT_BULK_EXECUTE command/API in this driver\n"
+    },
+    {
+      "id": "capability.metadata-cache",
+      "area": "capabilities",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.014763958752155304,
+      "detail": "no MARIADB_CLIENT_CACHE_METADATA negotiation or statement metadata cache\n"
+    },
+    {
+      "id": "capability.extended-metadata",
+      "area": "capabilities",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.013706416822969913,
+      "detail": "ColumnDef has no MariaDB extended metadata attributes\n"
+    },
+    {
+      "id": "capability.session-tracking",
+      "area": "capabilities",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.013638874515891075,
+      "detail": "OK/session-state payloads are not exposed\n"
+    },
+    {
+      "id": "capability.reset-connection",
+      "area": "capabilities",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.013256000354886055,
+      "detail": "no COM_RESET_CONNECTION API\n"
+    },
+    {
+      "id": "capability.progress-reporting",
+      "area": "capabilities",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.014396666549146175,
+      "detail": "no negotiated MariaDB progress callback\n"
+    },
+    {
+      "id": "capability.cursor-fetch",
+      "area": "capabilities",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.013834208250045776,
+      "detail": "no COM_STMT_FETCH/cursor API\n"
+    },
+    {
+      "id": "capability.long-data",
+      "area": "capabilities",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.013766750693321228,
+      "detail": "no COM_STMT_SEND_LONG_DATA API\n"
+    },
+    {
+      "id": "capability.compression",
+      "area": "capabilities",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.014560957439243793,
+      "detail": "no compressed packet transport\n"
+    },
+    {
+      "id": "auth.mutual-tls-helper-client",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.055444374680519104,
+      "detail": "PASS\tauth.mutual-tls-helper-client\n"
+    },
+    {
+      "id": "auth.mutual-tls-explicit-certificate-hook",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0566235426813364,
+      "detail": "PASS\tauth.mutual-tls-explicit-certificate-hook\n"
+    },
+    {
+      "id": "auth.mutual-tls-client-required",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.05568041652441025,
+      "detail": "PASS\tauth.mutual-tls-client-required\n"
+    },
+    {
+      "id": "auth.mutual-tls-expired-client",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025018291547894478,
+      "detail": "PASS\tauth.mutual-tls-expired-client\n"
+    },
+    {
+      "id": "auth.unix-socket-plugin",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014714749529957771,
+      "detail": "PASS\tauth.unix-socket-plugin\n"
+    },
+    {
+      "id": "auth.unix-socket-rejects-tcp",
+      "area": "authentication",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014551625587046146,
+      "detail": "PASS\tauth.unix-socket-rejects-tcp\n"
+    },
+    {
+      "id": "connection.mozilla-ca-store-installed",
+      "area": "connection",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.037112291902303696,
+      "detail": "PASS\tconnection.mozilla-ca-store-installed\n"
+    },
+    {
+      "id": "auth.pam-environment",
+      "area": "environment",
+      "status": "ENVIRONMENT_UNAVAILABLE",
+      "returncode": 4,
+      "seconds": 0.01606129202991724,
+      "detail": "PAM helper from the Homebrew bottle could not acquire root ownership; no OS PAM login fixture is configured\n"
+    },
+    {
+      "id": "auth.gssapi-environment",
+      "area": "environment",
+      "status": "ENVIRONMENT_UNAVAILABLE",
+      "returncode": 4,
+      "seconds": 0.015810291282832623,
+      "detail": "no Kerberos realm, keytab or GSSAPI login fixture configured on this Mac\n"
+    },
+    {
+      "id": "cdc.single-table-map",
+      "area": "cdc",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014560583047568798,
+      "detail": "PASS\tcdc.single-table-map\n"
+    },
+    {
+      "id": "cdc.multiple-table-maps",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014074583537876606,
+      "detail": "user error (both mapped row events: expected 2, got 0)\n"
+    },
+    {
+      "id": "cdc.repeated-row-events",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.01478541549295187,
+      "detail": "user error (map reused for both row events: expected 2, got 1)\n"
+    },
+    {
+      "id": "cdc.table-id-mismatch",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.015272333286702633,
+      "detail": "user error (row matched correct table ID: expected 1, got 2)\n"
+    },
+    {
+      "id": "cdc.crc32-corruption-rejected",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014851707965135574,
+      "detail": "user error (operation unexpectedly succeeded)\n"
+    },
+    {
+      "id": "cdc.live-row-insert",
+      "area": "cdc",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.07465220801532269,
+      "detail": "PASS\tcdc.live-row-insert\n"
+    },
+    {
+      "id": "cdc.gtid-resume",
+      "area": "cdc",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.014426874928176403,
+      "detail": "BinLogTracker only exposes filename/32-bit position; MariaDB GTID resume is absent\n"
+    },
+    {
+      "id": "cdc.durable-ack-control",
+      "area": "cdc",
+      "status": "UNSUPPORTED",
+      "returncode": 3,
+      "seconds": 0.015853166580200195,
+      "detail": "semisync acknowledgements happen in the reader, before a consumer durability checkpoint\n"
+    },
+    {
+      "id": "cdc.native-event-160",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014328625053167343,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (160) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-161",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.013376042246818542,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (161) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-162",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.015835457481443882,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (162) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-163",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.017445875331759453,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (163) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-164",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014480125159025192,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (164) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-165",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014074582606554031,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (165) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-166",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014107665978372097,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (166) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-167",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014335709623992443,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (167) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-168",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014833709225058556,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (168) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-169",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.01459362544119358,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (169) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-170",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.014942874200642109,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (170) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "cdc.native-event-171",
+      "area": "cdc",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.01525283232331276,
+      "detail": "user error (partial event decoder: toEnum{BinLogEventType}: tag (171) is outside of enumeration's range (0,35)\nCallStack (from HasCallStack):\n  error, called at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:76:23 in mysql-haskell-1.3.3-inplace:Database.MySQL.BinLogProtocol.BinLogEvent)\n"
+    },
+    {
+      "id": "stage1.session.executable-comment-tracker-raw",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02800020854920149,
+      "detail": "PASS\tstage1.session.executable-comment-tracker-raw\n"
+    },
+    {
+      "id": "stage1.session.executable-comment-tracker-prepared",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02570491749793291,
+      "detail": "PASS\tstage1.session.executable-comment-tracker-prepared\n"
+    },
+    {
+      "id": "stage1.session.executable-comment-tracker-bound",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026264249347150326,
+      "detail": "PASS\tstage1.session.executable-comment-tracker-bound\n"
+    },
+    {
+      "id": "stage1.parameters.comment-digit-prefixes",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025671125389635563,
+      "detail": "PASS\tstage1.parameters.comment-digit-prefixes\n"
+    },
+    {
+      "id": "stage1.parameters.inactive-comment-context-retained",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015359625220298767,
+      "detail": "PASS\tstage1.parameters.inactive-comment-context-retained\n"
+    },
+    {
+      "id": "stage1.parameters.server-prepared-lexer-parity",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.07576287537813187,
+      "detail": "PASS\tstage1.parameters.server-prepared-lexer-parity\n"
+    },
+    {
+      "id": "stage1.parameters.batch-trailing-statement-delimiter",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027901125140488148,
+      "detail": "PASS\tstage1.parameters.batch-trailing-statement-delimiter\n"
+    },
+    {
+      "id": "stage1.parameters.reversed-comments-rejected",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015224666334688663,
+      "detail": "PASS\tstage1.parameters.reversed-comments-rejected\n"
+    },
+    {
+      "id": "stage1.session.snapshot-value-bound",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014607124961912632,
+      "detail": "PASS\tstage1.session.snapshot-value-bound\n"
+    },
+    {
+      "id": "stage1.session.snapshot-invalid-facts",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014778999611735344,
+      "detail": "PASS\tstage1.session.snapshot-invalid-facts\n"
+    },
+    {
+      "id": "stage1.session.snapshot-more-results-rejected",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.013890957459807396,
+      "detail": "PASS\tstage1.session.snapshot-more-results-rejected\n"
+    },
+    {
+      "id": "stage1.values.binary-time-microseconds-bounds",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015403124503791332,
+      "detail": "PASS\tstage1.values.binary-time-microseconds-bounds\n"
+    },
+    {
+      "id": "stage1.session.malformed-snapshot-retires",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014698167331516743,
+      "detail": "PASS\tstage1.session.malformed-snapshot-retires\n"
+    },
+    {
+      "id": "stage1.ownership.completed-command-does-not-finish-successor",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015241624787449837,
+      "detail": "PASS\tstage1.ownership.completed-command-does-not-finish-successor\n"
+    },
+    {
+      "id": "stage1.ownership.closed-cannot-become-streaming",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014609749428927898,
+      "detail": "PASS\tstage1.ownership.closed-cannot-become-streaming\n"
+    },
+    {
+      "id": "stage1.parameters.batch-trailing-line-comment",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025682750158011913,
+      "detail": "PASS\tstage1.parameters.batch-trailing-line-comment\n"
+    },
+    {
+      "id": "stage1.cleanup.transport-cancellation-propagates",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01528874970972538,
+      "detail": "PASS\tstage1.cleanup.transport-cancellation-propagates\n"
+    },
+    {
+      "id": "stage1.replication.setup-error-retires",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014974834397435188,
+      "detail": "PASS\tstage1.replication.setup-error-retires\n"
+    },
+    {
+      "id": "stage1.transaction.concurrent-close-commit-unknown",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01467070821672678,
+      "detail": "PASS\tstage1.transaction.concurrent-close-commit-unknown\n"
+    },
+    {
+      "id": "stage1.transaction.closed-after-known-commit-error",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015283250249922276,
+      "detail": "PASS\tstage1.transaction.closed-after-known-commit-error\n"
+    },
+    {
+      "id": "stage1.proxy.lost-commit-acknowledgement",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.06596687529236078,
+      "detail": "PASS\tstage1.proxy.lost-commit-acknowledgement\n"
+    },
+    {
+      "id": "stage1.proxy.fragmented-handshake-and-results",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.39707666635513306,
+      "detail": "PASS\tstage1.proxy.fragmented-handshake-and-results\n"
+    },
+    {
+      "id": "stage1.proxy.disconnect-before-metadata",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.06791337486356497,
+      "detail": "PASS\tstage1.proxy.disconnect-before-metadata\n"
+    },
+    {
+      "id": "stage1.proxy.actual-command-counts",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.31513379141688347,
+      "detail": "PASS\tstage1.proxy.actual-command-counts\n"
+    },
+    {
+      "id": "stage1.session.tracker-selection-preserved",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014988165348768234,
+      "detail": "PASS\tstage1.session.tracker-selection-preserved\n"
+    },
+    {
+      "id": "stage1.session.unknown-tracking-kind-skipped",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014060333371162415,
+      "detail": "PASS\tstage1.session.unknown-tracking-kind-skipped\n"
+    },
+    {
+      "id": "stage1.cleanup.absolute-deadline-preserves-primary",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.034859541803598404,
+      "detail": "PASS\tstage1.cleanup.absolute-deadline-preserves-primary\n"
+    },
+    {
+      "id": "stage1.fault.wrong-first-sequence",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01416708342730999,
+      "detail": "PASS\tstage1.fault.wrong-first-sequence\n"
+    },
+    {
+      "id": "stage1.fragments.physical-exchange-sequence-wrap",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01406145840883255,
+      "detail": "PASS\tstage1.fragments.physical-exchange-sequence-wrap\n"
+    },
+    {
+      "id": "stage1.fault.eof-metadata-validates",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.013886083848774433,
+      "detail": "PASS\tstage1.fault.eof-metadata-validates\n"
+    },
+    {
+      "id": "stage1.fault.old-stream-cannot-read-new-command",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.013821874745190144,
+      "detail": "PASS\tstage1.fault.old-stream-cannot-read-new-command\n"
+    },
+    {
+      "id": "stage1.fault.unread-close-sends-nothing",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015244708396494389,
+      "detail": "PASS\tstage1.fault.unread-close-sends-nothing\n"
+    },
+    {
+      "id": "stage1.fault.server-error-reusable",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014278417453169823,
+      "detail": "PASS\tstage1.fault.server-error-reusable\n"
+    },
+    {
+      "id": "stage1.fault.partial-write-retires",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014837000519037247,
+      "detail": "PASS\tstage1.fault.partial-write-retires\n"
+    },
+    {
+      "id": "stage1.fault.pre-send-limit-is-clean",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015162833034992218,
+      "detail": "PASS\tstage1.fault.pre-send-limit-is-clean\n"
+    },
+    {
+      "id": "stage1.fault.metadata-budget",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015413583256304264,
+      "detail": "PASS\tstage1.fault.metadata-budget\n"
+    },
+    {
+      "id": "stage1.fault.column-limit",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014451375231146812,
+      "detail": "PASS\tstage1.fault.column-limit\n"
+    },
+    {
+      "id": "stage1.fault.ok-terminator-binary-zero-row",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01579170860350132,
+      "detail": "PASS\tstage1.fault.ok-terminator-binary-zero-row\n"
+    },
+    {
+      "id": "stage1.fault.concurrent-command",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014707625843584538,
+      "detail": "PASS\tstage1.fault.concurrent-command\n"
+    },
+    {
+      "id": "stage1.transaction.thread-exclusion",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025439749471843243,
+      "detail": "PASS\tstage1.transaction.thread-exclusion\n"
+    },
+    {
+      "id": "stage1.transaction.caught-nested-rejection",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026233999989926815,
+      "detail": "PASS\tstage1.transaction.caught-nested-rejection\n"
+    },
+    {
+      "id": "stage1.transaction.manual-begin-rejected",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014547707512974739,
+      "detail": "PASS\tstage1.transaction.manual-begin-rejected\n"
+    },
+    {
+      "id": "stage1.transaction.returned-unread-rolls-back",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015346541069447994,
+      "detail": "PASS\tstage1.transaction.returned-unread-rolls-back\n"
+    },
+    {
+      "id": "stage1.timeout.connection-retired",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.03678637556731701,
+      "detail": "PASS\tstage1.timeout.connection-retired\n"
+    },
+    {
+      "id": "stage1.session.row-count-no-hidden-probe",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02710837498307228,
+      "detail": "PASS\tstage1.session.row-count-no-hidden-probe\n"
+    },
+    {
+      "id": "stage1.session.unknown-context-explicit-refresh",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014817541465163231,
+      "detail": "PASS\tstage1.session.unknown-context-explicit-refresh\n"
+    },
+    {
+      "id": "stage1.session.tracker-replacement-is-unknown",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.013826667331159115,
+      "detail": "PASS\tstage1.session.tracker-replacement-is-unknown\n"
+    },
+    {
+      "id": "stage1.session.raw-multiple-invalidates",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014308208599686623,
+      "detail": "PASS\tstage1.session.raw-multiple-invalidates\n"
+    },
+    {
+      "id": "stage1.session.raw-routine-fast-path-excluded",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014875708147883415,
+      "detail": "PASS\tstage1.session.raw-routine-fast-path-excluded\n"
+    },
+    {
+      "id": "stage1.session.prepared-tracker-replacement-is-unknown",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025420917198061943,
+      "detail": "PASS\tstage1.session.prepared-tracker-replacement-is-unknown\n"
+    },
+    {
+      "id": "stage1.session.mode-changes-both-directions",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014615749940276146,
+      "detail": "PASS\tstage1.session.mode-changes-both-directions\n"
+    },
+    {
+      "id": "stage1.session.latin1-parameter",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014893249608576298,
+      "detail": "PASS\tstage1.session.latin1-parameter\n"
+    },
+    {
+      "id": "stage1.session.latin1-prepared-parameter",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.0158120421692729,
+      "detail": "PASS\tstage1.session.latin1-prepared-parameter\n"
+    },
+    {
+      "id": "stage1.cleanup.second-cancellation-propagates",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015274083241820335,
+      "detail": "PASS\tstage1.cleanup.second-cancellation-propagates\n"
+    },
+    {
+      "id": "stage1.values.invalid-parameter-before-send",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01582808420062065,
+      "detail": "PASS\tstage1.values.invalid-parameter-before-send\n"
+    },
+    {
+      "id": "stage1.session.legacy-eof-integration",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01480649970471859,
+      "detail": "PASS\tstage1.session.legacy-eof-integration\n"
+    },
+    {
+      "id": "stage1.fault.row-trailing-bytes",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014971832744777203,
+      "detail": "PASS\tstage1.fault.row-trailing-bytes\n"
+    },
+    {
+      "id": "stage1.parameters.quoted-semicolon-batch",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.024872291833162308,
+      "detail": "PASS\tstage1.parameters.quoted-semicolon-batch\n"
+    },
+    {
+      "id": "stage1.parameters.opaque-routine-batch-rejected",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01651716697961092,
+      "detail": "PASS\tstage1.parameters.opaque-routine-batch-rejected\n"
+    },
+    {
+      "id": "stage1.parameters.quoted-routine-batch-rejected",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.016691667027771473,
+      "detail": "PASS\tstage1.parameters.quoted-routine-batch-rejected\n"
+    },
+    {
+      "id": "stage1.session.unencodable-clean",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025585457682609558,
+      "detail": "PASS\tstage1.session.unencodable-clean\n"
+    },
+    {
+      "id": "stage1.parameters.batch-ambiguous-rejected-before-send",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.027007457800209522,
+      "detail": "PASS\tstage1.parameters.batch-ambiguous-rejected-before-send\n"
+    },
+    {
+      "id": "stage1.parameters.injection-remains-data",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026634041219949722,
+      "detail": "PASS\tstage1.parameters.injection-remains-data\n"
+    },
+    {
+      "id": "stage1.parameters.executable-comment-active",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02987245935946703,
+      "detail": "PASS\tstage1.parameters.executable-comment-active\n"
+    },
+    {
+      "id": "stage1.parameters.executable-comment-inactive",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02654924988746643,
+      "detail": "PASS\tstage1.parameters.executable-comment-inactive\n"
+    },
+    {
+      "id": "stage1.values.invalid-utf8-rejected",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015453499741852283,
+      "detail": "PASS\tstage1.values.invalid-utf8-rejected\n"
+    },
+    {
+      "id": "stage1.values.invalid-utf8-rejected-before-yield",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015809250064194202,
+      "detail": "PASS\tstage1.values.invalid-utf8-rejected-before-yield\n"
+    },
+    {
+      "id": "stage1.fault.trailing-row-unfed-chunk",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014152958989143372,
+      "detail": "PASS\tstage1.fault.trailing-row-unfed-chunk\n"
+    },
+    {
+      "id": "stage1.fault.logical-limit-before-continuation-body",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.028694582171738148,
+      "detail": "PASS\tstage1.fault.logical-limit-before-continuation-body\n"
+    },
+    {
+      "id": "stage1.fault.missing-tracking-payload",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015684083104133606,
+      "detail": "PASS\tstage1.fault.missing-tracking-payload\n"
+    },
+    {
+      "id": "stage1.fault.session-envelope-budget",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.016109874472022057,
+      "detail": "PASS\tstage1.fault.session-envelope-budget\n"
+    },
+    {
+      "id": "stage1.parameters.oracle-mode-quotes",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.026119375601410866,
+      "detail": "PASS\tstage1.parameters.oracle-mode-quotes\n"
+    },
+    {
+      "id": "stage1.parameters.ansi-identifier-backslash",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02893970813602209,
+      "detail": "PASS\tstage1.parameters.ansi-identifier-backslash\n"
+    },
+    {
+      "id": "stage1.values.unmapped-charset-exact-bytes",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015653083100914955,
+      "detail": "PASS\tstage1.values.unmapped-charset-exact-bytes\n"
+    },
+    {
+      "id": "stage1.values.raw-dates-text-prepared",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02634170837700367,
+      "detail": "PASS\tstage1.values.raw-dates-text-prepared\n"
+    },
+    {
+      "id": "stage1.fragments.limit-4",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01684983354061842,
+      "detail": "PASS\tstage1.fragments.limit-4\n"
+    },
+    {
+      "id": "stage1.fragments.limit-5",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01573495753109455,
+      "detail": "PASS\tstage1.fragments.limit-5\n"
+    },
+    {
+      "id": "stage1.fragments.limit-6",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014090500771999359,
+      "detail": "PASS\tstage1.fragments.limit-6\n"
+    },
+    {
+      "id": "stage1.values.uint64-9223372036854775807",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015409708023071289,
+      "detail": "PASS\tstage1.values.uint64-9223372036854775807\n"
+    },
+    {
+      "id": "stage1.values.uint64-9223372036854775808",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015381583012640476,
+      "detail": "PASS\tstage1.values.uint64-9223372036854775808\n"
+    },
+    {
+      "id": "stage1.values.uint64-18446744073709551615",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01494162529706955,
+      "detail": "PASS\tstage1.values.uint64-18446744073709551615\n"
+    },
+    {
+      "id": "stage1.parameters.quote-1",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014502833597362041,
+      "detail": "PASS\tstage1.parameters.quote-1\n"
+    },
+    {
+      "id": "stage1.parameters.quote-2",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025997208431363106,
+      "detail": "PASS\tstage1.parameters.quote-2\n"
+    },
+    {
+      "id": "stage1.parameters.quote-3",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02674133237451315,
+      "detail": "PASS\tstage1.parameters.quote-3\n"
+    },
+    {
+      "id": "stage1.parameters.quote-4",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015273166820406914,
+      "detail": "PASS\tstage1.parameters.quote-4\n"
+    },
+    {
+      "id": "stage1.parameters.quote-5",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014910958707332611,
+      "detail": "PASS\tstage1.parameters.quote-5\n"
+    },
+    {
+      "id": "stage1.parameters.quote-6",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014576958492398262,
+      "detail": "PASS\tstage1.parameters.quote-6\n"
+    },
+    {
+      "id": "stage1.parameters.quote-7",
+      "area": "stage1",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025631750002503395,
+      "detail": "PASS\tstage1.parameters.quote-7\n"
+    },
+    {
+      "id": "stage2.capabilities.greeting-upper-word",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01523608434945345,
+      "detail": "PASS\tstage2.capabilities.greeting-upper-word\n"
+    },
+    {
+      "id": "stage2.capabilities.auth-upper-word-offset",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015482958406209946,
+      "detail": "PASS\tstage2.capabilities.auth-upper-word-offset\n"
+    },
+    {
+      "id": "stage2.capabilities.ssl-upper-word-offset",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01537433359771967,
+      "detail": "PASS\tstage2.capabilities.ssl-upper-word-offset\n"
+    },
+    {
+      "id": "stage2.capabilities.server-intersection",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015245417132973671,
+      "detail": "PASS\tstage2.capabilities.server-intersection\n"
+    },
+    {
+      "id": "stage2.auth.ed25519-independent-golden",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015126333571970463,
+      "detail": "PASS\tstage2.auth.ed25519-independent-golden\n"
+    },
+    {
+      "id": "stage2.auth.binary-trailing-zero-switch",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014787374995648861,
+      "detail": "PASS\tstage2.auth.binary-trailing-zero-switch\n"
+    },
+    {
+      "id": "stage2.auth.optional-switch-terminator",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015513041988015175,
+      "detail": "PASS\tstage2.auth.optional-switch-terminator\n"
+    },
+    {
+      "id": "stage2.auth.unknown-switch-before-write",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015633417293429375,
+      "detail": "PASS\tstage2.auth.unknown-switch-before-write\n"
+    },
+    {
+      "id": "stage2.auth.short-challenges-rejected",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014504499733448029,
+      "detail": "PASS\tstage2.auth.short-challenges-rejected\n"
+    },
+    {
+      "id": "stage2.auth.malformed-switch-rejected",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01608637534081936,
+      "detail": "PASS\tstage2.auth.malformed-switch-rejected\n"
+    },
+    {
+      "id": "stage2.auth.switch-loop-bounded",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015133832581341267,
+      "detail": "PASS\tstage2.auth.switch-loop-bounded\n"
+    },
+    {
+      "id": "stage2.auth.parsec-excess-work-before-derivation",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014917540363967419,
+      "detail": "PASS\tstage2.auth.parsec-excess-work-before-derivation\n"
+    },
+    {
+      "id": "stage2.auth.parsec-invalid-parameters",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015101208351552486,
+      "detail": "PASS\tstage2.auth.parsec-invalid-parameters\n"
+    },
+    {
+      "id": "stage2.tls.sni-and-verified-hostname",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.03587295860052109,
+      "detail": "PASS\tstage2.tls.sni-and-verified-hostname\n"
+    },
+    {
+      "id": "stage2.auth.sha2-malformed-continuations",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014406874775886536,
+      "detail": "PASS\tstage2.auth.sha2-malformed-continuations\n"
+    },
+    {
+      "id": "stage2.auth.rsa-invalid-nonce",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014490666799247265,
+      "detail": "PASS\tstage2.auth.rsa-invalid-nonce\n"
+    },
+    {
+      "id": "stage2.auth.rsa-invalid-key-before-write",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01446079183369875,
+      "detail": "PASS\tstage2.auth.rsa-invalid-key-before-write\n"
+    },
+    {
+      "id": "stage2.auth.rsa-invalid-key-structure",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.015390750020742416,
+      "detail": "PASS\tstage2.auth.rsa-invalid-key-structure\n"
+    },
+    {
+      "id": "stage2.auth.sha2-uncached-full-authentication",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.07486416585743427,
+      "detail": "PASS\tstage2.auth.sha2-uncached-full-authentication\n"
+    },
+    {
+      "id": "stage2.connection.greeting-deadline-closes-peer",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.06602758448570967,
+      "detail": "PASS\tstage2.connection.greeting-deadline-closes-peer\n"
+    },
+    {
+      "id": "stage2.connection.greeting-cancellation-closes-peer",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01514879148453474,
+      "detail": "PASS\tstage2.connection.greeting-cancellation-closes-peer\n"
+    },
+    {
+      "id": "stage2.auth.wrong-password.mariadb_ed25519.tcp",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014013666659593582,
+      "detail": "PASS\tstage2.auth.wrong-password.mariadb_ed25519.tcp\n"
+    },
+    {
+      "id": "stage2.auth.wrong-password.mariadb_ed25519.tls",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.05705158319324255,
+      "detail": "PASS\tstage2.auth.wrong-password.mariadb_ed25519.tls\n"
+    },
+    {
+      "id": "stage2.auth.wrong-password.mariadb_ed25519.socket",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01535154040902853,
+      "detail": "PASS\tstage2.auth.wrong-password.mariadb_ed25519.socket\n"
+    },
+    {
+      "id": "stage2.auth.wrong-password.mariadb_parsec.tcp",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.016253875568509102,
+      "detail": "PASS\tstage2.auth.wrong-password.mariadb_parsec.tcp\n"
+    },
+    {
+      "id": "stage2.auth.wrong-password.mariadb_parsec.tls",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.06663508340716362,
+      "detail": "PASS\tstage2.auth.wrong-password.mariadb_parsec.tls\n"
+    },
+    {
+      "id": "stage2.auth.wrong-password.mariadb_parsec.socket",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.014510500244796276,
+      "detail": "PASS\tstage2.auth.wrong-password.mariadb_parsec.socket\n"
+    },
+    {
+      "id": "stage2.auth.wrong-password.mariadb_sha2.tcp",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025807207450270653,
+      "detail": "PASS\tstage2.auth.wrong-password.mariadb_sha2.tcp\n"
+    },
+    {
+      "id": "stage2.auth.wrong-password.mariadb_sha2.tls",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.06711620837450027,
+      "detail": "PASS\tstage2.auth.wrong-password.mariadb_sha2.tls\n"
+    },
+    {
+      "id": "stage2.auth.wrong-password.mariadb_sha2.socket",
+      "area": "stage2-native-connections",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.01493208296597004,
+      "detail": "PASS\tstage2.auth.wrong-password.mariadb_sha2.socket\n"
+    },
+    {
+      "id": "inherited.unit",
+      "area": "inherited",
+      "status": "PASS",
+      "seconds": 0.31592254247516394,
+      "detail": "     binary complement:                                                        OK\n          +++ OK, passed 100 tests.\n        binary byteSwap24:                                                        OK\n          +++ OK, passed 100 tests.\n        binary countLeadingZeros:                                                 OK\n          +++ OK, passed 100 tests.\n        binary countTrailingZeros:                                                OK\n          +++ OK, passed 100 tests.\n        binary countTrailingZeros 0:                                              OK\n          +++ OK, passed 100 tests.\n        bit/testBit:                                                              OK\n          +++ OK, passed 100 tests.\n        popCount:                                                                 OK\n          +++ OK, passed 100 tests.\n      Storable instance\n        sizeOf Word24:                                                            OK\n          +++ OK, passed 100 tests.\n        aligntment:                                                               OK\n          +++ OK, passed 100 tests.\n    Int24\n      basic\n        add. identity:                                                            OK\n          +++ OK, passed 100 tests.\n        mult. identity:                                                           OK\n          +++ OK, passed 100 tests.\n        Int16/Int24 conversion:                                                   OK\n          +++ OK, passed 100 tests.\n        Show:                                                                     OK\n          +++ OK, passed 100 tests.\n        Read:                                                                     OK\n          +++ OK, passed 100 tests.\n        addition:                                                                 OK\n          +++ OK, passed 100 tests.\n        negate identity:                                                          OK\n          +++ OK, passed 100 tests.\n        absolute value:                                                           OK\n          +++ OK, passed 100 tests.\n        signum:                                                                   OK\n          +++ OK, passed 100 tests.\n        Real identity:                                                            OK\n          +++ OK, passed 100 tests.\n      Integral instance\n        quot:                                                                     OK\n          +++ OK, passed 100 tests.\n        rem:                                                                      OK\n          +++ OK, passed 100 tests.\n        div:                                                                      OK\n          +++ OK, passed 100 tests.\n        mod:                                                                      OK\n          +++ OK, passed 100 tests.\n        quotRem:                                                                  OK\n          +++ OK, passed 100 tests.\n        divmod:                                                                   OK\n          +++ OK, passed 100 tests.\n      Enum instance\n        enum succ:                                                                OK\n          +++ OK, passed 100 tests.\n        enum pred:                                                                OK\n          +++ OK, passed 100 tests.\n        toEnum:                                                                   OK\n          +++ OK, passed 100 tests.\n        enumFrom :                                                                OK\n          +++ OK, passed 100 tests.\n        enumFromTo:                                                               OK\n          +++ OK, passed 100 tests.\n        enumFromThen:                                                             OK\n          +++ OK, passed 100 tests.\n      Bits instance\n        binary and:                                                               OK\n          +++ OK, passed 100 tests.\n        binary or:                                                                OK\n          +++ OK, passed 100 tests.\n        binary xor:                                                               OK\n          +++ OK, passed 100 tests.\n        binary xor identity:                                                      OK\n          +++ OK, passed 100 tests.\n        binary shiftL:                                                            OK\n          +++ OK, passed 100 tests.\n        binary shiftL identity:                                                   OK\n          +++ OK, passed 100 tests.\n        binary shift right:                                                       OK\n          +++ OK, passed 100 tests; 73 discarded.\n        binary shiftR:                                                            OK\n          +++ OK, passed 100 tests; 114 discarded.\n        binary rotate:                                                            OK\n          +++ OK, passed 100 tests.\n        binary complement:                                                        OK\n          +++ OK, passed 100 tests.\n        binary countLeadingZeros:                                                 OK\n          +++ OK, passed 100 tests.\n        binary countTrailingZeros:                                                OK\n          +++ OK, passed 100 tests.\n        binary countTrailingZeros 0:                                              OK\n          +++ OK, passed 100 tests.\n        bit/testBit:                                                              OK\n          +++ OK, passed 100 tests.\n        popCount:                                                                 OK\n          +++ OK, passed 100 tests.\n      Storable instance\n        sizeOf Int24:                                                             OK\n          +++ OK, passed 100 tests.\n        aligntment:                                                               OK\n          +++ OK, passed 100 tests.\n  tcp-streams\n    tests\n      TCP\n        network/socket:                                                           OK\n      TLS\n        network/socket:                                                           OK\n      HTTPS\n        network/https:                                                            IGNORED\n          can't connect to socket in a nix container, the build becomes no longer reproducible.\n  SHA1 Scramble\n    empty password returns empty:                                                 OK\n    non-empty password returns 20 bytes:                                          OK\n    different salts produce different scrambles:                                  OK\n    different passwords produce different scrambles:                              OK\n    scramble is deterministic:                                                    OK\n    golden: salt=12345678901234567890 pass=password:                              OK\n    golden: salt=ABCDEFGHIJKLMNOPQRST pass=secret:                                OK\n  SHA256 Scramble\n    empty password returns empty:                                                 OK\n    non-empty password returns 32 bytes:                                          OK\n    different salts produce different scrambles:                                  OK\n    different passwords produce different scrambles:                              OK\n    scramble is deterministic:                                                    OK\n    golden: salt=12345678901234567890 pass=password:                              OK\n    golden: salt=ABCDEFGHIJKLMNOPQRST pass=secret:                                OK\n  bounds-check\n    text-protocol\n      timestamp: date-only no time part:                                          OK\n      timestamp: truncated time:                                                  OK\n      datetime: date-only no time part:                                           OK\n      time: empty input:                                                          OK\n      date: missing separator:                                                    OK\n      time: missing separator:                                                    OK\n    binlog-value\n      NEWDECIMAL: precision < scale causes underflow:                             OK\n    binlog-event\n      eventHeaderLen: BINLOG_UNKNOWN_EVENT (negative index):                      OK\n  Field\n    roundtrip\n      Int8:                                                                       OK\n        +++ OK, passed 100 tests.\n      Word8:                                                                      OK\n        +++ OK, passed 100 tests.\n      Int16:                                                                      OK\n        +++ OK, passed 100 tests.\n      Word16:                                                                     OK\n        +++ OK, passed 100 tests.\n      Int32:                                                                      OK\n        +++ OK, passed 100 tests.\n      Word32:                                                                     OK\n        +++ OK, passed 100 tests.\n      Int64:                                                                      OK\n        +++ OK, passed 100 tests.\n      Word64:                                                                     OK\n        +++ OK, passed 100 tests.\n      Float:                                                                      OK\n        +++ OK, passed 100 tests.\n      Double:                                                                     OK\n        +++ OK, passed 100 tests.\n      Scientific:                                                                 OK\n        +++ OK, passed 100 tests.\n      Text:                                                                       OK\n        +++ OK, passed 100 tests.\n      lazy Text:                                                                  OK\n        +++ OK, passed 100 tests.\n      String:                                                                     OK\n        +++ OK, passed 100 tests.\n      ByteString:                                                                 OK\n        +++ OK, passed 100 tests.\n      lazy ByteString:                                                            OK\n        +++ OK, passed 100 tests.\n      Day:                                                                        OK\n        +++ OK, passed 100 tests.\n      LocalTime:                                                                  OK\n        +++ OK, passed 100 tests.\n      TimeOfDay:                                                                  OK\n        +++ OK, passed 100 tests.\n      Bool:                                                                       OK\n        +++ OK, passed 100 tests.\n      Maybe Int32:                                                                OK\n        +++ OK, passed 100 tests.\n      Maybe Text:                                                                 OK\n        +++ OK, passed 100 tests.\n    decode failures\n      NULL into a non-Maybe type is DecodeUnexpectedNull:                         OK\n      wrong constructor is DecodeTypeMismatch:                                    OK\n      no implicit widening: INT32 value into Int64 fails:                         OK\n      negative TIME into TimeOfDay fails:                                         OK\n    decode alternatives\n      NULL into Maybe is Nothing:                                                 OK\n      TIMESTAMP decodes into LocalTime:                                           OK\n      nonzero TINYINT decodes as True:                                            OK\n      unsigned TINYINT decodes into Bool:                                         OK\n      nested Maybe collapses Just Nothing to Nothing (documented NULL lossiness): OK\n      NaN encodes losslessly (roundtrip == fails only since NaN /= NaN):          OK\n      lone surrogate in String is rejected by encodeString:                       OK\n\nAll 179 tests passed (0.09s)\n"
+    },
+    {
+      "id": "inherited.integration",
+      "area": "inherited",
+      "status": "PASS",
+      "seconds": 5.117730711586773,
+      "detail": "mysql-integration\n  select 1:                                              OK\n    connecting...\n    executing SELECT 1...\n  roundtrip MySQLBit:                                    OK\n    roundtrip MySQLBit via binary protocol\n    roundtrip MySQLBit zero\n    roundtrip MySQLBit max for BIT(16)\n  roundtrip MySQLYear:                                   OK\n    roundtrip MySQLYear via binary protocol\n    roundtrip MySQLYear min (1901)\n    roundtrip MySQLYear max (2155)\n    roundtrip MySQLYear zero\n  mysql-haskell test suit:                               OK (4.71s)\n    preparing table...\n    testing executeMany                    (4.57s)\n    testing text protocol                  (0.08s)\n    testing binary protocol                (0.05s)\n    testing MySQL5.7 extra text protocol\n    testing MySQL5.7 extra binary protocol\n    testing binlog protocol\n    testing password change\n  query functions given an INSERT\n    query_:                                              OK\n    queryVector_:                                        OK\n    queryStmt:                                           OK\n    queryStmtVector:                                     OK\n  statements with several results\n    query_ with two INSERTs:                             OK\n    execute_ with two INSERTs:                           OK\n    execute_ with a SELECT:                              OK\n    executeStmt with a SELECT:                           OK\n    execute_ with a CALL returning one result set:       OK\n    query_ with a CALL returning one result set:         OK\n    query_ with an INSERT before a SELECT:               OK\n    query_ with two SELECTs:                             OK\n    query_ with a failing statement after a SELECT:      OK\n    execute_ with a failing statement after a SELECT:    OK\n    queryMulti_ with an INSERT and two SELECTs:          OK\n    queryMulti_ with a CALL returning two result sets:   OK\n    queryMulti with a parameter:                         OK\n    queryMulti_ with a failing statement after a SELECT: OK\n    executeMany_ with a SELECT after a DO:               OK\n    executeMany with a SELECT:                           OK\n    executeMany with two statements per parameter set:   OK\n    executeMany with no parameter sets:                  OK\n  unix-socket\n    connectUnixSocket: SELECT 1:                         OK\n      connecting via unix socket...\n      executing SELECT 1...\n    connectUnixSocketDetail: returns greeting:           OK\n      connecting via unix socket with detail...\n      checking greeting version...\n      executing query to verify connection...\n    unix socket: prepared statement roundtrip:           OK\n      connecting via unix socket...\n      executing prepared statement...\n  tls-connection\n    TLS connectDetail: SELECT 1:                         OK (0.04s)\n      creating TLS client params...\n      connecting via TLS...         (0.04s)\n      checking greeting version...\n      executing SELECT 1...\n    TLS connection: verify encryption active:            OK (0.04s)\n      creating TLS client params...\n      connecting via TLS...         (0.04s)\n      checking SSL cipher...\n    TLS connection: prepared statement roundtrip:        OK (0.04s)\n      creating TLS client params...\n      connecting via TLS...           (0.04s)\n      executing prepared statement...\n\nAll 32 tests passed (4.86s)\n"
+    }
+  ],
+  "benchmarks": {},
+  "repetitions": 7,
+  "haskell_benchmark_rts": [
+    "-N4",
+    "-T"
+  ],
+  "process_timezone": "UTC",
+  "fixture_controls": {
+    "native": "PASS",
+    "ed25519": "PASS",
+    "parsec": "PASS",
+    "sha2": "PASS",
+    "mutual_tls": "PASS"
+  },
+  "source_unchanged_during_run": true,
+  "comparison": {
+    "regressions": [],
+    "improved_cases": [
+      "protocol.continuation-sequence-rejected",
+      "protocol.large-row-is-not-eof",
+      "protocol.unsigned-last-insert-id",
+      "protocol.column-definition-roundtrip",
+      "protocol.binary-plugin-challenge",
+      "protocol.unknown-plugin-rejected",
+      "protocol.native-extension-handshake",
+      "protocol.empty-packet-predicate",
+      "protocol.text-field-trailing-data",
+      "protocol.text-field-integer-overflow",
+      "protocol.reset-does-not-consume-pending-row",
+      "connection.default-full-unicode",
+      "auth.ed25519.tcp",
+      "auth.ed25519.tls",
+      "auth.ed25519.socket",
+      "auth.parsec.tcp",
+      "auth.parsec.tls",
+      "auth.parsec.socket",
+      "auth.sha2.tcp",
+      "auth.sha2.socket",
+      "sql.zero-date-preservation",
+      "sql.unsigned-generated-id",
+      "parameters.literal-question-mark",
+      "parameters.comment-question-mark",
+      "parameters.no-backslash-text",
+      "packets.live-blob-16777216",
+      "packets.live-blob-16777217",
+      "packets.live-blob-33554430",
+      "transaction.partial-result-exception",
+      "transaction.nested-preserves-outer",
+      "reliability.reset-unread-result",
+      "reliability.server-kill-query",
+      "reliability.tls-cancellation-propagates",
+      "connection.localhost-address-fallback",
+      "types.non-utf8-results",
+      "auth.mutual-tls-helper-client",
+      "connection.mozilla-ca-store-installed"
+    ],
+    "same_workloads": true,
+    "performance_checked": false
+  }
+}

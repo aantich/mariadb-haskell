@@ -1,0 +1,43 @@
+2026-11-07 11:41:49+00:00 [Note] [Entrypoint]: Entrypoint script for MariaDB Server 1:12.3.3+maria~ubu2404 started.
+2026-11-07 11:41:49+00:00 [Warn] [Entrypoint]: /sys/fs/cgroup///memory.pressure not writable, functionality unavailable to MariaDB
+2026-11-07 11:41:49+00:00 [Note] [Entrypoint]: Switching to dedicated user 'mysql'
+2026-11-07 11:41:49+00:00 [Note] [Entrypoint]: Entrypoint script for MariaDB Server 1:12.3.3+maria~ubu2404 started.
+2026-11-07 11:41:49+00:00 [Note] [Entrypoint]: Initializing database files
+2026-11-07 11:41:49 0 [Warning] mariadbd: io_uring_queue_init() failed with EPERM: sysctl kernel.io_uring_disabled has the value 2, or 1 and the user of the process is not a member of sysctl kernel.io_uring_group. (see man 2 io_uring_setup).
+create_uring failed: falling back to libaio
+2026-11-07 11:41:49 0 [ERROR] InnoDB: preallocating 100663296 bytes for file ./ib_logfile101 failed with error 28
+2026-11-07 11:41:49 0 [ERROR] InnoDB: Cannot set log file ./ib_logfile101 size to 96.000MiB
+2026-11-07 11:41:49 0 [ERROR] InnoDB: Database creation was aborted with error Generic error. You may need to delete the ibdata1 file before trying to start up again.
+2026-11-07 11:41:49 0 [ERROR] Plugin 'InnoDB' registration as a STORAGE ENGINE failed.
+2026-11-07 11:41:49 0 [ERROR] Unknown/unsupported storage engine: InnoDB
+2026-11-07 11:41:49 0 [ERROR] Aborting
+
+Installation of system tables failed!  Examine the logs in
+/var/lib/mysql/ for more information.
+
+The problem could be conflicting information in an external
+my.cnf files. You can ignore these by doing:
+
+    shell> /usr/bin/mariadb-install-db --defaults-file=~/.my.cnf
+
+You can also try to start the mariadbd daemon with:
+
+    shell> /usr/sbin/mariadbd --skip-grant-tables --general-log &
+
+and use the command line tool /usr/bin/mariadb
+to connect to the mysql database and look at the grant tables:
+
+    shell> /usr/bin/mariadb -u root mysql
+    MariaDB> show tables;
+
+Try '/usr/sbin/mariadbd --help' if you have problems with paths.  Using
+--general-log gives you a log in /var/lib/mysql/ that may be helpful.
+
+The latest information about mariadb-install-db is available at
+https://mariadb.com/docs/server/clients-and-utilities/deployment-tools/mariadb-install-db
+You can find the latest source at https://downloads.mariadb.org and
+the MariaDB discuss email list at https://lists.mariadb.org/postorius/lists/discuss.lists.mariadb.org/
+
+Please check all of the above before submitting a bug report
+at https://mariadb.org/jira
+

@@ -21,6 +21,11 @@ module Database.MySQL.Connection
 
 import           Control.Exception hiding (handle)
 import           Control.Monad
+import qualified Crypto.ECC.Edwards25519         as Edwards
+import qualified Crypto.PubKey.Ed25519           as Ed25519
+import qualified Crypto.KDF.PBKDF2               as PBKDF2
+import           Crypto.Error                    (throwCryptoError)
+import           Crypto.Random                   (getRandomBytes)
 import qualified Crypto.Hash                     as Crypto
 import           Crypto.Hash.Algorithms          (SHA1(..))
 import qualified Crypto.Number.Serialize         as Serialize
@@ -73,16 +78,21 @@ data ConnectionOptions = ConnectionOptions
     , maximumMetadataBytes :: !Word64 -- ^ Per-metadata-block and OK tracking budget.
     , maximumColumns :: !Int -- ^ Maximum fields in a result or statement metadata block.
     , cleanupTimeoutMicros :: !Int -- ^ One deadline for draining and rollback.
+    , connectTimeoutMicros :: !Int -- ^ Whole establishment deadline, including DNS/TLS/auth/setup.
+    , maximumAuthIterations :: !Int -- ^ Maximum server-requested PARSEC PBKDF2 work.
     , enableSessionTracking :: !Bool -- ^ Negotiate tracking and OK terminators together.
     } deriving (Eq, Show)
 
--- | 64 MiB messages, 16 MiB metadata, 65,535 columns, one-second cleanup, tracking.
+-- | 64 MiB messages, 16 MiB metadata, 65,535 columns, one-second cleanup,
+-- ten-second establishment, at most 2^20 PARSEC iterations and session tracking.
 defaultConnectionOptions :: ConnectionOptions
 defaultConnectionOptions = ConnectionOptions
     { maximumMessageBytes = 64 * 1024 * 1024
     , maximumMetadataBytes = 16 * 1024 * 1024
     , maximumColumns = 65535
     , cleanupTimeoutMicros = 1000000
+    , connectTimeoutMicros = 10000000
+    , maximumAuthIterations = 1048576
     , enableSessionTracking = True
     }
 
@@ -95,7 +105,9 @@ validateOptions :: ConnectionOptions -> IO ()
 validateOptions options = unless
     (maximumMessageBytes options > 0 && maximumMessageBytes options <= fromIntegral (maxBound :: Word32)
       && maximumMessageBytes options <= fromIntegral (maxBound :: Int)
-      && maximumMetadataBytes options > 0 && maximumColumns options > 0 && cleanupTimeoutMicros options > 0)
+      && maximumMetadataBytes options > 0 && maximumColumns options > 0 && cleanupTimeoutMicros options > 0
+      && connectTimeoutMicros options > 0 && maximumAuthIterations options >= 1024
+      && maximumAuthIterations options <= 1073741824)
     (throwIO (ProtocolError "invalid connection resource options"))
 
 -- | Observable lifecycle. Only 'Ready' admits a new command. 'Broken' and
@@ -138,7 +150,7 @@ data MySQLConn = MySQLConn
     , connectionFailureRef :: !(IORef (Maybe ConnectionFailure))
     , connectionServerStatus :: !(IORef (Maybe Word16))
     , connectionRenderContext :: !(IORef (Maybe RenderContext))
-    , connectionCapabilities :: !(IORef Word32)
+    , connectionCapabilities :: !(IORef Word64)
     , connectionSequence :: !(IORef FramingState)
     , connectionExchangeProgress :: !(IORef ExchangeProgress)
     , connectionReleased :: !(IORef Bool)
@@ -376,16 +388,16 @@ connectDetail :: ConnectInfo -> IO (Greeting,MySQLConn)
 connectDetail = connectDetailWithOptions defaultConnectionOptions
 -- | Explicit-options variant of 'connectDetail'.
 connectDetailWithOptions :: ConnectionOptions -> ConnectInfo -> IO (Greeting,MySQLConn)
-connectDetailWithOptions opts ci = do
+connectDetailWithOptions opts ci = withConnectDeadline opts $ do
     validateOptions opts
-    bracketOnError (TCP.connectSocket (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
+    bracketOnError (TCP.connectSocketTimeout (connectTimeoutMicros opts) (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
         conn <- newByteConnection opts (Conn.source raw) (\packet -> Conn.send raw (Binary.runPut (Binary.put packet))) (Conn.close raw)
-        greet <- readConnPacket conn >>= decodeFromPacket
+        greet <- readGreeting conn
         let caps=negotiatedCapabilities opts greet
         writeIORef (connectionCapabilities conn) caps
         mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
         q <- readConnPacket conn
-        completeAuth (mysqlRead conn) (mysqlWrite conn) (ciPassword ci) q (plainFullAuth (greetingSalt1 greet <> greetingSalt2 greet))
+        completeAuth conn greet False (ciPassword ci) q
         initializeSession conn
         pure (greet,conn)
 
@@ -400,29 +412,37 @@ connectUnixSocketDetail :: FilePath -> ConnectInfo -> IO (Greeting,MySQLConn)
 connectUnixSocketDetail = connectUnixSocketDetailWithOptions defaultConnectionOptions
 -- | Explicit-options variant of 'connectUnixSocketDetail'.
 connectUnixSocketDetailWithOptions :: ConnectionOptions -> FilePath -> ConnectInfo -> IO (Greeting,MySQLConn)
-connectUnixSocketDetailWithOptions opts path ci = do
+connectUnixSocketDetailWithOptions opts path ci = withConnectDeadline opts $ do
     validateOptions opts
     let open=bracketOnError (N.socket N.AF_UNIX N.Stream 0) N.close $ \sock -> do
             N.connect sock (N.SockAddrUnix path)
             TCP.socketToConnectionAdaptive bUFSIZE (sock,N.SockAddrUnix path)
     bracketOnError open Conn.close $ \raw -> do
         conn <- newByteConnection opts (Conn.source raw) (\packet -> Conn.send raw (Binary.runPut (Binary.put packet))) (Conn.close raw)
-        greet <- readConnPacket conn >>= decodeFromPacket
+        greet <- readGreeting conn
         let caps=negotiatedCapabilities opts greet
         writeIORef (connectionCapabilities conn) caps
         mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
         q <- readConnPacket conn
-        completeAuth (mysqlRead conn) (mysqlWrite conn) (ciPassword ci) q (plainFullAuth (greetingSalt1 greet <> greetingSalt2 greet))
+        completeAuth conn greet True (ciPassword ci) q
         initializeSession conn
         pure (greet,conn)
 
-negotiatedCapabilities :: ConnectionOptions -> Greeting -> Word32
+-- Greeting parsing consumes the whole envelope; an initial ERR is a server
+-- failure, rather than an attempted protocol-10 decode of error text.
+readGreeting :: MySQLConn -> IO Greeting
+readGreeting conn = do
+    packet <- readConnPacket conn
+    when (isERR packet) (decodeFromPacket packet >>= throwIO . ERRException)
+    getFromPacketExact getGreeting packet
+
+negotiatedCapabilities :: ConnectionOptions -> Greeting -> Word64
 -- Advertise tracking and EOF deprecation only as a pair: both OK-envelope and
 -- result-terminator parsing must be available before either is used on the wire.
-negotiatedCapabilities options greeting = clientCap .|.
+negotiatedCapabilities options greeting = (clientCap .&. greetingCaps greeting) .|.
     (if enableSessionTracking options && greetingCaps greeting .&. 0x01800000 == 0x01800000 then 0x01800000 else 0)
 
-mkAuthWithOptions :: ConnectionOptions -> Word32 -> ConnectInfo -> Greeting -> Auth
+mkAuthWithOptions :: ConnectionOptions -> Word64 -> ConnectInfo -> Greeting -> Auth
 mkAuthWithOptions options caps ci greeting =
     let Auth _ _ charset user response database plugin = mkAuth (ciDatabase ci) (ciUser ci) (ciPassword ci) (ciCharset ci) greeting
     in Auth caps (fromIntegral (maximumMessageBytes options)) charset user response database plugin
@@ -437,8 +457,15 @@ mkAuth db user pass charset greet =
 -- | Dispatch scramble based on the authentication plugin name.
 scrambleForPlugin :: ByteString -> ByteString -> ByteString -> ByteString
 scrambleForPlugin plugin salt pass
-    | plugin == "caching_sha2_password" = scrambleSHA256 salt pass
-    | otherwise                         = scrambleSHA1 salt pass
+    | plugin == "caching_sha2_password" = checkedNonce 20 (scrambleSHA256 salt pass)
+    | plugin == "mysql_native_password" = checkedNonce 20 (scrambleSHA1 salt pass)
+    | plugin == "client_ed25519" = checkedNonce 32 (scrambleEd25519 salt pass)
+    | plugin == "parsec" = checkedNonce 32 B.empty
+    | otherwise = throw (AuthException ("unsupported MariaDB authentication plugin: " ++ show plugin))
+  where
+    checkedNonce count result
+        | B.length salt == count = result
+        | otherwise = throw (AuthException "invalid authentication challenge length")
 
 -- | SHA1-based scramble for @mysql_native_password@.
 scrambleSHA1 :: ByteString -> ByteString -> ByteString
@@ -461,50 +488,97 @@ scrambleSHA256 salt pass
           sha256 :: ByteString -> ByteString
           sha256 = BA.convert . (Crypto.hash :: ByteString -> Crypto.Digest Crypto.SHA256)
 
--- | Handle multi-step authentication after sending the initial auth response.
---
--- This handles OK, ERR, AuthMoreData (0x01), and AuthSwitchRequest (0xFE).
--- The @fullAuth@ callback is invoked when the server requests full authentication
--- (e.g., cleartext password over TLS).
-completeAuth :: InputStream Packet       -- ^ packet input stream
-             -> (Packet -> IO ())        -- ^ packet writer
-             -> ByteString               -- ^ password
-             -> Packet                   -- ^ the first response packet from server
-             -> (Word8 -> ByteString -> (Packet -> IO ()) -> InputStream Packet -> IO ())
-                                         -- ^ full auth callback (seqN, password, writer, input)
-             -> IO ()
-completeAuth is writePacket pass p fullAuth
-    | isOK p  = return ()
-    | isERR p = decodeFromPacket p >>= throwIO . ERRException
-    | isAuthMoreData p = do
-        let body = L.toStrict (pBody p)
-        case B.index body 1 of
-            0x03 -> do  -- fast auth success, read the final OK
-                ok <- readPacket is
-                if isOK ok
-                    then return ()
-                    else decodeFromPacket ok >>= throwIO . ERRException
-            0x04 -> do  -- full auth required
-                fullAuth (pSeqN p + 1) pass writePacket is
-            _    -> throwIO (UnexpectedPacket p)
-    | isAuthSwitch p = do
-        -- Parse AuthSwitchRequest: 0xFE, plugin name (NUL), salt
-        let body = L.toStrict (pBody p)
-            rest = B.drop 1 body  -- skip 0xFE
-            (newPlugin, rest') = B.break (== 0) rest
-            newSalt = B.drop 1 rest'  -- skip NUL; trailing NUL may or may not be present
-            -- Remove trailing NUL from salt if present
-            newSalt' = if not (B.null newSalt) && B.last newSalt == 0
-                       then B.init newSalt
-                       else newSalt
-            scrambled = scrambleForPlugin newPlugin newSalt' pass
-            seqN = pSeqN p + 1
-            responseBody = L.fromStrict scrambled
-            responsePacket = Packet (fromIntegral (B.length scrambled)) seqN responseBody
-        writePacket responsePacket
-        q <- readPacket is
-        completeAuth is writePacket pass q fullAuth
-    | otherwise = throwIO (UnexpectedPacket p)
+-- | MariaDB's password-based ed25519 variant. The password itself is hashed
+-- once to an expanded scalar/prefix, unlike standard Ed25519's 32-byte seed.
+-- Arithmetic uses crypton's constant-time Edwards primitives; no server point
+-- or client-implemented curve arithmetic is involved.
+scrambleEd25519 :: ByteString -> ByteString -> ByteString
+scrambleEd25519 nonce password = encodedR <> Edwards.scalarEncode signed
+  where
+    digest = BA.convert (Crypto.hash password :: Crypto.Digest Crypto.SHA512) :: ByteString
+    scalarBytes = B.pack ([B.head digest .&. 248] ++ B.unpack (B.take 30 (B.drop 1 digest))
+                         ++ [(B.index digest 31 .&. 63) .|. 64])
+    scalar = throwCryptoError (Edwards.scalarDecodeLong scalarBytes)
+    hashScalar bytes = throwCryptoError (Edwards.scalarDecodeLong
+        (BA.convert (Crypto.hash bytes :: Crypto.Digest Crypto.SHA512) :: BA.ScrubbedBytes))
+    public = Edwards.pointEncode (Edwards.toPoint scalar) :: ByteString
+    nonceScalar = hashScalar (B.drop 32 digest <> nonce)
+    encodedR = Edwards.pointEncode (Edwards.toPoint nonceScalar)
+    challenge = hashScalar (encodedR <> public <> nonce)
+    signed = Edwards.scalarAdd nonceScalar (Edwards.scalarMul challenge scalar)
+
+-- | Bound the entire connection establishment, including resolver, TLS,
+-- authentication and initial session queries. The enclosing brackets release
+-- any acquired transports before this timeout becomes a public exception.
+withConnectDeadline :: ConnectionOptions -> IO a -> IO a
+withConnectDeadline options action = do
+    validateOptions options
+    timeout (connectTimeoutMicros options) action >>= maybe
+        (throwIO (AuthException "MariaDB connection establishment timed out")) pure
+
+-- | Complete a bounded plugin conversation on this connection. Plugin and nonce
+-- always travel together, including auth switches. Cleartext full-auth responses
+-- are allowed only over TLS or a Unix-domain socket. Malformed messages and
+-- unsupported plugins fail closed; the constructor owns transport cleanup.
+completeAuth :: MySQLConn -> Greeting -> Bool -> ByteString -> Packet -> IO ()
+completeAuth conn greeting secure password = loop 0 (greetingAuthPlugin greeting) initialNonce
+  where
+    initialNonce = greetingSalt1 greeting <> greetingSalt2 greeting
+    input = mysqlRead conn
+    output = mysqlWrite conn
+    send packet body = output (Packet (fromIntegral (B.length body)) (pSeqN packet + 1) (L.fromStrict body))
+    next = readPacket input
+    loop :: Int -> ByteString -> ByteString -> Packet -> IO ()
+    loop rounds plugin nonce packet
+        | rounds >= 16 = throwIO (AuthException "too many authentication exchanges")
+        | isOK packet = void (consumeOK conn packet)
+        | isERR packet = decodeFromPacket packet >>= throwIO . ERRException
+        | isAuthSwitch packet = do
+            let (name, rest) = B.break (==0) (B.drop 1 (L.toStrict (pBody packet)))
+            when (B.null name || B.length name > 128 || B.null rest)
+                (throwIO (AuthException "malformed authentication switch"))
+            let challenge = B.drop 1 rest
+                expected = if name `elem` ["client_ed25519", "parsec"] then 32 else 20
+                exact = if B.length challenge == expected+1 && B.last challenge == 0
+                        then B.init challenge else challenge
+            response <- evaluate (scrambleForPlugin name exact password)
+            send packet response
+            next >>= loop (rounds+1) name exact
+        | isAuthMoreData packet && plugin == "parsec" = do
+            let parameters = B.drop 1 (L.toStrict (pBody packet))
+            unless (B.length parameters == 20 && B.head parameters == 80)
+                (throwIO (AuthException "invalid PARSEC salt parameters"))
+            let factor = fromIntegral (B.index parameters 1) :: Int
+            when (factor > 20 || (1024 :: Integer) `shiftL` factor > fromIntegral (maximumAuthIterations (connectionOptions conn)))
+                (throwIO (AuthException "PARSEC work exceeds configured iteration limit"))
+            let keyBytes = PBKDF2.fastPBKDF2_SHA512 (PBKDF2.Parameters (1024 `shiftL` factor) 32)
+                              password (B.drop 2 parameters) :: BA.ScrubbedBytes
+                key = throwCryptoError (Ed25519.secretKey keyBytes)
+            clientNonce <- getRandomBytes 32
+            let signature = BA.convert (Ed25519.sign key (Ed25519.toPublic key) (nonce <> clientNonce))
+            send packet (clientNonce <> signature)
+            next >>= loop (rounds+1) "parsec-finished" nonce
+        | isAuthMoreData packet && plugin == "caching_sha2_password" = do
+            let dataBytes = B.drop 1 (L.toStrict (pBody packet))
+            case B.unpack dataBytes of
+                [3] -> next >>= terminal
+                [4] -> do
+                    if secure then send packet (password <> "\0")
+                    else do
+                        send packet (B.singleton 2)
+                        keyPacket <- next
+                        when (isERR keyPacket) (decodeFromPacket keyPacket >>= throwIO . ERRException)
+                        let body = L.toStrict (pBody keyPacket)
+                        unless (isAuthMoreData keyPacket && B.length body > 1 && B.length body <= 16384)
+                            (throwIO (AuthException "invalid RSA authentication key envelope"))
+                        doRSAAuth output (pSeqN keyPacket+1) password nonce (B.drop 1 body)
+                    next >>= terminal
+                _ -> throwIO (AuthException "invalid SHA-2 authentication continuation")
+        | otherwise = throwIO (UnexpectedPacket packet)
+    terminal packet
+        | isOK packet = void (consumeOK conn packet)
+        | isERR packet = decodeFromPacket packet >>= throwIO . ERRException
+        | otherwise = throwIO (UnexpectedPacket packet)
 
 -- | Full auth handler for plain TCP connections using RSA encryption.
 --
@@ -539,7 +613,7 @@ parseRSAPublicKey pemBytes =
 
     spkiBitString (ASN1.Start ASN1.Sequence
                    : ASN1.Start ASN1.Sequence
-                   : ASN1.OID _
+                   : ASN1.OID [1,2,840,113549,1,1,1]
                    : ASN1.Null
                    : ASN1.End ASN1.Sequence
                    : ASN1.BitString bs
@@ -553,7 +627,10 @@ parseRSAPublicKey pemBytes =
             : ASN1.IntVal e
             : ASN1.End ASN1.Sequence
             : [])
-        = Right RSA.PublicKey
+        -- Check signed ASN.1 integers before positive-integer serialization.
+        -- The SPKI algorithm above must be rsaEncryption, the OAEP key type.
+        | n <= 0 || e < 3 || even e || e > 4294967295 = Left "invalid RSA public integers"
+        | otherwise = Right RSA.PublicKey
             { RSA.public_size = B.length (Serialize.i2osp n :: ByteString)
             , RSA.public_n    = n
             , RSA.public_e    = e
@@ -562,22 +639,29 @@ parseRSAPublicKey pemBytes =
 
 -- | XOR @(password ++ NUL)@ with a cyclically-extended nonce.
 xorPasswordNonce :: ByteString -> ByteString -> ByteString
-xorPasswordNonce pass nonce =
-    let msg      = pass `B.snoc` 0x00
-        nonceLen = B.length nonce
-        cycled   = B.pack [nonce `B.index` (i `mod` nonceLen) | i <- [0 .. B.length msg - 1]]
-    in B.pack (B.zipWith xor msg cycled)
+xorPasswordNonce pass nonce
+    | B.length nonce /= 20 = throw (AuthException "invalid RSA authentication nonce length")
+    | otherwise =
+        let msg = pass `B.snoc` 0x00
+            nonceLen = B.length nonce
+            cycled = B.pack [nonce `B.index` (i `mod` nonceLen) | i <- [0 .. B.length msg - 1]]
+        in B.pack (B.zipWith xor msg cycled)
 
 -- | Encrypt password with the server's RSA public key and send it.
 doRSAAuth :: (Packet -> IO ()) -> Word8 -> ByteString -> ByteString -> ByteString -> IO ()
 doRSAAuth writePacket seqN pass nonce pemKey = do
-    pubKey <- either (\e -> throwIO (userError ("RSA key parse: " ++ e))) pure
+    pubKey <- either (\e -> throwIO (AuthException ("RSA key parse: " ++ e))) pure
                      (parseRSAPublicKey pemKey)
+    unless (RSA.public_size pubKey >= 256 && RSA.public_size pubKey <= 1024)
+        (throwIO (AuthException "RSA authentication key is outside supported bounds"))
     result <- OAEP.encrypt (OAEP.defaultOAEPParams SHA1) pubKey
                            (xorPasswordNonce pass nonce)
-    ct <- either (\e -> throwIO (userError ("RSA encrypt: " ++ show e))) pure result
+    ct <- either (\e -> throwIO (AuthException ("RSA encrypt: " ++ show e))) pure result
     writePacket (putToPacket seqN (Binary.putByteString ct))
 
+-- | Authentication/plugin validation or establishment-deadline failure.
+-- Server ERR replies retain ERRException; cancellation keeps its original
+-- exception identity. Constructors release their transport before propagating.
 data AuthException = AuthException String deriving (Typeable, Show)
 instance Exception AuthException
 

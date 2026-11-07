@@ -12,6 +12,23 @@ def data(status='PASS'):
 
 class RatchetTests(unittest.TestCase):
 
+    def test_previous_stage_pass_cannot_be_removed(self):
+        published = data()
+        published['correctness'].append({'id':'stage1.new-case','status':'PASS'})
+        report = compare(data(), data(), data(), require_targets=False, previous_stage=published)
+        self.assertFalse(report['correctness_accepted'])
+        self.assertIn('previous_stage: removed stage1.new-case', report['correctness_failures'])
+
+    def test_previous_stage_fixed_original_failure_cannot_regress(self):
+        report = compare(data('FAIL'), data('FAIL'), data('FAIL'), require_targets=False,
+                         previous_stage=data('PASS'))
+        self.assertFalse(report['correctness_accepted'])
+
+    def test_native_targets_are_required_with_previous_stage(self):
+        report = compare(data(), data(), data(), previous_stage=data())
+        self.assertFalse(report['correctness_accepted'])
+        self.assertTrue(any('required native target' in item for item in report['correctness_failures']))
+
     def test_reintroduced_original_failure_is_caught(self):
         r = compare(data('FAIL'), data('PASS'), data('FAIL'), require_targets=False)
         self.assertFalse(r['correctness_accepted'])

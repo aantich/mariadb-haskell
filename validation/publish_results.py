@@ -34,7 +34,10 @@ def is_input(path):
     return (p.suffix in {".hs", ".hsc", ".c", ".h", ".cabal", ".nix"}
             or path.startswith(("test/", "npins/"))
             or (path.startswith("validation/") and p.suffix == ".py")
-            or p.name.startswith("cabal.project") or path == "mozillaCAStore.pem")
+            or p.name.startswith("cabal.project") or path == "mozillaCAStore.pem"
+            or path in {".dockerignore", "validation/linux/Dockerfile",
+                        "validation/results/accepted.json", "validation/results/previous-stage.json"}
+            or path.startswith(".github/workflows/"))
 
 
 def input_snapshot(root=ROOT):
@@ -171,11 +174,13 @@ def render(document, baseline):
     gate = document.get("stage1_acceptance")
     if (attempt["state"] == "COMPLETED" and gate
             and gate.get("tested_input_sha256") == attempt["inputs"]["sha256"]):
-        lines += ["## Stage 1 acceptance", "",
-                  f"Original targeted failures now passing: **{gate['target_passes']} / {gate['target_count']}**. Original-baseline and last-accepted correctness protection: **{'PASS' if gate['correctness_accepted'] else 'FAIL'}**.", "",
+        lines += ["## Implementation acceptance", "",
+                  f"Stage 1 targeted failures now passing: **{gate['target_passes']} / {gate['target_count']}**. Original-baseline and last-accepted correctness protection: **{'PASS' if gate['correctness_accepted'] else 'FAIL'}**.", "",
                   f"Timing investigations above 5%: **{len(gate['timing_investigations'])}**; allocation investigations above 5%: **{len(gate['allocation_investigations'])}**. These are investigation signals, not automatically accepted costs.", "",
                   "The frozen baseline retains its original meaning in all comparison tables. The last-accepted reference separately prevents an improvement being lost. [Acceptance evidence](results/stage1-gates.json) · [Confirmation history](results/stage1-confirmation.json) · [Supplementary evidence](results/references/stage1-after-final.json) · [Review notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).", "",
                   "Confirmation and supplementary files identify their own input fingerprints. Evidence with a different fingerprint is historical and does not confirm the current source.", ""]
+        if gate.get('previous_stage_reference'):
+            lines += [f"Stage 2 native-connection targets passing: **{gate['native_target_passes']} / {gate['native_target_count']}**. Published Stage 1 correctness is separately protected. [Stage 2 implementation and validation](../docs/STAGE2_IMPLEMENTATION.md).", ""]
         if gate['performance_requires_confirmation']:
             lines += ["> [!WARNING]","> **Performance acceptance remains open.** Timing/allocation signals require investigation across the entire confirmation window; they have not been waived or accepted automatically.",""]
         if gate.get('evidence_failures'):

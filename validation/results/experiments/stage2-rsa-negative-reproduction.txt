@@ -1,0 +1,17 @@
+Malformed RSA reproduction before the final guard (7 November 2026).
+
+The low-level parseRSAPublicKey helper accepted a SubjectPublicKeyInfo whose
+RSA modulus is ASN.1 INTEGER -1. This was observed with the pre-guard library
+using cabal exec / runghc; no credentials were sent.
+
+Public invalid fixture:
+-----BEGIN PUBLIC KEY-----
+MBwwDQYJKoZIhvcNAQEBBQADCwAwCAIB/wIDAQAB
+-----END PUBLIC KEY-----
+
+Observed: negative modulus accepted by parser
+
+The final Stage2 auth.rsa-invalid-key-structure case requires rejection before
+positive-integer conversion and checks zero/negative modulus, negative/even
+exponents and an unrelated algorithm identifier. Earlier benchmark/source
+records are retained in stage2-documented-before-rsa-window.json.

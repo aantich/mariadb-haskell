@@ -17,6 +17,7 @@ module System.IO.Streams.TCP
     -- * client
   , connect
   , connectSocket
+  , connectSocketTimeout
   , socketToConnection
   , socketToConnectionAdaptive
   , defaultChunkSize
@@ -28,6 +29,7 @@ module System.IO.Streams.TCP
   ) where
 
 import qualified Control.Exception         as E
+import           System.Timeout (timeout)
 import           Control.Monad
 import           Data.Connection
 import qualified Data.ByteString           as B
@@ -74,30 +76,34 @@ defaultChunkSize = 32 * k - chunkOverhead
 connectSocket :: N.HostName             -- ^ hostname to connect to
               -> N.PortNumber           -- ^ port number to connect to
               -> IO (N.Socket, N.SockAddr)
-connectSocket host port = do
-    (family, socketType, protocol, addr) <- resolveAddrInfo host port
-    E.bracketOnError (N.socket family socketType protocol)
-                     N.close
-                     (\sock -> do N.connect sock addr
-                                  N.setSocketOption sock N.NoDelay 1
-                                  return (sock, addr)
-                     )
+connectSocket = connectSocketTimeout 10000000
+
+-- | Resolve and try all addresses within one deadline, including DNS time.
+-- Each failed attempt closes its socket. Only IO errors permit fallback;
+-- asynchronous cancellation propagates immediately. No authentication or TLS
+-- failure is retried against another address after this function returns.
+connectSocketTimeout :: Int -> N.HostName -> N.PortNumber -> IO (N.Socket, N.SockAddr)
+connectSocketTimeout deadline host port
+    | deadline <= 0 = ioError (userError "connection timeout must be positive")
+    | otherwise = timeout deadline establish >>= maybe
+        (ioError (userError "TCP connection establishment timed out")) pure
   where
-    resolveAddrInfo host' port' = do
-        -- Partial function here OK, network will throw an exception rather than
-        -- return the empty list here.
-        (addrInfo:_) <- N.getAddrInfo (Just hints) (Just host') (Just $ show port')
-        let family     = N.addrFamily addrInfo
-        let socketType = N.addrSocketType addrInfo
-        let protocol   = N.addrProtocol addrInfo
-        let addr    = N.addrAddress addrInfo
-        return (family, socketType, protocol, addr)
-      where
-        hints = N.defaultHints {
-                N.addrFlags      = [N.AI_ADDRCONFIG, N.AI_NUMERICSERV]
-            ,   N.addrSocketType = N.Stream
-            }
-    {-# INLINABLE resolveAddrInfo #-}
+    establish = N.getAddrInfo (Just hints) (Just host) (Just (show port)) >>= attempts
+    hints = N.defaultHints
+        { N.addrFlags = [N.AI_ADDRCONFIG, N.AI_NUMERICSERV]
+        , N.addrSocketType = N.Stream
+        }
+    attempts [] = ioError (userError "hostname resolved to no usable addresses")
+    attempts (address:rest) = do
+        result <- E.try $ E.bracketOnError
+            (N.socket (N.addrFamily address) (N.addrSocketType address) (N.addrProtocol address))
+            N.close $ \sock -> do
+                N.connect sock (N.addrAddress address)
+                N.setSocketOption sock N.NoDelay 1
+                pure (sock, N.addrAddress address)
+        case result of
+            Right connected -> pure connected
+            Left (err :: E.IOException) -> if null rest then E.throwIO err else attempts rest
 
 -- | Make a 'Connection' from a 'Socket' with given buffer size.
 --

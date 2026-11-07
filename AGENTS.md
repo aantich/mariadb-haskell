@@ -65,3 +65,17 @@ implemented. Prefer named fields, ordinary layout and small composable helpers
 over positional Boolean arguments or compressed imperative-looking code. Keep
 comments accurate and explain why a subtle choice exists; avoid narrating
 obvious expressions. Apply the same readability standard to validation tools.
+
+User approval, 7 November 2026: implement Stage 2 native connections and
+MariaDB authentication fully, repeatedly check/fix, then run the unchanged
+correctness/benchmark suite and report. Include 64-bit native capability
+negotiation, ed25519/PARSEC/SHA-2 authentication, TLS/certificate/CA fixes,
+bounded address fallback and Linux integration coverage. The previously deferred
+Stage 1 performance work remains deferred. Preserve original and accepted
+references and protect every published Stage 1 PASS separately.
+
+Superseding user instruction, 7 November 2026 after idle-host confirmation:
+commit and push the reviewed Stage 2 changes. Publish on main using the
+committed-input validation workflow above. Preserve the original and accepted
+performance references and all review evidence. The next stage is a proposal
+until separately approved; this publication does not authorize its implementation.

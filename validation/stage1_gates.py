@@ -18,6 +18,16 @@ TARGETS=[
 'sql.unsigned-generated-id','sql.zero-date-preservation','connection.default-full-unicode','types.non-utf8-results',
 'parameters.literal-question-mark','parameters.comment-question-mark','parameters.no-backslash-text']
 
+# Native-connection work is independent of the deferred CDC/prepared-output work.
+NATIVE_TARGETS = [
+    'protocol.binary-plugin-challenge', 'protocol.unknown-plugin-rejected',
+    'protocol.native-extension-handshake',
+    *['auth.' + plugin + '.' + transport for plugin in ['ed25519', 'parsec']
+      for transport in ['tcp', 'tls', 'socket']],
+    'auth.sha2.tcp', 'auth.sha2.socket', 'auth.mutual-tls-helper-client',
+    'connection.localhost-address-fallback', 'connection.mozilla-ca-store-installed',
+]
+
 def results(document):
     """Accept either a portable raw run or the live publication envelope."""
     if "latest_completed_run" in document:
@@ -54,7 +64,7 @@ def median_allocation(benchmark):
     return statistics.median(samples) if samples else None
 
 
-def compare(candidate, previous, original, *, require_targets=True):
+def compare(candidate, previous, original, *, require_targets=True, previous_stage=None):
     """Keep correctness acceptance separate from measurement/investigation gates.
 
     Known original failures remain visible. New failures cannot be added to that
@@ -71,6 +81,8 @@ def compare(candidate, previous, original, *, require_targets=True):
     if len(new) != len(candidate["correctness"]):
         failures.append("duplicate correctness IDs")
     references = [("original", original), ("accepted", previous)]
+    if previous_stage is not None:
+        references.append(("previous_stage", previous_stage))
     for label, old in references:
         for case in old["correctness"]:
             latest = new.get(case["id"])
@@ -98,6 +110,11 @@ def compare(candidate, previous, original, *, require_targets=True):
         for ident in TARGETS:
             if new.get(ident, {}).get("status") != "PASS":
                 failures.append("required target not passing: " + ident)
+
+    if require_targets and previous_stage is not None:
+        for ident in NATIVE_TARGETS:
+            if new.get(ident, {}).get("status") != "PASS":
+                failures.append("required native target not passing: " + ident)
 
     for ident, benchmark in candidate.get("benchmarks", {}).items():
         prior_status = original.get("benchmarks", {}).get(ident, {}).get("status")
@@ -138,6 +155,8 @@ def compare(candidate, previous, original, *, require_targets=True):
         "allocation_investigations": allocation,
         "target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in TARGETS),
         "target_count": len(TARGETS),
+        "native_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in NATIVE_TARGETS),
+        "native_target_count": len(NATIVE_TARGETS),
         "correctness_accepted": not failures,
         "performance_requires_confirmation": bool(timing or allocation),
     }
@@ -176,7 +195,9 @@ def main():
         import publish_results as live
         live.verify(document, live.input_snapshot(),
                     allow_working_tree=document["latest_attempt"].get("uncommitted_review", False))
-    report = compare(data, accepted, original)
+    previous_stage, stage_manifest = reference(HERE / "results/previous-stage.json")
+    report = compare(data, accepted, original, previous_stage=previous_stage)
+    report["previous_stage_reference"] = stage_manifest
     report["accepted_reference"] = manifest
     report["tested_input_sha256"] = document.get("latest_attempt", {}).get("inputs", {}).get("sha256")
     args.output.write_text(json.dumps(report, indent=2) + "\n")

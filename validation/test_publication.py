@@ -158,3 +158,10 @@ class PublicationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AdditionalBuildInputTests(unittest.TestCase):
+    def test_linux_and_ci_configuration_are_fingerprinted(self):
+        for path in ['.dockerignore', 'validation/linux/Dockerfile', '.github/workflows/mariadb-linux.yml',
+                     'validation/results/accepted.json', 'validation/results/previous-stage.json']:
+            self.assertTrue(live.is_input(path), path)

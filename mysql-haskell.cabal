@@ -13,8 +13,8 @@ category:           Database
 build-type:         Simple
 extra-doc-files:    ChangeLog.md
                     docs/*.md
+data-files:         mozillaCAStore.pem
 extra-source-files:
-  mozillaCAStore.pem
   README.md
   validation/*.py
   validation/*.md
@@ -290,7 +290,8 @@ executable mariadb-validation
     Validation.Benchmark
     Validation.Supplementary
     Validation.Stage1
+    Validation.Stage2
     Validation.FaultTransport
   build-depends:
-    binary, bytestring, io-streams, mysql-haskell, network, scientific, text, time, tls, vector
+    binary, bytestring, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-T

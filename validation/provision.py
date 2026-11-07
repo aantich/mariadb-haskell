@@ -23,9 +23,11 @@ def main():
     p.add_argument("--socket", default="/tmp/mysql.sock")
     p.add_argument("--port", default="3306")
     p.add_argument("--tls-ca", default="/opt/homebrew/var/mariadb-haskell/tls/ca.pem")
+    p.add_argument("--output", type=Path, help="separate private environment file for another local profile")
     args = p.parse_args()
     local = HERE / ".local"; local.mkdir(exist_ok=True)
-    path = local / "environment.json"
+    path = args.output or local / "environment.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
     config = json.loads(path.read_text()) if path.exists() else {"MB_PASSWORD": secrets.token_hex(20)}
     config.update(MB_HOST="127.0.0.1",MB_PORT=args.port,MB_USER="mariadb_haskell_test",
                   MB_DATABASE="mariadb_haskell_validation",MB_SOCKET=args.socket,

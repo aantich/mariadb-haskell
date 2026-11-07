@@ -1,0 +1,483 @@
+Server verified before build: 12.3.3-MariaDB-ubu2404-log
+Configured dedicated validation accounts on 12.3.3-MariaDB-ubu2404-log
+Connection settings: /workspace/validation/.local/linux-environment.json (mode 0600; excluded from Git)
+Authentication fixtures: ed25519, parsec, caching_sha2_password
+Server verified before build: 12.3.3-MariaDB
+Live results updated: /workspace/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /workspace/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /workspace/validation/RESULTS.md
+..Server verified before build: 12.3.3-MariaDB
+Live results updated: /workspace/validation/RESULTS.md
+..Server verified before build: 12.3.3-MariaDB
+Live results updated: /workspace/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /workspace/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /workspace/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /workspace/validation/RESULTS.md
+..................................................
+----------------------------------------------------------------------
+Ran 59 tests in 0.223s
+
+OK
+Build profile: -w ghc-9.4.7 -O2
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (lib) (file validation/COVERAGE.md changed)
+ - mysql-haskell-1.3.3 (test:test) (dependency rebuilt)
+ - mysql-haskell-1.3.3 (exe:mariadb-validation) (dependency rebuilt)
+ - mysql-haskell-1.3.3 (test:integration) (dependency rebuilt)
+Preprocessing library for mysql-haskell-1.3.3...
+Building library for mysql-haskell-1.3.3...
+
+<no location info>: warning: [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id data-default-class-0.2.0.0-38ba4eaa6c2f97e322f0e5bd35f5c4f1f63fed09c9db0a3008e005e9ef9cf6b4)
+[14 of 25] Compiling Database.MySQL.Protocol.Auth ( src/Database/MySQL/Protocol/Auth.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Auth.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Auth.dyn_o ) [Source file changed]
+Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Preprocessing test suite 'integration' for mysql-haskell-1.3.3...
+Preprocessing test suite 'test' for mysql-haskell-1.3.3...
+Building test suite 'test' for mysql-haskell-1.3.3...
+Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Building test suite 'integration' for mysql-haskell-1.3.3...
+[18 of 18] Linking dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration [Library changed]
+[13 of 13] Linking dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation [Library changed]
+[15 of 15] Linking dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test [Library changed]
+Installing library in /root/.cabal/lib/aarch64-linux-ghc-9.4.7/mysql-haskell-1.3.3-inplace
+MariaDB preflight passed: 12.3.3-MariaDB-ubu2404-log
+PASS protocol.length-0
+PASS protocol.length-1
+PASS protocol.length-250
+PASS protocol.length-251
+PASS protocol.length-255
+PASS protocol.length-256
+PASS protocol.length-65535
+PASS protocol.length-65536
+PASS protocol.length-16777215
+PASS protocol.length-16777216
+PASS protocol.length-2147483647
+PASS protocol.packet-size-0
+PASS protocol.packet-size-1
+PASS protocol.packet-size-255
+PASS protocol.packet-size-256
+PASS protocol.packet-size-65535
+PASS protocol.fragment-split-1
+PASS protocol.fragment-split-2
+PASS protocol.fragment-split-3
+PASS protocol.fragment-split-4
+PASS protocol.fragment-split-5
+PASS protocol.fragment-split-6
+PASS protocol.fragment-split-7
+PASS protocol.fragment-split-8
+PASS protocol.fragment-split-9
+PASS protocol.fragment-split-10
+PASS protocol.fragment-split-11
+PASS protocol.fragment-split-12
+PASS protocol.fragment-split-13
+PASS protocol.fragment-split-14
+PASS protocol.fragment-split-15
+PASS protocol.fragment-split-16
+PASS protocol.fragment-split-17
+PASS protocol.fragment-split-18
+PASS protocol.fragment-split-19
+PASS protocol.fragment-split-20
+PASS protocol.coalesced-packets
+PASS protocol.truncated-header
+PASS protocol.truncated-body
+PASS protocol.continuation-sequence-rejected
+PASS protocol.continuation-sequence-wrap
+PASS protocol.large-row-is-not-eof
+PASS protocol.unsigned-last-insert-id
+PASS protocol.column-definition-roundtrip
+PASS protocol.binary-plugin-challenge
+PASS protocol.unknown-plugin-rejected
+PASS protocol.native-extension-handshake
+FAIL protocol.prepared-out-capability
+PASS protocol.empty-packet-predicate
+PASS protocol.text-field-trailing-data
+PASS protocol.text-field-integer-overflow
+PASS protocol.reset-does-not-consume-pending-row
+PASS protocol.null-bitmap-0
+PASS protocol.null-bitmap-1
+PASS protocol.null-bitmap-2
+PASS protocol.null-bitmap-7
+PASS protocol.null-bitmap-8
+PASS protocol.null-bitmap-9
+PASS protocol.null-bitmap-15
+PASS protocol.null-bitmap-16
+PASS protocol.null-bitmap-17
+PASS protocol.null-bitmap-63
+PASS protocol.null-bitmap-64
+PASS protocol.null-bitmap-65
+PASS connection.tcp-native
+PASS connection.unix-socket
+PASS connection.tls-verified
+PASS connection.tls-wrong-hostname
+PASS connection.wrong-password
+PASS connection.unknown-user
+PASS connection.missing-database
+PASS connection.default-full-unicode
+PASS auth.ed25519.tcp
+PASS auth.ed25519.tls
+PASS auth.ed25519.socket
+PASS auth.parsec.tcp
+PASS auth.parsec.tls
+PASS auth.parsec.socket
+PASS auth.sha2.tcp
+PASS auth.sha2.tls
+PASS auth.sha2.socket
+PASS types.text.int8-min
+PASS types.text.int8-max
+PASS types.text.uint8-max
+PASS types.text.int16-min
+PASS types.text.int16-max
+PASS types.text.uint16-max
+PASS types.text.int24-min
+PASS types.text.int24-max
+PASS types.text.uint24-max
+PASS types.text.int32-min
+PASS types.text.int32-max
+PASS types.text.uint32-max
+PASS types.text.int64-min
+PASS types.text.int64-max
+PASS types.text.uint64-max
+PASS types.text.decimal-65-30
+PASS types.text.decimal-65-38
+PASS types.text.decimal-zero
+PASS types.text.float-exact
+PASS types.text.double-exact
+PASS types.text.bit-1
+PASS types.text.bit-8
+PASS types.text.bit-16
+PASS types.text.bit-64
+PASS types.text.year-zero
+PASS types.text.year-min
+PASS types.text.year-max
+PASS types.text.date-min
+PASS types.text.date-leap
+PASS types.text.date-max
+PASS types.text.datetime-fraction
+PASS types.text.datetime-max
+PASS types.text.timestamp-fraction
+PASS types.text.timestamp-after-2038
+PASS types.text.time-zero
+PASS types.text.time-positive-limit
+PASS types.text.time-negative-limit
+PASS types.text.text-empty
+PASS types.text.text-unicode
+PASS types.text.text-emoji
+PASS types.text.text-combining
+PASS types.text.text-controls
+PASS types.text.bytes-all-256
+PASS types.text.bytes-empty
+PASS types.text.null
+PASS types.text.enum
+PASS types.text.set
+PASS types.binary.int8-min
+PASS types.binary.int8-max
+PASS types.binary.uint8-max
+PASS types.binary.int16-min
+PASS types.binary.int16-max
+PASS types.binary.uint16-max
+PASS types.binary.int24-min
+PASS types.binary.int24-max
+PASS types.binary.uint24-max
+PASS types.binary.int32-min
+PASS types.binary.int32-max
+PASS types.binary.uint32-max
+PASS types.binary.int64-min
+PASS types.binary.int64-max
+PASS types.binary.uint64-max
+PASS types.binary.decimal-65-30
+PASS types.binary.decimal-65-38
+PASS types.binary.decimal-zero
+PASS types.binary.float-exact
+PASS types.binary.double-exact
+PASS types.binary.bit-1
+PASS types.binary.bit-8
+PASS types.binary.bit-16
+PASS types.binary.bit-64
+PASS types.binary.year-zero
+PASS types.binary.year-min
+PASS types.binary.year-max
+PASS types.binary.date-min
+PASS types.binary.date-leap
+PASS types.binary.date-max
+PASS types.binary.datetime-fraction
+PASS types.binary.datetime-max
+PASS types.binary.timestamp-fraction
+PASS types.binary.timestamp-after-2038
+PASS types.binary.time-zero
+PASS types.binary.time-positive-limit
+PASS types.binary.time-negative-limit
+PASS types.binary.text-empty
+PASS types.binary.text-unicode
+PASS types.binary.text-emoji
+PASS types.binary.text-combining
+PASS types.binary.text-controls
+PASS types.binary.bytes-all-256
+PASS types.binary.bytes-empty
+PASS types.binary.null
+PASS types.binary.enum
+PASS types.binary.set
+PASS sql.cte
+PASS sql.recursive-cte
+PASS sql.window
+PASS sql.json-functions
+PASS sql.sequence-table
+PASS sql.sequence-object
+PASS sql.generated-column
+PASS sql.check-constraint
+PASS sql.foreign-key
+PASS sql.insert-returning
+PASS sql.prepared-returning
+PASS sql.procedure-multiple-results
+FAIL sql.procedure-prepared-out
+PASS sql.oracle-mode
+PASS sql.system-versioning
+PASS sql.json-native-column
+PASS sql.uuid-native-column
+PASS sql.inet-native-columns
+PASS sql.vector-native-column
+PASS sql.geometry
+PASS sql.zero-date-preservation
+PASS sql.unsigned-generated-id
+PASS parameters.literal-question-mark
+PASS parameters.comment-question-mark
+PASS parameters.no-backslash-text
+PASS parameters.no-backslash-binary
+PASS results.vector-api
+PASS results.prepared-vector-api
+PASS results.empty
+PASS results.no-rowset
+PASS results.multi-statement
+PASS results.discard-and-reuse
+PASS errors.syntax-and-reuse
+PASS errors.missing-table-and-reuse
+PASS errors.duplicate-and-reuse
+PASS statements.reset-consumed
+PASS statements.parameter-type-change
+PASS statements.ddl-reprepare
+PASS statements.prepare-metadata
+PASS statements.wrong-parameter-count
+PASS statements.closed-id-rejected
+PASS session.timestamp-timezone
+PASS session.use-schema
+PASS session.warning-count
+PASS parameters.many-values
+PASS parameters.empty-many
+PASS parameters.sql-injection-value
+PASS batch.empty
+PASS batch.ordered-errors
+PASS types.binary.null-columns-1
+PASS types.binary.null-columns-2
+PASS types.binary.null-columns-7
+PASS types.binary.null-columns-8
+PASS types.binary.null-columns-9
+PASS types.binary.null-columns-15
+PASS types.binary.null-columns-16
+PASS types.binary.null-columns-17
+PASS types.binary.null-columns-63
+PASS types.binary.null-columns-64
+PASS types.binary.null-columns-65
+PASS packets.live-blob-0
+PASS packets.live-blob-1
+PASS packets.live-blob-16383
+PASS packets.live-blob-16384
+PASS packets.live-blob-16385
+PASS packets.live-blob-1048576
+PASS packets.live-blob-16777214
+PASS packets.live-blob-16777215
+PASS packets.live-blob-16777216
+PASS packets.live-blob-16777217
+PASS packets.live-blob-33554430
+PASS packets.prepared-outbound-blob-16384
+PASS packets.prepared-outbound-blob-16777214
+PASS packets.prepared-outbound-blob-16777215
+PASS packets.prepared-outbound-blob-16777216
+PASS packets.prepared-outbound-blob-16777217
+PASS packets.prepared-outbound-blob-33554430
+PASS packets.text-outbound-blob-16777214
+PASS packets.text-outbound-blob-16777215
+PASS packets.text-outbound-blob-16777216
+PASS packets.text-outbound-blob-16777217
+PASS transaction.commit
+PASS transaction.rollback
+PASS transaction.savepoint
+PASS transaction.partial-result-exception
+PASS transaction.nested-preserves-outer
+PASS transaction.read-committed-no-dirty-read
+PASS transaction.lock-timeout-and-reuse
+PASS transaction.deadlock-and-reuse
+PASS transaction.ddl-implicit-commit
+PASS reliability.reset-unread-result
+FAIL reliability.timeout-before-metadata
+PASS reliability.server-kill-query
+PASS reliability.peer-disconnect
+PASS reliability.unread-result-guard
+PASS reliability.tls-cancellation-propagates
+PASS reliability.tcp-cancellation-propagates
+PASS connection.tls-untrusted-ca
+PASS connection.localhost-address-fallback
+PASS types.non-utf8-results
+UNSUPPORTED capability.binary-bulk
+UNSUPPORTED capability.metadata-cache
+UNSUPPORTED capability.extended-metadata
+UNSUPPORTED capability.session-tracking
+UNSUPPORTED capability.reset-connection
+UNSUPPORTED capability.progress-reporting
+UNSUPPORTED capability.cursor-fetch
+UNSUPPORTED capability.long-data
+UNSUPPORTED capability.compression
+PASS auth.mutual-tls-helper-client
+PASS auth.mutual-tls-explicit-certificate-hook
+PASS auth.mutual-tls-client-required
+PASS auth.mutual-tls-expired-client
+PASS auth.unix-socket-plugin
+PASS auth.unix-socket-rejects-tcp
+PASS connection.mozilla-ca-store-installed
+ENVIRONMENT_UNAVAILABLE auth.pam-environment
+ENVIRONMENT_UNAVAILABLE auth.gssapi-environment
+PASS cdc.single-table-map
+FAIL cdc.multiple-table-maps
+FAIL cdc.repeated-row-events
+FAIL cdc.table-id-mismatch
+FAIL cdc.crc32-corruption-rejected
+PASS cdc.live-row-insert
+UNSUPPORTED cdc.gtid-resume
+UNSUPPORTED cdc.durable-ack-control
+FAIL cdc.native-event-160
+FAIL cdc.native-event-161
+FAIL cdc.native-event-162
+FAIL cdc.native-event-163
+FAIL cdc.native-event-164
+FAIL cdc.native-event-165
+FAIL cdc.native-event-166
+FAIL cdc.native-event-167
+FAIL cdc.native-event-168
+FAIL cdc.native-event-169
+FAIL cdc.native-event-170
+FAIL cdc.native-event-171
+PASS stage1.session.executable-comment-tracker-raw
+PASS stage1.session.executable-comment-tracker-prepared
+PASS stage1.session.executable-comment-tracker-bound
+PASS stage1.parameters.comment-digit-prefixes
+PASS stage1.parameters.inactive-comment-context-retained
+PASS stage1.parameters.server-prepared-lexer-parity
+PASS stage1.parameters.batch-trailing-statement-delimiter
+PASS stage1.parameters.reversed-comments-rejected
+PASS stage1.session.snapshot-value-bound
+PASS stage1.session.snapshot-invalid-facts
+PASS stage1.session.snapshot-more-results-rejected
+PASS stage1.values.binary-time-microseconds-bounds
+PASS stage1.session.malformed-snapshot-retires
+PASS stage1.ownership.completed-command-does-not-finish-successor
+PASS stage1.ownership.closed-cannot-become-streaming
+PASS stage1.parameters.batch-trailing-line-comment
+PASS stage1.cleanup.transport-cancellation-propagates
+PASS stage1.replication.setup-error-retires
+PASS stage1.transaction.concurrent-close-commit-unknown
+PASS stage1.transaction.closed-after-known-commit-error
+PASS stage1.proxy.lost-commit-acknowledgement
+PASS stage1.proxy.fragmented-handshake-and-results
+PASS stage1.proxy.disconnect-before-metadata
+PASS stage1.proxy.actual-command-counts
+PASS stage1.session.tracker-selection-preserved
+PASS stage1.session.unknown-tracking-kind-skipped
+PASS stage1.cleanup.absolute-deadline-preserves-primary
+PASS stage1.fault.wrong-first-sequence
+PASS stage1.fragments.physical-exchange-sequence-wrap
+PASS stage1.fault.eof-metadata-validates
+PASS stage1.fault.old-stream-cannot-read-new-command
+PASS stage1.fault.unread-close-sends-nothing
+PASS stage1.fault.server-error-reusable
+PASS stage1.fault.partial-write-retires
+PASS stage1.fault.pre-send-limit-is-clean
+PASS stage1.fault.metadata-budget
+PASS stage1.fault.column-limit
+PASS stage1.fault.ok-terminator-binary-zero-row
+PASS stage1.fault.concurrent-command
+PASS stage1.transaction.thread-exclusion
+PASS stage1.transaction.caught-nested-rejection
+PASS stage1.transaction.manual-begin-rejected
+PASS stage1.transaction.returned-unread-rolls-back
+PASS stage1.timeout.connection-retired
+PASS stage1.session.row-count-no-hidden-probe
+PASS stage1.session.unknown-context-explicit-refresh
+PASS stage1.session.tracker-replacement-is-unknown
+PASS stage1.session.raw-multiple-invalidates
+PASS stage1.session.raw-routine-fast-path-excluded
+PASS stage1.session.prepared-tracker-replacement-is-unknown
+PASS stage1.session.mode-changes-both-directions
+PASS stage1.session.latin1-parameter
+PASS stage1.session.latin1-prepared-parameter
+PASS stage1.cleanup.second-cancellation-propagates
+PASS stage1.values.invalid-parameter-before-send
+PASS stage1.session.legacy-eof-integration
+PASS stage1.fault.row-trailing-bytes
+PASS stage1.parameters.quoted-semicolon-batch
+PASS stage1.parameters.opaque-routine-batch-rejected
+PASS stage1.parameters.quoted-routine-batch-rejected
+PASS stage1.session.unencodable-clean
+PASS stage1.parameters.batch-ambiguous-rejected-before-send
+PASS stage1.parameters.injection-remains-data
+PASS stage1.parameters.executable-comment-active
+PASS stage1.parameters.executable-comment-inactive
+PASS stage1.values.invalid-utf8-rejected
+PASS stage1.values.invalid-utf8-rejected-before-yield
+PASS stage1.fault.trailing-row-unfed-chunk
+PASS stage1.fault.logical-limit-before-continuation-body
+PASS stage1.fault.missing-tracking-payload
+PASS stage1.fault.session-envelope-budget
+PASS stage1.parameters.oracle-mode-quotes
+PASS stage1.parameters.ansi-identifier-backslash
+PASS stage1.values.unmapped-charset-exact-bytes
+PASS stage1.values.raw-dates-text-prepared
+PASS stage1.fragments.limit-4
+PASS stage1.fragments.limit-5
+PASS stage1.fragments.limit-6
+PASS stage1.values.uint64-9223372036854775807
+PASS stage1.values.uint64-9223372036854775808
+PASS stage1.values.uint64-18446744073709551615
+PASS stage1.parameters.quote-1
+PASS stage1.parameters.quote-2
+PASS stage1.parameters.quote-3
+PASS stage1.parameters.quote-4
+PASS stage1.parameters.quote-5
+PASS stage1.parameters.quote-6
+PASS stage1.parameters.quote-7
+PASS stage2.capabilities.greeting-upper-word
+PASS stage2.capabilities.auth-upper-word-offset
+PASS stage2.capabilities.ssl-upper-word-offset
+PASS stage2.capabilities.server-intersection
+PASS stage2.auth.ed25519-independent-golden
+PASS stage2.auth.binary-trailing-zero-switch
+PASS stage2.auth.optional-switch-terminator
+PASS stage2.auth.unknown-switch-before-write
+PASS stage2.auth.short-challenges-rejected
+PASS stage2.auth.malformed-switch-rejected
+PASS stage2.auth.switch-loop-bounded
+PASS stage2.auth.parsec-excess-work-before-derivation
+PASS stage2.auth.parsec-invalid-parameters
+PASS stage2.tls.sni-and-verified-hostname
+PASS stage2.auth.sha2-malformed-continuations
+PASS stage2.auth.rsa-invalid-nonce
+PASS stage2.auth.rsa-invalid-key-before-write
+PASS stage2.connection.greeting-deadline-closes-peer
+PASS stage2.connection.greeting-cancellation-closes-peer
+PASS stage2.auth.wrong-password.mariadb_ed25519.tcp
+PASS stage2.auth.wrong-password.mariadb_ed25519.tls
+PASS stage2.auth.wrong-password.mariadb_ed25519.socket
+PASS stage2.auth.wrong-password.mariadb_parsec.tcp
+PASS stage2.auth.wrong-password.mariadb_parsec.tls
+PASS stage2.auth.wrong-password.mariadb_parsec.socket
+PASS stage2.auth.wrong-password.mariadb_sha2.tcp
+PASS stage2.auth.wrong-password.mariadb_sha2.tls
+PASS stage2.auth.wrong-password.mariadb_sha2.socket
+PASS inherited.unit
+PASS inherited.integration
+Results: /evidence/profile-documented/suite/SUMMARY.md
+Linux correctness profile passed; frozen timings were not compared.
