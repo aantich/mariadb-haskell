@@ -1,0 +1,45 @@
+{-# LANGUAGE OverloadedStrings #-}
+import Control.Exception
+import Control.Monad
+import Data.Binary.Get
+import qualified GHC.Conc as G
+import qualified Database.MySQL.Connection as C
+import Database.MySQL.Base
+import qualified System.IO.Streams as S
+import Validation.Common (withConn)
+
+stage name action = do
+ a <- G.getAllocationCounter
+ value <- action
+ b <- G.getAllocationCounter
+ pure (value,(name,a-b))
+public c = do
+ ((_,stream),a) <- stage "public setup" (query_ c "SELECT 1")
+ (_,b) <- stage "public row" (S.read stream)
+ (_,d) <- stage "public end" (S.read stream)
+ pure [a,b,d]
+manual c = do
+ (_,a) <- stage "claim" (C.claimCommand c)
+ (_,b) <- stage "send" (C.sendCommand c (COM_QUERY "SELECT 1"))
+ (first,d) <- stage "header" (C.readConnPacket c)
+ (count,e) <- stage "count" (getFromPacketExact getLenEncInt first)
+ (fields,f) <- stage "metadata" (C.readColumns c count)
+ (parser,g) <- stage "prepare codec" (evaluate (prepareTextRow fields))
+ (row,h) <- stage "row packet" (C.readConnPacket c)
+ (values,i) <- stage "parse row" (getFromPacketExact parser row)
+ (_,j) <- stage "force row" (evaluate (foldr (\x rest -> x `seq` rest) () values))
+ (end,k) <- stage "end packet" (C.readConnPacket c)
+ (_,l) <- stage "consume end" (C.consumeEnd c end)
+ (_,m) <- stage "finish" (C.finishResponse c)
+ pure [a,b,d,e,f,g,h,i,j,k,l,m]
+main = withConn $ \c -> do
+ replicateM_ 2 (public c)
+ samples <- replicateM 100 (public c)
+ manualSamples <- replicateM 100 (manual c)
+ let report xs = mapM_ (\row -> print (fst (head row),fromIntegral (sum (map snd row)) / fromIntegral (length row) :: Double)) (transpose xs)
+ report samples
+ report manualSamples
+ where
+ transpose []=[]
+ transpose rows | null (head rows)=[]
+                | otherwise=map head rows : transpose (map tail rows)

@@ -1,0 +1,954 @@
+{
+  "schema": 1,
+  "declared_at": "2026-11-07T00:33:48.561533+00:00",
+  "status": "CORRECTNESS_AND_ALLOCATION_PASSED_TIMING_REVIEW_REQUIRED",
+  "inputs": {
+    "commit": "90f4f54ce17d8336011f0193326819563acd29df",
+    "branch": "codex/stage1-core-correctness",
+    "files": {
+      "app/Main.hs": "14d368ffba0a93fcb5b42a21a8d59881bf4aa0d2e307d6ca59df5cc26443c0e9",
+      "benchmark/insert/MySQLHaskell.hs": "a537baee061148200b7df26eab118bbf1276e0af775277260b9a37571cb705cb",
+      "benchmark/insert/MySQLHaskellInsertMany.hs": "2e809df988df24fcc6a30cf43443a93b78ff4ff58702044715e2fd7e789928f5",
+      "benchmark/insert/MySQLHaskellPrepared.hs": "1dc7a8824b119b08c566c2d88cc433b52f95048a944a858e8dda533c4d4cec1b",
+      "benchmark/insert/mysql-haskell-bench.cabal": "b5734a45dbd81dd0c5ec3f61d618ee0badc2cbca6abc2ab82fe35496d36eea2d",
+      "benchmark/select/MySQLFFI.hs": "1bfc5a38038217f8aa3fd85619a70406338dda857ede62822582a544ac486314",
+      "benchmark/select/MySQLHaskell.hs": "ee77fb18066cb51fe8ec1904992d4611d5d9d671d1d8c8cf0957c17be58bbf17",
+      "benchmark/select/MySQLHaskellOpenSSL.hs": "c2ed6a1f1c38dcf4b27c486ef10f2646ba138f33895b614176fc8e3f49b1e8fd",
+      "benchmark/select/MySQLHaskellPrepared.hs": "b64323963d4be10fa2368b131fd5d6ff1346462ffe5b7c1205bd6618cf7e02c8",
+      "benchmark/select/MySQLHaskellTLS.hs": "c2a56982828ed7f36b00082749fa7a9571e937dd33d85f11fbcb0a1a8ca56d58",
+      "benchmark/select/mysql-haskell-bench.cabal": "68eca1130f0854323d4bf2c65a7b0d51614b136c9373a43c0750380d306527c7",
+      "binary-parser-bench/Aeson.hs": "8bc10f152ed05c2a3b12a47218e16691c2715983601ab92d588eff5d643abe02",
+      "binary-parser-bench/AesonBP.hs": "8d79120631a458684340cc50a3282f5d9074abc139a689c3f8331d695aa88519",
+      "binary-parser-bench/Bench.hs": "43d470c035ac61b3615596acb2299445d680519a035eb0efe3eef208452a003e",
+      "binary-parser-bench/Common.hs": "62e12d49e1a8910d3a4f27e8ea78228270a19249dd630ceb9ff2b3d6024ae33b",
+      "binary-parser-bench/HttpReq.hs": "690ba34977edb0dd6265efe475b71dbd2577d7b4bef1624ad46c34380d16f67f",
+      "binary-parser-bench/Network/Wai/Handler/Warp/ReadInt.hs": "975e3a3287b901dba7056d41d5e0ebb4f47c80ca67efa9eabfb6f7e3b3608d67",
+      "binary-parser-bench/Network/Wai/Handler/Warp/RequestHeader.hs": "f0363ad88b076ec9a57d0f77452861ed49235292cc6922cb76a4708db2edc01d",
+      "default.nix": "13ddba5bdc58bb13e15ca8744cd9f516b47fe74decd724dfab527d6d428d464e",
+      "mozillaCAStore.pem": "e78c8ab7b4432bd466e64bb942d988f6c0ac91cd785017e465bdc96d42fe9dd0",
+      "mysql-haskell.cabal": "3c110e1c0934ba06e40faa8aaf538ec9a5f43ae5fc2aa44ddc56a5d3c6e4465b",
+      "nix/ci.nix": "c3db45b14ecdb91a0d57b03f05789a3dd789990b8a28cfc05f6c6de09dbcd353",
+      "nix/hpkgs.nix": "08ddc69f75f3fb7927a684c032ef9af1275d23d613a1821f62a89a90bfb35a47",
+      "nix/pkgs.nix": "c1b68cea588fa6a6ac47ecab48ea35ed72646c75604cbe543d552b3e881541af",
+      "npins/default.nix": "4b00cfc74eafb33b9fca27e14b3b121c32ac49755494f5c217d46af3fd6e98ab",
+      "npins/sources.json": "56698029576b2c9d2ea8f2634e36e0a45f468f98ea1f8395fbb732952e533029",
+      "shell.nix": "c6c97f2386dbd47ce37e13dd489ed8615698a354bb5ffb1330d1b19e9cd5c5ba",
+      "src/Data/Binary/Parser.hs": "ec8b2b63bb165227f721baba51cf265c8483ff0266b7d2d8e6db83e753a72dd8",
+      "src/Data/Binary/Parser/Numeric.hs": "d11b483f5f0d41481bbef35edad7e6d02539f2004f35f02c38326ef7f9aa999b",
+      "src/Data/Binary/Parser/Word8.hs": "9137cdf8a3dea06323c95ecc6866dd4eca4dc02cf2675b66804e490d75dfda30",
+      "src/Data/Connection.hs": "0a6bb6b888d971e02fc0b8e3723dae9dd8da6db78157924de5f485f06f8cfdc5",
+      "src/Data/Int/Int24.hs": "37f75aa6a046ecff79afa163a8fb0c1256461a9846cf481c0b47ce5572968832",
+      "src/Data/TLSSetting.hs": "3e4e9a5bd8a1921d71c81d583c40fdc71c8e29c26bb7238437dbe7f516868a77",
+      "src/Data/Word/Word24.hs": "d44b3b63e7ae1e01b3db5fe7e02e72e3968b3bd0f7f544e7201282252573e218",
+      "src/Database/MySQL/Base.hs": "4018d907852644de3362cc321858e6116e1a8cb762d2489897d487a841e762b7",
+      "src/Database/MySQL/BinLog.hs": "4c9d7e932a064733247e5294fa815e0c5c3aee075d5f62800c3da8b3728f5057",
+      "src/Database/MySQL/BinLogProtocol/BinLogEvent.hs": "b1623bbe55fdf5a3b517eb96b0629fe259f584100d4633fa24e9c9a535231255",
+      "src/Database/MySQL/BinLogProtocol/BinLogMeta.hs": "eaba7042b9639e563598eeb7ac4fecda0dee73aff84fa2fde671a707cae6b743",
+      "src/Database/MySQL/BinLogProtocol/BinLogValue.hs": "52f1754ae8b0fb7df42791128f25bcdab4da82be590238b0632ed6274f05d023",
+      "src/Database/MySQL/Connection.hs": "87cbd1cd4d44817b3e0ad3505363459e8cfe05ac9603723cf68cdc728511fb42",
+      "src/Database/MySQL/Field.hs": "e4469124ba21b73d619564c74935db2e1172c42abcf08d293aea1a5a3825d0f5",
+      "src/Database/MySQL/Protocol/Auth.hs": "9667fd29d75505848ebc88013f5a78538fed36b2b850e7565d2446bb68f3774c",
+      "src/Database/MySQL/Protocol/ColumnDef.hs": "fbb1d979ad033432da656bd24f1bcd12647b10d28492e1fb568bc539488ad3a1",
+      "src/Database/MySQL/Protocol/Command.hs": "7c2cbcde15da98ce6bfe5256513aa18cb91fc6aa260476ff9f35a1184ce53180",
+      "src/Database/MySQL/Protocol/Escape.hs": "cb75d67f1f1119a477e037675fc971373152d0eea9252675a5fe67427fcf2393",
+      "src/Database/MySQL/Protocol/MySQLValue.hs": "2c3fd75e714f14a993c896592d316a891bb77c11d9204946f132635d4099c3ac",
+      "src/Database/MySQL/Protocol/Packet.hs": "f81635c8305cd2fbd23816b8e9474b5da1200bb06bc1cdaa453b7698d993fa12",
+      "src/Database/MySQL/Query.hs": "976c0dc1aba4a310aabd15a66616a94bc88ef6260429864bf820d323930f1107",
+      "src/Database/MySQL/TLS.hs": "25d45fecf53b6f4fb2f5e0c4eec92d86a135b56343d60310d40e0dda9af49ca3",
+      "src/System/IO/Streams/TCP.hs": "03cb7ac274067cfb4d37d5186879476965d0d2fce41f08cc8535ac9f3e585cfc",
+      "src/System/IO/Streams/TLS.hs": "941fb2c388fb025caf355b066eb8c2a0f30be58080fc50f8b7855385a8e1f12e",
+      "tcp-streams-bench/TCPLoopBack.hs": "4c6831698fbb09ad958bc436227ad74fafbd7db21e3ac9afa4bcd7615ff59f5a",
+      "tcp-streams-bench/tcp-streams-bench.cabal": "da8432cfcdf2e14e2d4e478f4e2271c15426ca300b700de754e6d928b9db6662",
+      "test/Aeson.hs": "c7b8034b56ebc64190f2655ad0512df5e3b632f52dab330a59b32db9a9473464",
+      "test/AesonBP.hs": "cdc4a7b98861836f1873541f346f0713b8cf5426c30f69c6709397a3bf9ddd82",
+      "test/BinLog.hs": "4ab3697f61d079212883cf5b33c2b4c715b58fe6f88ef776ffdbb992dbc0bc79",
+      "test/BinLogNew.hs": "de4c3e19af7610a3e20b56618b715d9140f4e75ed203b09910b13eb181b86e4e",
+      "test/BinaryRow.hs": "c7ba4464359f76031d441771b42cb69f9f0423d51be9af51c063eb7cf25af320",
+      "test/BinaryRowNew.hs": "0f9aed39510e162f6136053c1d51362d83e5a46e9b6cdacd243281d0ffef34d5",
+      "test/BoundsCheck.hs": "c67fe343470265fcb571073178ca2707d3902609bd27eb8058c9bf4788289017",
+      "test/CachingSha2.hs": "b909f6d7b41eb6407da887613051820991b056d27ca73b788b2b45a2a3106b1e",
+      "test/ExecuteMany.hs": "1f6dacd8d9819229ba7513cbb074ac56364e526a78d092a37c53b879ec04920d",
+      "test/FieldRoundtrip.hs": "76eebc1f3e14f76723ac96cff94b3ba3d348629c8334518efb8f764223be6a93",
+      "test/Integration.hs": "ec6e426d3263b9ba476923a913ad24bb8553d3ca8ff9734d05855aa26147fd06",
+      "test/JSON.hs": "4ecb7fc2755bcdc1ed288b7947bf5b990f4c6811a3e47cdddfdae645bbf845fb",
+      "test/Main.hs": "13af030ae0386c823e05453a664987c4683d3c37886e7c011aa198f6c7ab0818",
+      "test/MultipleResults.hs": "0e216b45d753d71868f5b0b187e112ccc5b4157d0ebe7ca6cc3c8e1b9e714d0d",
+      "test/MysqlTests.hs": "7e01ad7e713d04894590a456817f7f5247e3ddf7246b4a68109120d9b517578d",
+      "test/Orphans.hs": "8e47f572923a821794c055c5df741e5db988aee9c49b19cd5d73b71067706f52",
+      "test/QC/ByteString.hs": "0f2d25016070d5dc26bd18f8e0fec63e67fbfb2c8d9200f6612f02dcf1cc96e7",
+      "test/QC/Combinator.hs": "6998f1edc27ffa3a3fbd2c26255d2eedae19742650b4f4fb77a87733da4a7c52",
+      "test/QC/Common.hs": "a9c0477fc1e5437a804cd683e40a7b62839ea72c1b6c7ac792ef51751e1a8541",
+      "test/QueryWithoutResultSet.hs": "21105d81ab587256d7d95baea6dd6af91e4fb2ca8f31af43ed89f9401f8a81d5",
+      "test/RoundtripBit.hs": "6b90e2c9832724864e57d3b929dd4317b6defbb16fdd306bb5ad0c87dccedc6b",
+      "test/RoundtripYear.hs": "f02ed26eff596796c034186193f7cf961e54aa02554bdcd400ee46aa5daae8ee",
+      "test/SelectOne.hs": "39887805917910b5d4cd05afe57528335be395adc36dd9c93d92610b3d2201e3",
+      "test/Sha1Scramble.hs": "3019543a09dfca261168d757295bdb7fded9c2d9ff2b4191d4d8fcb7a90338f4",
+      "test/Sha256Scramble.hs": "34276d7ea76abb3499bdfa7869d26f06381a155fe679215e925a1d1c18be0ff6",
+      "test/TCPStreams.hs": "6fc037920c871d794f016e8133f30c3101ee1f304b1ebbb1f1d1ee3b84cfc71f",
+      "test/TLSConnection.hs": "b11fb1d4af0cf7784d6911d1780d3ed2a2c637a35d342ac99f7981bd5bae3ae7",
+      "test/TextRow.hs": "1a81633ff71eb23256cf5da24fa853c8e12ff61a5fd8ff2857f2f83618a8382a",
+      "test/TextRowNew.hs": "30a6065bb1da69c9df3a2ad91e4e149655609c8b3951eef296889a1cd9111a82",
+      "test/UnixSocket.hs": "6cc69fb7e1adb030ed50b37b5ad2aa88f3b3e55db7f2874ea7810ff62ca76fe1",
+      "test/Word24.hs": "9fbfe462c8aee5a3c8d29e883c422505384a46d0fce094f099741764540796b5",
+      "test/cert/ca-key.pem": "84db0c8e210559876466a14c1edf4a5d294460c4dd91518c6e7054adaeec4901",
+      "test/cert/ca.pem": "08a03dd68ac0e83f2f494d52539979fe06b9c0857af1549ccf96c98677a00f0d",
+      "test/cert/server-cert.pem": "4418283cb6e80f051b48dc53e141b6981e5d3f6506f75ade26fdc1da414a2d6d",
+      "test/cert/server-key.pem": "53747570771df759585537854853d96726bc37e46067f2062c8a22df1659badb",
+      "test/cert/server-req.pem": "8323b4b2cc9535040dfab18cb78299d1b671bd0b8e7c521b5937a97a3c778741",
+      "test/json-data/buffer-builder.json": "abb6bf5752f6364961ffbd17fe0d25cce582bc0019d4521324aa435a04846414",
+      "test/json-data/dates-fract.json": "fa441ec0b77ee14d9c03eb576acebadb04624c1cc1b504ce78ce157ce849671b",
+      "test/json-data/dates.json": "2a43be6c1f559254de930c7a41b89fc3f7da78e4783b3b1c383a9862b2e4dfde",
+      "test/json-data/example.json": "d79c0c57ba46c86df2eabf42571b4bdfb8da0d6e5f2aa19209a54f8a71adb980",
+      "test/json-data/geometry.json": "3f8f894f73f8aafda0b8aa91e853f91d7bad58e6bda549ecd6a4b40ac53a8309",
+      "test/json-data/integers.json": "d7837fcdffdf62463965166e5102a42fefb33cb55fccda81a7546410c96f633f",
+      "test/json-data/jp10.json": "6707a225c2bd16442dee58ba17113a8dfa09c6562cf99e62683fcdf4d7cee669",
+      "test/json-data/jp100.json": "9d55ebd514c53cbe1aadac454834d550e463c8ad8ff98580cf32fc92df136998",
+      "test/json-data/jp50.json": "ab32c5504af0a8e1db9904d7a648bc37fea021b651b6f236736e474aa63efb7a",
+      "test/json-data/numbers.json": "f3692e8c9ddd5a78b0501c3e03ab75cea5df3b61c135bfb1dc024be538a2cb70",
+      "test/json-data/twitter1.json": "4961e86c42db96ccb70d985a08da7ecd779b43896996e75f383809356bd96e0e",
+      "test/json-data/twitter10.json": "81aa55b0a98805c613751575d72971786ed93a1e4695a20477bd74150ba7707d",
+      "test/json-data/twitter100.json": "956889c4f0be955dd81d4a5b79ef8777d0afe3db769f1e433f3f84e988a1ce2d",
+      "test/json-data/twitter20.json": "a661bfdabd8dfceb2f88d5abd391dbe0ea90489bca0c80faa3968bfbdd56d7cb",
+      "test/json-data/twitter50.json": "b7b4f76bf5c4fc5b4ba2e8d7124fbb01aab9e51fcc2c3398e6a597797a239456",
+      "validation/check.py": "dbfa4ea4a05063dda70cd56ead12c6eb057ec985203a4993acd8c4230e3e246e",
+      "validation/configure_macos.py": "59821956ef0e934e7fe7cfa5af280c6df356d91f7699f60f36428d1e605fd5b2",
+      "validation/connector_c.c": "f3258db4fda91dcc2e151d26e924ad33a85f41bad4f638065d974409a81d5980",
+      "validation/hs/Main.hs": "e056a60ed60268dde887569059e22a494bc75f7245da43fd37c86f2572d18375",
+      "validation/hs/Validation/Benchmark.hs": "7fc5450494568f81376818494f9d748a45dc7c7ba8376ea9d420c813810187e0",
+      "validation/hs/Validation/CDC.hs": "69ddf52b76190bd8fde3782147de8fb7e8af9167724bd462f0d03654347225d5",
+      "validation/hs/Validation/Common.hs": "07bcf4b72feaa294c133f4f396c87e1fae18b05400f1075534a33b6b3f0e0056",
+      "validation/hs/Validation/FaultTransport.hs": "f8fc2ff19315b91e4164f680652d865f87c433ba458cebf3273a44c73dc1ed40",
+      "validation/hs/Validation/Functional.hs": "28c7d66dbfb57a71486f520057c77e1f61434c8e0e57b904529b1416c21ac49d",
+      "validation/hs/Validation/Protocol.hs": "dda245b79359a64be740f95aa1ca7e1686288bfa03934b4621ff21c668a98f93",
+      "validation/hs/Validation/Reliability.hs": "234af0a8c3bd957587c78120700a4c23790a5cecb070c7cda3dde4138b1a7a44",
+      "validation/hs/Validation/Security.hs": "ef1e7b09f8e7806e471e0511fd4b4cf143a478005ca1d5fd19679ce16009f3dd",
+      "validation/hs/Validation/Stage1.hs": "8a6972e55cd67ded44ba4ef14561cdb21cc4dbab564b6ba0c4b55a3ba7c89f55",
+      "validation/hs/Validation/Supplementary.hs": "c8dbcb86cb945a866aeb4552b7a2d41b26f3fb619651cda97fe394107dbcd594",
+      "validation/profile_workloads.py": "5188d7706d0ad6f87775c302301709b9d981315892e47d33d267d8b3bce0437d",
+      "validation/provision.py": "d1db595452360ed876df7eadd7f4ed6b7b9aff2e4b49d6e399012c0626383433",
+      "validation/publish_results.py": "a5bf4aaba6163d7db6f6984f94659ed531ffebe5211330353ef7b6c1e83acb26",
+      "validation/run.py": "e756bc0f593b54bc9207fd88d2a53120a4654832650d0a148555a69ebd413346",
+      "validation/stage1_gates.py": "5f5babd7dd13b0decae3745a75ccc4d00cbc7b790c6d2eb49ee14d7fe9e7afe0",
+      "validation/supplementary.py": "124d17d1041633703542d789a20326f0a13ba2bdc0a0c2a410f66b2ce44cd69e",
+      "validation/test_publication.py": "48f3424e50c486f3d931e928550fcc95a459473abecc80a5218af50a685fdb8c",
+      "validation/test_runner.py": "9bcb095d73a3135d06bbb4560ce283473785ec640f3f3b5f50082b88c0304d3d",
+      "validation/test_stage1_gates.py": "734bae56f39d7a5f63f9d145c2cd5c3db44dc52e81830f320538167c2c7a579e",
+      "word24-bench/Benchmark.hs": "eae7b0dd6112ff82541718875e04eec7f9682b547b5ab34c69fbb242b6b7fc64"
+    },
+    "dirty_inputs": [
+      "mysql-haskell.cabal",
+      "nix/ci.nix",
+      "src/Database/MySQL/Base.hs",
+      "src/Database/MySQL/BinLog.hs",
+      "src/Database/MySQL/Connection.hs",
+      "src/Database/MySQL/Protocol/ColumnDef.hs",
+      "src/Database/MySQL/Protocol/MySQLValue.hs",
+      "src/Database/MySQL/Protocol/Packet.hs",
+      "src/Database/MySQL/Query.hs",
+      "src/Database/MySQL/TLS.hs",
+      "src/System/IO/Streams/TCP.hs",
+      "src/System/IO/Streams/TLS.hs",
+      "test/MultipleResults.hs",
+      "validation/check.py",
+      "validation/hs/Main.hs",
+      "validation/hs/Validation/FaultTransport.hs",
+      "validation/hs/Validation/Protocol.hs",
+      "validation/hs/Validation/Stage1.hs",
+      "validation/hs/Validation/Supplementary.hs",
+      "validation/profile_workloads.py",
+      "validation/publish_results.py",
+      "validation/stage1_gates.py",
+      "validation/supplementary.py",
+      "validation/test_publication.py",
+      "validation/test_stage1_gates.py"
+    ],
+    "sha256": "377dfc0bae2c80460c71b60209b9626d37e15767767e65674a453d88ec6c4914"
+  },
+  "planned_runs": [
+    "validation/results/runs/stage1-verified-1",
+    "validation/results/runs/stage1-verified-2",
+    "validation/results/runs/stage1-verified-3"
+  ],
+  "policy": "Three consecutive complete runs on stable identical inputs; seven fresh processes per frozen runnable profile per run; retain every run and matching C controls; evaluate the whole window without selecting the fastest run. Repeatable unexplained >5% costs remain unaccepted pending resolution or human tradeoff review.",
+  "supersedes": "experiments/pre-closefix-confirmation-window.json",
+  "runs": [
+    {
+      "results": "validation/results/references/stage1-verified-1.json",
+      "sha256": "6685b5e1039ca1f9be5ada6ffd88aee66503b9044260ef1cab57d5053b214689",
+      "recorded_at": "2026-11-07T00:34:01.250366+00:00",
+      "correctness": {
+        "PASS": 339,
+        "FAIL": 33,
+        "UNSUPPORTED": 11,
+        "ENVIRONMENT_UNAVAILABLE": 2
+      },
+      "acceptance": {
+        "schema": 1,
+        "correctness_failures": [],
+        "evidence_failures": [],
+        "evidence_accepted": true,
+        "timing_investigations": [
+          {
+            "reference": "original",
+            "id": "haskell/write.text",
+            "percent": 8.091535330341305
+          },
+          {
+            "reference": "original",
+            "id": "connector-c/read.text.narrow",
+            "percent": 7.1312803889789445
+          },
+          {
+            "reference": "original",
+            "id": "connector-c/blob.text",
+            "percent": 10.281487054103188
+          },
+          {
+            "reference": "accepted",
+            "id": "haskell/read.parallel-4",
+            "percent": 14.195320955790525
+          },
+          {
+            "reference": "accepted",
+            "id": "haskell/write.prepared",
+            "percent": 5.276187940902433
+          },
+          {
+            "reference": "accepted",
+            "id": "connector-c/blob.text",
+            "percent": 9.868215601773777
+          }
+        ],
+        "allocation_investigations": [],
+        "target_passes": 23,
+        "target_count": 23,
+        "correctness_accepted": true,
+        "performance_requires_confirmation": true
+      }
+    },
+    {
+      "results": "validation/results/references/stage1-verified-2.json",
+      "sha256": "685a672dd825be2026ed6bb9307beee50e0da0d37798e9c9c5b56ae028571c06",
+      "recorded_at": "2026-11-07T00:35:08.117635+00:00",
+      "correctness": {
+        "PASS": 339,
+        "FAIL": 33,
+        "UNSUPPORTED": 11,
+        "ENVIRONMENT_UNAVAILABLE": 2
+      },
+      "acceptance": {
+        "schema": 1,
+        "correctness_failures": [],
+        "evidence_failures": [],
+        "evidence_accepted": true,
+        "timing_investigations": [
+          {
+            "reference": "original",
+            "id": "haskell/write.text",
+            "percent": 9.672789896670487
+          },
+          {
+            "reference": "original",
+            "id": "connector-c/read.text.narrow",
+            "percent": 7.992301458670981
+          },
+          {
+            "reference": "accepted",
+            "id": "haskell/read.parallel-4",
+            "percent": 12.072267088502198
+          },
+          {
+            "reference": "accepted",
+            "id": "haskell/write.prepared",
+            "percent": 6.359643284972716
+          }
+        ],
+        "allocation_investigations": [],
+        "target_passes": 23,
+        "target_count": 23,
+        "correctness_accepted": true,
+        "performance_requires_confirmation": true
+      }
+    },
+    {
+      "results": "validation/results/references/stage1-verified-3.json",
+      "sha256": "aaf3716d2269e343819f7770d88bfb3fe2b2502779ab19bf984acb5639386e2c",
+      "recorded_at": "2026-11-07T00:36:54.130854+00:00",
+      "correctness": {
+        "PASS": 339,
+        "FAIL": 33,
+        "UNSUPPORTED": 11,
+        "ENVIRONMENT_UNAVAILABLE": 2
+      },
+      "acceptance": {
+        "schema": 1,
+        "correctness_failures": [],
+        "evidence_failures": [],
+        "evidence_accepted": true,
+        "timing_investigations": [
+          {
+            "reference": "original",
+            "id": "haskell/write.text",
+            "percent": 7.431374595553697
+          },
+          {
+            "reference": "original",
+            "id": "connector-c/read.text.narrow",
+            "percent": 6.604538087520262
+          },
+          {
+            "reference": "accepted",
+            "id": "haskell/write.prepared",
+            "percent": 6.604552109676565
+          }
+        ],
+        "allocation_investigations": [],
+        "target_passes": 23,
+        "target_count": 23,
+        "correctness_accepted": true,
+        "performance_requires_confirmation": true
+      }
+    }
+  ],
+  "profiles": {
+    "connector-c/read.text.wide": {
+      "unit": "row",
+      "original_ns_per_unit": 1261.0333333333333,
+      "accepted_ns_per_unit": 1200.5666666666666,
+      "run_medians_ns_per_unit": [
+        1161.8666666666666,
+        1163.0,
+        1167.1666666666667
+      ],
+      "window_median_ns_per_unit": 1163.0,
+      "time_percent_vs_original": -7.774047738627054,
+      "time_percent_vs_accepted": -3.1290779354193776,
+      "original_allocated_bytes_per_unit": null,
+      "run_allocated_bytes_per_unit": [
+        null,
+        null,
+        null
+      ],
+      "window_allocated_bytes_per_unit": null,
+      "allocation_percent_vs_original": null,
+      "original_cpu_ns_per_unit": 1007.3333333333334,
+      "window_cpu_ns_per_unit": 949.6666666666666,
+      "original_gc_cpu_ns_per_unit": null,
+      "window_gc_cpu_ns_per_unit": null
+    },
+    "connector-c/latency.text": {
+      "unit": "query",
+      "original_ns_per_unit": 26568.0,
+      "accepted_ns_per_unit": 26856.0,
+      "run_medians_ns_per_unit": [
+        24158.0,
+        24350.0,
+        24730.0
+      ],
+      "window_median_ns_per_unit": 24350.0,
+      "time_percent_vs_original": -8.348389039445948,
+      "time_percent_vs_accepted": -9.331248138218651,
+      "original_allocated_bytes_per_unit": null,
+      "run_allocated_bytes_per_unit": [
+        null,
+        null,
+        null
+      ],
+      "window_allocated_bytes_per_unit": null,
+      "allocation_percent_vs_original": null,
+      "original_cpu_ns_per_unit": 8722.0,
+      "window_cpu_ns_per_unit": 8224.0,
+      "original_gc_cpu_ns_per_unit": null,
+      "window_gc_cpu_ns_per_unit": null
+    },
+    "haskell/blob.text": {
+      "unit": "byte",
+      "original_ns_per_unit": 3.2140731811523438,
+      "accepted_ns_per_unit": 3.1930923461914062,
+      "run_medians_ns_per_unit": [
+        3.094482421875,
+        3.1017303466796875,
+        3.1003952026367188
+      ],
+      "window_median_ns_per_unit": 3.1003952026367188,
+      "time_percent_vs_original": -3.5368820841493065,
+      "time_percent_vs_accepted": -2.9030523863568525,
+      "original_allocated_bytes_per_unit": 2.09443359375,
+      "run_allocated_bytes_per_unit": [
+        2.135638427734375,
+        2.135638427734375,
+        2.1348922729492186
+      ],
+      "window_allocated_bytes_per_unit": 2.135638427734375,
+      "allocation_percent_vs_original": 1.9673497458852163,
+      "original_cpu_ns_per_unit": 0.328826904296875,
+      "window_cpu_ns_per_unit": 0.2635955810546875,
+      "original_gc_cpu_ns_per_unit": 0.01850128173828125,
+      "window_gc_cpu_ns_per_unit": 0.0091552734375
+    },
+    "haskell/blob.prepared": {
+      "unit": "byte",
+      "original_ns_per_unit": 3.1492233276367188,
+      "accepted_ns_per_unit": 3.2640457153320312,
+      "run_medians_ns_per_unit": [
+        3.2239913940429688,
+        3.0538558959960938,
+        3.0565261840820312
+      ],
+      "window_median_ns_per_unit": 3.0565261840820312,
+      "time_percent_vs_original": -2.9434922173096734,
+      "time_percent_vs_accepted": -6.357739730029799,
+      "original_allocated_bytes_per_unit": 2.094342041015625,
+      "run_allocated_bytes_per_unit": [
+        2.0969284057617186,
+        2.0969284057617186,
+        2.097706604003906
+      ],
+      "window_allocated_bytes_per_unit": 2.0969284057617186,
+      "allocation_percent_vs_original": 0.12349294888047702,
+      "original_cpu_ns_per_unit": 0.2902984619140625,
+      "window_cpu_ns_per_unit": 0.2506256103515625,
+      "original_gc_cpu_ns_per_unit": 0.01678466796875,
+      "window_gc_cpu_ns_per_unit": 0.01544952392578125
+    },
+    "haskell/micro.binary-row": {
+      "unit": "row",
+      "original_ns_per_unit": 246.13,
+      "accepted_ns_per_unit": 245.36,
+      "run_medians_ns_per_unit": [
+        234.5,
+        236.06,
+        236.47
+      ],
+      "window_median_ns_per_unit": 236.06,
+      "time_percent_vs_original": -4.091333847966516,
+      "time_percent_vs_accepted": -3.7903488751222736,
+      "original_allocated_bytes_per_unit": 2048.02232,
+      "run_allocated_bytes_per_unit": [
+        2080.02232,
+        2080.02232,
+        2080.02232
+      ],
+      "window_allocated_bytes_per_unit": 2080.02232,
+      "allocation_percent_vs_original": 1.5624829713769994,
+      "original_cpu_ns_per_unit": 266.33,
+      "window_cpu_ns_per_unit": 256.04,
+      "original_gc_cpu_ns_per_unit": 4.16,
+      "window_gc_cpu_ns_per_unit": 4.15
+    },
+    "haskell/read.prepared.narrow": {
+      "unit": "row",
+      "original_ns_per_unit": 314.58,
+      "accepted_ns_per_unit": 309.08,
+      "run_medians_ns_per_unit": [
+        284.58,
+        292.5,
+        316.24
+      ],
+      "window_median_ns_per_unit": 292.5,
+      "time_percent_vs_original": -7.018882319282849,
+      "time_percent_vs_accepted": -5.364306975540312,
+      "original_allocated_bytes_per_unit": 1886.89552,
+      "run_allocated_bytes_per_unit": [
+        1919.87216,
+        1923.56608,
+        1933.55136
+      ],
+      "window_allocated_bytes_per_unit": 1923.56608,
+      "allocation_percent_vs_original": 1.9434335187779705,
+      "original_cpu_ns_per_unit": 331.06,
+      "window_cpu_ns_per_unit": 305.7,
+      "original_gc_cpu_ns_per_unit": 4.3,
+      "window_gc_cpu_ns_per_unit": 4.46
+    },
+    "haskell/latency.text": {
+      "unit": "query",
+      "original_ns_per_unit": 39354.0,
+      "accepted_ns_per_unit": 40112.0,
+      "run_medians_ns_per_unit": [
+        40320.0,
+        40578.0,
+        40418.0
+      ],
+      "window_median_ns_per_unit": 40418.0,
+      "time_percent_vs_original": 2.7036641764496716,
+      "time_percent_vs_accepted": 0.762863980853612,
+      "original_allocated_bytes_per_unit": 39896.08,
+      "run_allocated_bytes_per_unit": [
+        34469.936,
+        34473.616,
+        34471.36
+      ],
+      "window_allocated_bytes_per_unit": 34471.36,
+      "allocation_percent_vs_original": -13.597125331611526,
+      "original_cpu_ns_per_unit": 36036.0,
+      "window_cpu_ns_per_unit": 38726.0,
+      "original_gc_cpu_ns_per_unit": 322.0,
+      "window_gc_cpu_ns_per_unit": 222.0
+    },
+    "haskell/read.parallel-4": {
+      "unit": "row",
+      "original_ns_per_unit": 117.95833333333333,
+      "accepted_ns_per_unit": 100.09166666666667,
+      "run_medians_ns_per_unit": [
+        114.3,
+        112.175,
+        91.7
+      ],
+      "window_median_ns_per_unit": 112.175,
+      "time_percent_vs_original": -4.902861179795126,
+      "time_percent_vs_accepted": 12.072267088502198,
+      "original_allocated_bytes_per_unit": 2835.878,
+      "run_allocated_bytes_per_unit": [
+        2228.388733333333,
+        2228.5430666666666,
+        2228.375
+      ],
+      "window_allocated_bytes_per_unit": 2228.388733333333,
+      "allocation_percent_vs_original": -21.42155856728205,
+      "original_cpu_ns_per_unit": 334.8666666666667,
+      "window_cpu_ns_per_unit": 309.31666666666666,
+      "original_gc_cpu_ns_per_unit": 3.466666666666667,
+      "window_gc_cpu_ns_per_unit": 3.3666666666666667
+    },
+    "haskell/read.prepared.wide": {
+      "unit": "row",
+      "original_ns_per_unit": 2425.0666666666666,
+      "accepted_ns_per_unit": 2399.6666666666665,
+      "run_medians_ns_per_unit": [
+        2236.4,
+        2273.4333333333334,
+        2286.9666666666667
+      ],
+      "window_median_ns_per_unit": 2273.4333333333334,
+      "time_percent_vs_original": -6.252749065317786,
+      "time_percent_vs_accepted": -5.260452840672302,
+      "original_allocated_bytes_per_unit": 24469.572,
+      "run_allocated_bytes_per_unit": [
+        22669.7544,
+        22669.72266666667,
+        22669.72266666667
+      ],
+      "window_allocated_bytes_per_unit": 22669.72266666667,
+      "allocation_percent_vs_original": -7.355458989365782,
+      "original_cpu_ns_per_unit": 2644.3333333333335,
+      "window_cpu_ns_per_unit": 2450.5,
+      "original_gc_cpu_ns_per_unit": 60.3,
+      "window_gc_cpu_ns_per_unit": 52.96666666666667
+    },
+    "haskell/write.execute-many": {
+      "unit": "row",
+      "original_ns_per_unit": 9670.0,
+      "accepted_ns_per_unit": 9972.0,
+      "run_medians_ns_per_unit": [
+        7401.0,
+        7461.0,
+        7554.0
+      ],
+      "window_median_ns_per_unit": 7461.0,
+      "time_percent_vs_original": -22.84384694932782,
+      "time_percent_vs_accepted": -25.180505415162457,
+      "original_allocated_bytes_per_unit": 20261.288,
+      "run_allocated_bytes_per_unit": [
+        8206.912,
+        8231.824,
+        8200.824
+      ],
+      "window_allocated_bytes_per_unit": 8206.912,
+      "allocation_percent_vs_original": -59.49461850599034,
+      "original_cpu_ns_per_unit": 12731.0,
+      "window_cpu_ns_per_unit": 9569.0,
+      "original_gc_cpu_ns_per_unit": 102.0,
+      "window_gc_cpu_ns_per_unit": 0.0
+    },
+    "haskell/read.text.wide": {
+      "unit": "row",
+      "original_ns_per_unit": 2876.4333333333334,
+      "accepted_ns_per_unit": 2831.5333333333333,
+      "run_medians_ns_per_unit": [
+        2599.4333333333334,
+        2675.9666666666667,
+        2700.6666666666665
+      ],
+      "window_median_ns_per_unit": 2675.9666666666667,
+      "time_percent_vs_original": -6.96927908405085,
+      "time_percent_vs_accepted": -5.494078591104934,
+      "original_allocated_bytes_per_unit": 30532.352266666665,
+      "run_allocated_bytes_per_unit": [
+        25986.223466666666,
+        25986.223466666666,
+        25986.223466666666
+      ],
+      "window_allocated_bytes_per_unit": 25986.223466666666,
+      "allocation_percent_vs_original": -14.88954653835558,
+      "original_cpu_ns_per_unit": 3143.0,
+      "window_cpu_ns_per_unit": 2883.733333333333,
+      "original_gc_cpu_ns_per_unit": 75.9,
+      "window_gc_cpu_ns_per_unit": 63.5
+    },
+    "haskell/read.vector.narrow": {
+      "unit": "row",
+      "original_ns_per_unit": 365.84,
+      "accepted_ns_per_unit": 371.6,
+      "run_medians_ns_per_unit": [
+        342.0,
+        334.62,
+        338.42
+      ],
+      "window_median_ns_per_unit": 338.42,
+      "time_percent_vs_original": -7.495079816313133,
+      "time_percent_vs_accepted": -8.928955866523147,
+      "original_allocated_bytes_per_unit": 3136.04208,
+      "run_allocated_bytes_per_unit": [
+        2344.49216,
+        2344.48928,
+        2344.79648
+      ],
+      "window_allocated_bytes_per_unit": 2344.49216,
+      "allocation_percent_vs_original": -25.240411314889,
+      "original_cpu_ns_per_unit": 385.48,
+      "window_cpu_ns_per_unit": 353.58,
+      "original_gc_cpu_ns_per_unit": 7.22,
+      "window_gc_cpu_ns_per_unit": 5.86
+    },
+    "haskell/write.text": {
+      "unit": "row",
+      "original_ns_per_unit": 38324.0,
+      "accepted_ns_per_unit": 40820.0,
+      "run_medians_ns_per_unit": [
+        41425.0,
+        42031.0,
+        41172.0
+      ],
+      "window_median_ns_per_unit": 41425.0,
+      "time_percent_vs_original": 8.091535330341305,
+      "time_percent_vs_accepted": 1.4821166095051463,
+      "original_allocated_bytes_per_unit": 43608.136,
+      "run_allocated_bytes_per_unit": [
+        32688.904,
+        32690.752,
+        32689.0
+      ],
+      "window_allocated_bytes_per_unit": 32689.0,
+      "allocation_percent_vs_original": -25.03921745244969,
+      "original_cpu_ns_per_unit": 31750.0,
+      "window_cpu_ns_per_unit": 33870.0,
+      "original_gc_cpu_ns_per_unit": 218.0,
+      "window_gc_cpu_ns_per_unit": 122.0
+    },
+    "haskell/read.socket.narrow": {
+      "unit": "row",
+      "original_ns_per_unit": 339.24,
+      "accepted_ns_per_unit": 352.7,
+      "run_medians_ns_per_unit": [
+        315.9,
+        313.88,
+        313.8
+      ],
+      "window_median_ns_per_unit": 313.88,
+      "time_percent_vs_original": -7.475533545572455,
+      "time_percent_vs_accepted": -11.006521122767221,
+      "original_allocated_bytes_per_unit": 3132.97664,
+      "run_allocated_bytes_per_unit": [
+        2524.8784,
+        2524.744,
+        2524.71808
+      ],
+      "window_allocated_bytes_per_unit": 2524.744,
+      "allocation_percent_vs_original": -19.4138900441977,
+      "original_cpu_ns_per_unit": 359.58,
+      "window_cpu_ns_per_unit": 331.66,
+      "original_gc_cpu_ns_per_unit": 6.16,
+      "window_gc_cpu_ns_per_unit": 6.4
+    },
+    "connector-c/write.execute-many": {
+      "unit": "row",
+      "original_ns_per_unit": 7635.0,
+      "accepted_ns_per_unit": 7646.0,
+      "run_medians_ns_per_unit": [
+        7668.0,
+        7730.0,
+        7618.0
+      ],
+      "window_median_ns_per_unit": 7668.0,
+      "time_percent_vs_original": 0.43222003929273,
+      "time_percent_vs_accepted": 0.28773214752813026,
+      "original_allocated_bytes_per_unit": null,
+      "run_allocated_bytes_per_unit": [
+        null,
+        null,
+        null
+      ],
+      "window_allocated_bytes_per_unit": null,
+      "allocation_percent_vs_original": null,
+      "original_cpu_ns_per_unit": 4194.0,
+      "window_cpu_ns_per_unit": 4347.0,
+      "original_gc_cpu_ns_per_unit": null,
+      "window_gc_cpu_ns_per_unit": null
+    },
+    "connector-c/read.text.narrow": {
+      "unit": "row",
+      "original_ns_per_unit": 197.44,
+      "accepted_ns_per_unit": 212.52,
+      "run_medians_ns_per_unit": [
+        211.52,
+        213.22,
+        210.48
+      ],
+      "window_median_ns_per_unit": 211.52,
+      "time_percent_vs_original": 7.1312803889789445,
+      "time_percent_vs_accepted": -0.47054394880481354,
+      "original_allocated_bytes_per_unit": null,
+      "run_allocated_bytes_per_unit": [
+        null,
+        null,
+        null
+      ],
+      "window_allocated_bytes_per_unit": null,
+      "allocation_percent_vs_original": null,
+      "original_cpu_ns_per_unit": 105.92,
+      "window_cpu_ns_per_unit": 121.8,
+      "original_gc_cpu_ns_per_unit": null,
+      "window_gc_cpu_ns_per_unit": null
+    },
+    "haskell/read.tls.narrow": {
+      "unit": "row",
+      "original_ns_per_unit": 370.58,
+      "accepted_ns_per_unit": 370.66,
+      "run_medians_ns_per_unit": [
+        367.0,
+        368.68,
+        368.56
+      ],
+      "window_median_ns_per_unit": 368.56,
+      "time_percent_vs_original": -0.5450914782233252,
+      "time_percent_vs_accepted": -0.5665569524631819,
+      "original_allocated_bytes_per_unit": 3111.98144,
+      "run_allocated_bytes_per_unit": [
+        2504.76128,
+        2504.76112,
+        2504.76112
+      ],
+      "window_allocated_bytes_per_unit": 2504.76112,
+      "allocation_percent_vs_original": -19.512337451472717,
+      "original_cpu_ns_per_unit": 393.36,
+      "window_cpu_ns_per_unit": 384.2,
+      "original_gc_cpu_ns_per_unit": 7.4,
+      "window_gc_cpu_ns_per_unit": 6.78
+    },
+    "haskell/read.parallel-16": {
+      "unit": "row",
+      "original_ns_per_unit": 107.575,
+      "accepted_ns_per_unit": 108.89166666666667,
+      "run_medians_ns_per_unit": [
+        92.33333333333333,
+        89.53958333333334,
+        95.15833333333333
+      ],
+      "window_median_ns_per_unit": 92.33333333333333,
+      "time_percent_vs_original": -14.168409636687585,
+      "time_percent_vs_accepted": -15.206244738654629,
+      "original_allocated_bytes_per_unit": 2835.23985,
+      "run_allocated_bytes_per_unit": [
+        2228.1331,
+        2228.1116,
+        2228.2112333333334
+      ],
+      "window_allocated_bytes_per_unit": 2228.1331,
+      "allocation_percent_vs_original": -21.41288857801572,
+      "original_cpu_ns_per_unit": 335.75625,
+      "window_cpu_ns_per_unit": 300.54583333333335,
+      "original_gc_cpu_ns_per_unit": 5.541666666666667,
+      "window_gc_cpu_ns_per_unit": 4.183333333333334
+    },
+    "connector-c/write.text": {
+      "unit": "row",
+      "original_ns_per_unit": 28478.0,
+      "accepted_ns_per_unit": 29766.0,
+      "run_medians_ns_per_unit": [
+        27289.0,
+        26668.0,
+        26846.0
+      ],
+      "window_median_ns_per_unit": 26846.0,
+      "time_percent_vs_original": -5.730739518224592,
+      "time_percent_vs_accepted": -9.809850164617352,
+      "original_allocated_bytes_per_unit": null,
+      "run_allocated_bytes_per_unit": [
+        null,
+        null,
+        null
+      ],
+      "window_allocated_bytes_per_unit": null,
+      "allocation_percent_vs_original": null,
+      "original_cpu_ns_per_unit": 7256.0,
+      "window_cpu_ns_per_unit": 6782.0,
+      "original_gc_cpu_ns_per_unit": null,
+      "window_gc_cpu_ns_per_unit": null
+    },
+    "haskell/write.prepared": {
+      "unit": "row",
+      "original_ns_per_unit": 39408.0,
+      "accepted_ns_per_unit": 37565.0,
+      "run_medians_ns_per_unit": [
+        39547.0,
+        39954.0,
+        40046.0
+      ],
+      "window_median_ns_per_unit": 39954.0,
+      "time_percent_vs_original": 1.3855054811205747,
+      "time_percent_vs_accepted": 6.359643284972716,
+      "original_allocated_bytes_per_unit": 37080.368,
+      "run_allocated_bytes_per_unit": [
+        25581.448,
+        25581.424,
+        25582.96
+      ],
+      "window_allocated_bytes_per_unit": 25581.448,
+      "allocation_percent_vs_original": -31.010803344778026,
+      "original_cpu_ns_per_unit": 32874.0,
+      "window_cpu_ns_per_unit": 34255.0,
+      "original_gc_cpu_ns_per_unit": 212.0,
+      "window_gc_cpu_ns_per_unit": 89.0
+    },
+    "haskell/micro.text-row": {
+      "unit": "row",
+      "original_ns_per_unit": 313.24,
+      "accepted_ns_per_unit": 318.24,
+      "run_medians_ns_per_unit": [
+        280.61,
+        281.17,
+        281.76
+      ],
+      "window_median_ns_per_unit": 281.17,
+      "time_percent_vs_original": -10.238156046481928,
+      "time_percent_vs_accepted": -11.648441427853196,
+      "original_allocated_bytes_per_unit": 2952.02232,
+      "run_allocated_bytes_per_unit": [
+        2448.02232,
+        2448.02232,
+        2448.02232
+      ],
+      "window_allocated_bytes_per_unit": 2448.02232,
+      "allocation_percent_vs_original": -17.07304164285587,
+      "original_cpu_ns_per_unit": 342.99,
+      "window_cpu_ns_per_unit": 304.32,
+      "original_gc_cpu_ns_per_unit": 5.53,
+      "window_gc_cpu_ns_per_unit": 4.78
+    },
+    "haskell/latency.prepared": {
+      "unit": "query",
+      "original_ns_per_unit": 41826.0,
+      "accepted_ns_per_unit": 40356.0,
+      "run_medians_ns_per_unit": [
+        37470.0,
+        37852.0,
+        37778.0
+      ],
+      "window_median_ns_per_unit": 37778.0,
+      "time_percent_vs_original": -9.67819059914885,
+      "time_percent_vs_accepted": -6.388145505005449,
+      "original_allocated_bytes_per_unit": 39647.792,
+      "run_allocated_bytes_per_unit": [
+        29509.072,
+        29500.096,
+        29514.416
+      ],
+      "window_allocated_bytes_per_unit": 29509.072,
+      "allocation_percent_vs_original": -25.571966277466352,
+      "original_cpu_ns_per_unit": 36418.0,
+      "window_cpu_ns_per_unit": 37766.0,
+      "original_gc_cpu_ns_per_unit": 314.0,
+      "window_gc_cpu_ns_per_unit": 146.0
+    },
+    "haskell/read.text.narrow": {
+      "unit": "row",
+      "original_ns_per_unit": 305.48,
+      "accepted_ns_per_unit": 315.68,
+      "run_medians_ns_per_unit": [
+        316.44,
+        317.26,
+        316.12
+      ],
+      "window_median_ns_per_unit": 316.44,
+      "time_percent_vs_original": 3.5877962550739717,
+      "time_percent_vs_accepted": 0.24075012671058715,
+      "original_allocated_bytes_per_unit": 2831.94784,
+      "run_allocated_bytes_per_unit": [
+        2225.0248,
+        2224.94192,
+        2224.94192
+      ],
+      "window_allocated_bytes_per_unit": 2224.94192,
+      "allocation_percent_vs_original": -21.434219635909667,
+      "original_cpu_ns_per_unit": 325.78,
+      "window_cpu_ns_per_unit": 333.58,
+      "original_gc_cpu_ns_per_unit": 6.34,
+      "window_gc_cpu_ns_per_unit": 5.98
+    },
+    "connector-c/blob.text": {
+      "unit": "byte",
+      "original_ns_per_unit": 3.0424118041992188,
+      "accepted_ns_per_unit": 3.0538558959960938,
+      "run_medians_ns_per_unit": [
+        3.3552169799804688,
+        2.9779434204101562,
+        3.0139923095703125
+      ],
+      "window_median_ns_per_unit": 3.0139923095703125,
+      "time_percent_vs_original": -0.9341107140618088,
+      "time_percent_vs_accepted": -1.3053525701080537,
+      "original_allocated_bytes_per_unit": null,
+      "run_allocated_bytes_per_unit": [
+        null,
+        null,
+        null
+      ],
+      "window_allocated_bytes_per_unit": null,
+      "allocation_percent_vs_original": null,
+      "original_cpu_ns_per_unit": 0.11920928955078125,
+      "window_cpu_ns_per_unit": 0.0873565673828125,
+      "original_gc_cpu_ns_per_unit": null,
+      "window_gc_cpu_ns_per_unit": null
+    }
+  },
+  "accepted_reference": {
+    "schema": 1,
+    "reference": "references/pre-stage1.json",
+    "sha256": "da103068ef554a3bd122419d0fc2cea218a40131501d4230aaa7602c5ecef9b8",
+    "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
+    "note": "Last accepted main before Stage 1; not advanced by failing attempts."
+  },
+  "repeatable_timing_investigations": [
+    {
+      "reference": "accepted",
+      "id": "haskell/write.prepared",
+      "percent_each_run": [
+        5.276187940902433,
+        6.359643284972716,
+        6.604552109676565
+      ]
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/read.text.narrow",
+      "percent_each_run": [
+        7.1312803889789445,
+        7.992301458670981,
+        6.604538087520262
+      ]
+    },
+    {
+      "reference": "original",
+      "id": "haskell/write.text",
+      "percent_each_run": [
+        8.091535330341305,
+        9.672789896670487,
+        7.431374595553697
+      ]
+    }
+  ],
+  "repeatable_allocation_investigations": [],
+  "finished_at": "2026-11-07T00:37:57.786339+00:00",
+  "note": "All three full runs passed frozen regression policy and all 5% allocation checks. Stricter timing signals remain open; no tradeoff approval or accepted-reference update is inferred. Current live report is run three, not a selected fastest result."
+}

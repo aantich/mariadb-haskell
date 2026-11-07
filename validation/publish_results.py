@@ -73,6 +73,7 @@ def compatible(current, baseline):
     return (current.get("comparison", {}).get("same_workloads") is True
             and current["machine"] == baseline["machine"]
             and current["server"] == baseline["server"]
+            and current.get("connector_c_version") == baseline.get("connector_c_version")
             and all(current["build"][k] == baseline["build"][k] for k in ("ghc", "cabal"))
             and current["dependency_plan_sha256"] == baseline["dependency_plan_sha256"])
 
@@ -126,7 +127,10 @@ def render_overview(document):
                   f'<text x="{x+16}" y="120" font-size="11" font-weight="700" letter-spacing="0.7" fill="#cbd5e1">{title}</text>',
                   f'<text x="{x+16}" y="171" font-size="43" font-weight="700" fill="{color}">{value}</text>',
                   f'<text x="{x+16}" y="201" font-size="10.5" fill="#94a3b8">{caption}</text>']
-    footer = f"{data['server']['identity'][0]}  /  {data['repetitions']} benchmark repetitions  /  commit {data['build']['git_commit'][:12]}"
+    provenance = (f"working tree {completed['attempt']['inputs']['sha256'][:12]}"
+                  if completed['attempt'].get('uncommitted_review')
+                  else f"commit {data['build']['git_commit'][:12]}")
+    footer = f"{data['server']['identity'][0]}  /  {data['repetitions']} benchmark repetitions  /  {provenance}"
     lines += [f'<text x="30" y="258" font-size="13" fill="#cbd5e1">{escape(footer)}</text>',
               '<text x="30" y="281" font-size="11" fill="#94a3b8">Counts include two inherited suite summaries. Missing APIs and environment gaps are not passes.</text>',
               '</g>', '</svg>']
@@ -138,7 +142,7 @@ def run_details(attempt, data):
              "<summary>Revision, environment and reproducibility</summary>", "",
              "| Field | Latest attempt |", "| --- | --- |",
              f"| State / exit code | {attempt['state']} / {attempt['exit_code']} |",
-             f"| Tested commit | [`{attempt['inputs']['commit']}`](https://github.com/aantich/mariadb-haskell/commit/{attempt['inputs']['commit']}) |",
+             f"| Parent commit (working-tree inputs are identified separately) | [`{attempt['inputs']['commit']}`](https://github.com/aantich/mariadb-haskell/commit/{attempt['inputs']['commit']}) |",
              f"| Branch | `{attempt['inputs']['branch']}` |",
              f"| Started / finished (UTC) | {attempt['started_at']} / {attempt['finished_at']} |",
              f"| Input fingerprint | `{attempt['inputs']['sha256']}` |",
@@ -151,7 +155,7 @@ def run_details(attempt, data):
                   f"| MariaDB Connector/C | {data.get('connector_c_version', 'not recorded')} |",
                   f"| Complete suite / repetitions | {data['complete_suite']} / {data['repetitions']} |",
                   f"| Driver/workloads stable during execution | {data['source_unchanged_during_run']} |"]
-    lines += ["", "The tested commit identifies the code used for execution. A following results-only commit publishes this document; it does not claim another test run. CI checks that the report, graphic and raw results match the current inputs.", "",
+    lines += ["", "Committed runs identify their tested revision. An uncommitted review run identifies its parent revision plus SHA-256 hashes of the actual working-tree inputs; it does not claim the parent commit contains these changes. A following results-only commit does not claim another test run. CI checks that the report, graphic and raw results match the current inputs.", "",
               "Full `python3 validation/check.py` runs refresh this live document, [overview.svg](results/overview.svg) and [current.json](results/current.json), including failed attempts. Commit all three with each tested change. Git history retains previous results.", "", "</details>"]
     return lines
 
@@ -159,9 +163,25 @@ def run_details(attempt, data):
 def render(document, baseline):
     attempt = document["latest_attempt"]
     lines = ["# Live MariaDB validation results", "",
-             "Current measurements for `main`, compared with the original unchanged-driver baseline.", "",
+             "Current measured source, compared with the original unchanged-driver baseline. Uncommitted review builds are identified by input fingerprints below.", "",
              "![Validation overview: passing records, failures, unsupported APIs and environment gaps](results/overview.svg)", "",
              "[Correctness](#correctness) · [Benchmarks](#benchmarks) · [Run details](#run-details) · [Raw results](results/current.json) · [Original baseline](baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md)", ""]
+    if attempt.get("uncommitted_review"):
+        lines += ["> [!IMPORTANT]", "> **Uncommitted review build.** Changes are deliberately uncommitted for Anton’s review. Measurements describe the fingerprinted working tree, not the parent commit and not a published main revision.", ""]
+    gate = document.get("stage1_acceptance")
+    if (attempt["state"] == "COMPLETED" and gate
+            and gate.get("tested_input_sha256") == attempt["inputs"]["sha256"]):
+        lines += ["## Stage 1 acceptance", "",
+                  f"Original targeted failures now passing: **{gate['target_passes']} / {gate['target_count']}**. Original-baseline and last-accepted correctness protection: **{'PASS' if gate['correctness_accepted'] else 'FAIL'}**.", "",
+                  f"Timing investigations above 5%: **{len(gate['timing_investigations'])}**; allocation investigations above 5%: **{len(gate['allocation_investigations'])}**. These are investigation signals, not automatically accepted costs.", "",
+                  "The frozen baseline retains its original meaning in all comparison tables. The last-accepted reference separately prevents an improvement being lost. [Acceptance evidence](results/stage1-gates.json) · [Confirmation history](results/stage1-confirmation.json) · [Supplementary evidence](results/references/stage1-after-final.json) · [Review notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).", "",
+                  "Confirmation and supplementary files identify their own input fingerprints. Evidence with a different fingerprint is historical and does not confirm the current source.", ""]
+        if gate['performance_requires_confirmation']:
+            lines += ["> [!WARNING]","> **Performance acceptance remains open.** Timing/allocation signals require investigation across the entire confirmation window; they have not been waived or accepted automatically.",""]
+        if gate.get('evidence_failures'):
+            lines += ["> [!CAUTION]","> Measurement evidence rejected: "+cell('; '.join(gate['evidence_failures'])),""]
+        if gate['correctness_failures']:
+            lines += ["<details><summary>Acceptance failures</summary>", ""] + ["- "+cell(x) for x in gate['correctness_failures']] + ["", "</details>", ""]
     if attempt["inputs"]["dirty_inputs"]:
         lines += ["**Uncommitted test/build inputs:** the tested contents differ from the recorded commit: "
                   + ", ".join(f"`{p}`" for p in attempt["inputs"]["dirty_inputs"]) + ".", ""]
@@ -262,9 +282,15 @@ def render(document, baseline):
     return "\n".join(lines) + "\n"
 
 
-def publish(attempt, data=None, *, current=CURRENT, report=REPORT, baseline=BASELINE):
+def publish(attempt, data=None, *, current=CURRENT, report=REPORT, baseline=BASELINE, gate=None):
     document = json.loads(current.read_text()) if current.exists() else {"schema": 1}
     document["latest_attempt"] = attempt
+    if gate is not None:
+        document["stage1_acceptance"] = gate
+    elif data is not None:
+        # A new completed run must not inherit acceptance from an older run,
+        # even when a documentation-only rerun has the same source fingerprint.
+        document.pop("stage1_acceptance", None)
     if data is not None:
         if not data["complete_suite"] or data["repetitions"] < 7:
             raise ValueError("partial/short runs cannot replace the live full-suite report")
@@ -278,7 +304,7 @@ def publish(attempt, data=None, *, current=CURRENT, report=REPORT, baseline=BASE
     atomic_write(current.parent / "overview.svg", overview)
 
 
-def verify(document, snapshot):
+def verify(document, snapshot, *, allow_working_tree=False):
     attempt = document["latest_attempt"]
     if attempt["state"] != "COMPLETED":
         raise ValueError("latest full validation did not complete")
@@ -289,9 +315,12 @@ def verify(document, snapshot):
     if not data["complete_suite"] or data["repetitions"] < 7 or not data["source_unchanged_during_run"]:
         raise ValueError("live results do not cover a stable complete suite with seven repetitions")
     if attempt["inputs"]["dirty_inputs"] or snapshot["dirty_inputs"]:
-        raise ValueError("test/build inputs must be committed before the published run")
+        if not (allow_working_tree and attempt.get("uncommitted_review")):
+            raise ValueError("test/build inputs are uncommitted; review runs require --working-tree explicitly")
     if attempt["inputs"]["files"] != snapshot["files"]:
         raise ValueError("live results are stale; run python3 validation/check.py on the current code")
+    if attempt["inputs"]["sha256"] != snapshot["sha256"]:
+        raise ValueError("recorded input fingerprint does not match the current input snapshot")
     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
         raise ValueError("recorder and report disagree about the tested commit")
 
@@ -300,17 +329,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", required=True,
                         help="fail if the live report does not cover current committed inputs")
-    parser.parse_args()
+    parser.add_argument("--working-tree", action="store_true", help="verify an explicitly recorded uncommitted review build")
+    args = parser.parse_args()
     try:
         document = json.loads(CURRENT.read_text())
-        verify(document, input_snapshot())
+        verify(document, input_snapshot(), allow_working_tree=args.working_tree)
         if REPORT.read_text() != render(document, json.loads(BASELINE.read_text())):
             raise ValueError("RESULTS.md does not match current.json")
         if OVERVIEW.read_text() != render_overview(document):
             raise ValueError("overview.svg does not match current.json")
     except (ValueError, KeyError, FileNotFoundError) as error:
         raise SystemExit(str(error))
-    print("Live report covers current committed test/build inputs; results-only publication commits are allowed.")
+    print("Live report covers the fingerprinted uncommitted review inputs." if args.working_tree else
+          "Live report covers current committed test/build inputs; results-only publication commits are allowed.")
 
 
 if __name__ == "__main__":

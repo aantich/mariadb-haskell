@@ -9,7 +9,6 @@ import Data.Binary.Put
 import Data.Bits
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
-import Data.IORef
 import Database.MySQL.Base
 import qualified Database.MySQL.Connection as C
 import qualified System.IO.Streams as S
@@ -102,9 +101,10 @@ cases =
         let p=putToPacket 1 (putLenEncBytes "256")
         expectRejection (getFromPacket (getTextField (mkColumn mySQLTypeTiny)) p)
     , packetCase "reset-does-not-consume-pending-row" $ do
-        consumed <- newIORef False
         input <- S.fromList [Packet 5 4 (L.pack [0,0,1,0,0]), encodeToPacket 5 (EOF 0 2), encodeToPacket 1 (OK 0 0 2 0)]
-        let conn=C.MySQLConn input (const (pure ())) (pure ()) consumed
+        conn <- C.newConnection C.defaultConnectionOptions input (const (pure ())) (pure ())
+        _ <- C.claimCommand conn
+        _ <- C.markStreaming conn
         result <- try (resetStmt conn 1) :: IO (Either SomeException ())
         case result of
             Left _ -> pure ()

@@ -25,7 +25,13 @@ These are current goals, not a claim that all of them are implemented. The compr
 
 The inherited driver supports streaming results, prepared statements, TLS and Unix sockets. The [live results](validation/RESULTS.md) record current correctness failures, unsupported functionality and measured performance. The [initial MariaDB baseline](validation/baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md) records the starting point before implementation changes.
 
-The Cabal package is still named `mysql-haskell`, and public modules still use `Database.MySQL.*`. We are keeping those names while establishing the baseline. Some protocol identifiers containing `mysql` are also used by MariaDB itself; those names do not imply support for MySQL servers.
+Stage 1 implements connection ownership, cancellation, transaction cleanup, exact values and session-aware parameter rendering. Read the [migration notes](docs/STAGE1_MIGRATION.md) and [implementation/review evidence](docs/STAGE1_IMPLEMENTATION_NOTES.md) before adopting these API changes. The live results identify the committed inputs tested for publication; earlier review measurements retain their working-tree fingerprints.
+
+The remaining performance investigations are deferred by project decision on 7 November 2026. Their measurements remain visible, and the original baseline is unchanged. This is permission to publish the reviewed correctness work, not a claim that every performance goal has passed.
+
+The [latest code review report](docs/STAGE1_CODE_REVIEW_2.md) records the subsequent correctness fixes, Haskell readability/comment improvements and remaining performance investigations.
+
+The Cabal package is still named `mysql-haskell`, and public modules still use `Database.MySQL.*`. We are keeping those names while hardening the driver and stabilizing its API. Some protocol identifiers containing `mysql` are also used by MariaDB itself; those names do not imply support for MySQL servers.
 
 ## A first query
 

@@ -1,35 +1,47 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-|
 Module      : Database.MySQL.Base
-Description : Prelude of mysql-haskell
+Description : Public MariaDB connection, query and transaction API
 Copyright   : (c) Winterland, 2016
 License     : BSD
 Maintainer  : drkoster@qq.com
 Stability   : experimental
 Portability : PORTABLE
 
-This module provide common MySQL operations,
+One connection admits one command or unfinished result stream at a time. Read a
+stream on the thread that created it and consume it before issuing another
+command. Use separate connections for concurrent work.
 
-NOTEs on 'Exception's: This package use 'Exception' to deal with unexpected situations,
-but you shouldn't try to catch them if you don't have a recovery plan,
-for example: there's no meaning to catch a 'ERRException' during authentication unless you want to try different passwords.
-By using this library you will meet:
+A complete 'ERRException' leaves the wire synchronized, but invalidates cached
+session facts. Explicitly call 'refreshSessionState' before rendering further
+text parameters. Transport failures, malformed replies and cancellation during
+I/O retire the connection; inspect 'connectionStatus' and open a new connection.
 
-    * 'NetworkException':  underline network is broken.
-    * 'UnconsumedResultSet':  you should consume previous resultset before sending new command.
-    * 'ERRException':  you receive a 'ERR' packet when you shouldn't.
-    * 'UnexpectedPacket':  you receive a unexpected packet when you shouldn't.
-    * 'DecodePacketException': there's a packet we can't decode.
-    * 'WrongParamsCount': you're giving wrong number of params to 'renderParams'.
-    * 'ExtraResultSets': a statement produced a result-set the function running it
-      could not return.
-
-Both 'UnexpectedPacket' and 'DecodePacketException' may indicate a bug of this library rather your code, so please report!
+'WrongParamsCount' reports placeholder arity errors. 'ExtraResultSets' means a
+single-result API drained results that it could not return. 'withTransaction'
+documents rollback and uncertain-COMMIT behavior separately.
 
 -}
 module Database.MySQL.Base
     ( -- * Setting up and control connection
       MySQLConn
     , ConnectInfo(..)
+    , ConnectionOptions(..)
+    , defaultConnectionOptions
+    , connectWithOptions
+    , connectDetailWithOptions
+    , connectUnixSocketWithOptions
+    , connectUnixSocketDetailWithOptions
+    , ConnectionStatus(..)
+    , ConnectionFailure(..)
+    , ConnectionError(..)
+    , connectionStatus
+    , connectionFailure
+    , refreshSessionState
+    , getRenderContext
+    , RenderContext(..)
+    , defaultRenderContext
+    , ParameterError(..)
     , defaultConnectInfo
     , defaultConnectInfoMB4
     , connect
@@ -82,12 +94,14 @@ module Database.MySQL.Base
     , module  Database.MySQL.Protocol.MySQLValue
     ) where
 
-import           Control.Exception                  (mask, onException, throwIO)
+import           Control.Exception
 import           Control.Monad
 import           Data.Binary                        (Get)
+import Data.Binary.Put (runPut, putWord8)
+import Data.Word (Word16)
+import System.Timeout (timeout)
 import           Data.Bits                          ((.&.))
-import qualified Data.ByteString.Lazy               as L
-import           Data.IORef                         (IORef, newIORef, readIORef, writeIORef)
+import           Data.IORef                         (newIORef, readIORef, writeIORef, atomicModifyIORef')
 import           Database.MySQL.Connection
 import           Database.MySQL.Protocol.Auth
 import           Database.MySQL.Protocol.ColumnDef
@@ -102,437 +116,365 @@ import qualified Data.Vector                        as V
 
 --------------------------------------------------------------------------------
 
--- | Execute a MySQL query with parameters which don't return a result-set.
---
--- The query may contain placeholders @?@, for filling up parameters, the parameters
--- will be escaped before get filled into the query, please DO NOT enable @NO_BACKSLASH_ESCAPES@,
--- and you should consider using prepared statement if this's not an one shot query.
---
+
+-- | Render parameters with the connection's current session context and execute
+-- one statement. Unexpected row results are drained before 'ExtraResultSets'.
 execute :: QueryParam p => MySQLConn -> Query -> [p] -> IO OK
-execute conn qry params = execute_ conn (renderParams qry params)
-
-{-# SPECIALIZE execute :: MySQLConn -> Query -> [MySQLValue] -> IO OK #-}
-{-# SPECIALIZE execute :: MySQLConn -> Query -> [Param]      -> IO OK #-}
-
--- | Execute a multi-row query which don't return result-set.
---
--- Leverage MySQL's multi-statement support to do batch insert\/update\/delete,
--- you may want to use 'withTransaction' to make sure it's atomic, and
--- use @sum . map okAffectedRows@ to get all affected rows count.
---
--- The result holds one 'OK' per statement, so a query with several statements
--- gives several per parameter set. A statement that returns rows raises
--- 'ExtraResultSets' once the whole reply has been read; 'queryMulti' returns
--- those. No parameter sets gives @[]@ without contacting the server.
---
--- @since 0.2.0.0
---
-executeMany :: QueryParam p => MySQLConn -> Query -> [[p]] -> IO [OK]
-executeMany conn@(MySQLConn is os _ _) qry paramsList = do
-    guardUnconsumed conn
-    case paramsList of
-        -- Joining no statements would send an empty query, which the server refuses.
-        [] -> pure []
-        _ : _ -> do
-            let qry' = L.intercalate ";" $ map (fromQuery . renderParams qry) paramsList
-            writeCommand (COM_QUERY qry') os
-            readStatementResults is >>= onlyOKs
-
-{-# SPECIALIZE executeMany :: MySQLConn -> Query -> [[MySQLValue]] -> IO [OK] #-}
-{-# SPECIALIZE executeMany :: MySQLConn -> Query -> [[Param]]      -> IO [OK] #-}
-
--- | Execute multiple querys (without param) which don't return result-set.
---
--- This's useful when your want to execute multiple SQLs without params, e.g. from a
--- SQL dump, or a table migration plan.
---
--- A statement that returns rows raises 'ExtraResultSets' once the whole reply
--- has been read; 'queryMulti_' returns those.
---
--- @since 0.8.4.0
---
-executeMany_ :: MySQLConn -> Query -> IO [OK]
-executeMany_ conn@(MySQLConn is os _ _) qry = do
-    guardUnconsumed conn
-    writeCommand (COM_QUERY (fromQuery qry)) os
-    readStatementResults is >>= onlyOKs
-
--- | Execute a MySQL query which don't return a result-set.
---
--- For a multi-statement query this is the first statement's 'OK'; the later
--- ones are read and discarded ('executeMany_' returns them all).
---
+execute conn qry values = withCommand conn $ do
+    rendered <- connectedRender conn qry values
+    executeCore conn (COM_QUERY (fromQuery rendered))
+-- | Execute SQL bytes without parameter rendering. The caller owns SQL quoting.
 execute_ :: MySQLConn -> Query -> IO OK
-execute_ conn (Query qry) = executeCommand conn (COM_QUERY qry)
+execute_ conn (Query qry) = withCommand conn (executeCore conn (COM_QUERY qry))
+-- | Execute raw multi-statement SQL and return its OK replies. Row results are
+-- drained before reporting 'ExtraResultSets'; this operation is not atomic.
+executeMany_ :: MySQLConn -> Query -> IO [OK]
+executeMany_ conn (Query qry) = withCommand conn $ do
+    sendCommand conn (COM_QUERY qry)
+    readStatementResults conn False >>= onlyOKs
+-- | Compile a stable template once and send every parameter set in one command.
+-- Ambiguous context-changing templates and invalid values fail before writing.
+-- A later server error can leave earlier statements executed; use an explicit
+-- transaction when all-or-nothing execution is required. Every server OK reply
+-- is returned, including an empty/comment-only result after a final delimiter.
+executeMany :: QueryParam p => MySQLConn -> Query -> [[p]] -> IO [OK]
+executeMany _ _ [] = pure []
+executeMany conn qry values = withCommand conn $ do
+    ctx <- getRenderContext conn
+    plan <- checked (compileQuery ctx qry)
+    unless (planBatchSafe plan) (throwIO AmbiguousParameterizedBatch)
+    writeIORef (connectionQueryEffect conn) (Just False)
+    rendered <- traverse (checked . renderPlanPut ctx plan) values
+    let separator
+            | planTerminated plan = putWord8 10
+            | otherwise = putWord8 10 >> putWord8 59
+        joinBatch []=pure ()
+        joinBatch [one]=one
+        -- End any trailing line comment before writing the statement separator.
+        -- Without the leading newline, '-- ...' or '# ...' can swallow the
+        -- separator and all subsequent statements in an otherwise valid batch.
+        -- A template may already end with ';', followed by an optional comment.
+        -- Preserve that delimiter instead of creating an empty middle statement.
+        joinBatch (one:rest)=one >> separator >> joinBatch rest
+        bytes=runPut (joinBatch rendered)
+    sendCommand conn (COM_QUERY bytes)
+    readStatementResults conn False >>= onlyOKs
 
--- | Execute a MySQL query which return a result-set with parameters.
---
--- Note that you must fully consumed the result-set before start a new query on
--- the same 'MySQLConn', or an 'UnconsumedResultSet' will be thrown.
--- if you want to skip the result-set, use 'Stream.skipToEof'.
---
+checked :: Either ParameterError a -> IO a
+checked (Left ParameterCountMismatch) = throwIO WrongParamsCount
+checked (Left err) = throwIO err
+checked (Right value) = pure value
+
+connectedRender :: QueryParam p => MySQLConn -> Query -> [p] -> IO Query
+connectedRender conn qry values = do
+    ctx <- getRenderContext conn
+    plan <- checked (compileQuery ctx qry)
+    -- A multi-statement template must have a stable rendering context throughout.
+    when (not (planBatchSafe plan) && planMultiple plan) (throwIO AmbiguousParameterizedBatch)
+    writeIORef (connectionQueryEffect conn) (Just (planOpaque plan))
+    checked (renderPlan ctx plan values)
+
+-- | Stream the first row result using checked text parameters. The stream owns
+-- the connection until EOF and must be consumed on the calling thread. Later
+-- row results are drained before 'ExtraResultSets'; use 'queryMulti' to keep them.
 query :: QueryParam p => MySQLConn -> Query -> [p] -> IO ([ColumnDef], InputStream [MySQLValue])
-query conn qry params = query_ conn (renderParams qry params)
+query conn qry values = withCommand conn $ do
+    rendered <- connectedRender conn qry values
+    queryCore conn (COM_QUERY (fromQuery rendered)) False
+-- | Raw-SQL variant of 'query', with the same stream ownership contract.
+query_ :: MySQLConn -> Query -> IO ([ColumnDef],InputStream [MySQLValue])
+query_ conn (Query qry) = withCommand conn (queryCore conn (COM_QUERY qry) False)
+-- | Vector variant of 'query'; rows share the checked list decoder.
+queryVector :: QueryParam p => MySQLConn -> Query -> [p] -> IO (V.Vector ColumnDef,InputStream (V.Vector MySQLValue))
+queryVector conn qry values = withCommand conn $ do
+    rendered <- connectedRender conn qry values
+    queryVectorCore conn (COM_QUERY (fromQuery rendered)) False
+-- | Raw-SQL vector stream, with the same ownership contract as 'query'.
+queryVector_ :: MySQLConn -> Query -> IO (V.Vector ColumnDef,InputStream (V.Vector MySQLValue))
+queryVector_ conn (Query qry) = withCommand conn (queryVectorCore conn (COM_QUERY qry) False)
 
-{-# SPECIALIZE query :: MySQLConn -> Query -> [MySQLValue] -> IO ([ColumnDef], InputStream [MySQLValue]) #-}
-{-# SPECIALIZE query :: MySQLConn -> Query -> [Param]      -> IO ([ColumnDef], InputStream [MySQLValue]) #-}
+-- | Results have been drained, but the selected API could not return their shape.
+data ExtraResultSets = ExtraResultSets deriving (Show)
+instance Exception ExtraResultSets
 
--- | 'V.Vector' version of 'query'.
---
--- @since 0.5.1.0
---
-queryVector :: QueryParam p => MySQLConn -> Query -> [p] -> IO (V.Vector ColumnDef, InputStream (V.Vector MySQLValue))
-queryVector conn qry params = queryVector_ conn (renderParams qry params)
-
-{-# SPECIALIZE queryVector :: MySQLConn -> Query -> [MySQLValue] -> IO (V.Vector ColumnDef, InputStream (V.Vector MySQLValue)) #-}
-{-# SPECIALIZE queryVector :: MySQLConn -> Query -> [Param]      -> IO (V.Vector ColumnDef, InputStream (V.Vector MySQLValue)) #-}
-
--- | Execute a MySQL query which return a result-set.
---
--- A statement without a result-set, such as an INSERT, gives no columns and no
--- rows; use 'execute_' to get its 'OK'.
---
-query_ :: MySQLConn -> Query -> IO ([ColumnDef], InputStream [MySQLValue])
-query_ conn@(MySQLConn is os _ consumed) (Query qry) = do
-    guardUnconsumed conn
-    writeCommand (COM_QUERY qry) os
-    reply <- readQueryReply is
-    case reply of
-        WithoutResultSet -> (,) [] <$> Stream.nullInput
-        ResultSetColumns len -> do
-            fields <- replicateM len $ (decodeFromPacket <=< readPacket) is
-            _ <- readPacket is -- eof packet, we don't verify this though
-            writeIORef consumed False
-            rows <- resultSetRows is consumed (getFromPacket (getTextRow fields))
-            return (fields, rows)
-
--- | 'V.Vector' version of 'query_'.
---
--- @since 0.5.1.0
---
-queryVector_ :: MySQLConn -> Query -> IO (V.Vector ColumnDef, InputStream (V.Vector MySQLValue))
-queryVector_ conn@(MySQLConn is os _ consumed) (Query qry) = do
-    guardUnconsumed conn
-    writeCommand (COM_QUERY qry) os
-    reply <- readQueryReply is
-    case reply of
-        WithoutResultSet -> (,) V.empty <$> Stream.nullInput
-        ResultSetColumns len -> do
-            fields <- V.replicateM len $ (decodeFromPacket <=< readPacket) is
-            _ <- readPacket is -- eof packet, we don't verify this though
-            writeIORef consumed False
-            rows <- resultSetRows is consumed (getFromPacket (getTextRowVector fields))
-            return (fields, rows)
-
--- | One result of a statement run through 'queryMulti_'.
---
--- @since 1.3.3
-data StatementResult
-    = StatementOK OK                            -- ^ a statement without rows, e.g. an INSERT
-    | StatementRows [ColumnDef] [[MySQLValue]]  -- ^ a result-set
-    deriving (Show, Eq)
-
--- | Execute a MySQL query and return every result it produces, in order: one per
--- statement of a multi-statement query, and for a CALL one per result-set the
--- procedure returns followed by the CALL's own 'OK'.
---
--- Unlike 'query_' the rows are read up front, as each result-set has to be read
--- off the connection before the next one arrives. A failing statement raises its
--- 'ERRException'; the server runs no statement after it.
---
--- @since 1.3.3
-queryMulti_ :: MySQLConn -> Query -> IO [StatementResult]
-queryMulti_ conn@(MySQLConn is os _ _) (Query qry) = do
-    guardUnconsumed conn
-    writeCommand (COM_QUERY qry) os
-    readStatementResults is
-
--- | 'queryMulti_' with parameters, filled in as 'query' does.
---
--- @since 1.3.3
+-- | One fully materialized statement result. Multi-result APIs retain all rows
+-- in memory; use the streaming APIs for large individual result sets.
+data StatementResult = StatementOK OK | StatementRows [ColumnDef] [[MySQLValue]] deriving (Show,Eq)
+-- | Render a stable multi-statement template and collect every result.
 queryMulti :: QueryParam p => MySQLConn -> Query -> [p] -> IO [StatementResult]
-queryMulti conn qry params = queryMulti_ conn (renderParams qry params)
+queryMulti conn qry values = withCommand conn $ do
+    rendered <- connectedRender conn qry values
+    sendCommand conn (COM_QUERY (fromQuery rendered))
+    readStatementResults conn False
+-- | Collect every result of raw multi-statement SQL, retaining its rows in memory.
+queryMulti_ :: MySQLConn -> Query -> IO [StatementResult]
+queryMulti_ conn (Query qry) = withCommand conn $ sendCommand conn (COM_QUERY qry) >> readStatementResults conn False
 
-{-# SPECIALIZE queryMulti :: MySQLConn -> Query -> [MySQLValue] -> IO [StatementResult] #-}
-{-# SPECIALIZE queryMulti :: MySQLConn -> Query -> [Param]      -> IO [StatementResult] #-}
+moreResults :: Word16 -> Bool
+moreResults flags = flags .&. 8 /= 0
 
--- | Read a reply's results until one comes without SERVER_MORE_RESULTS_EXISTS.
-readStatementResults :: InputStream Packet -> IO [StatementResult]
-readStatementResults is = do
-    p <- readPacket is
-    if  | isERR p -> decodeFromPacket p >>= throwIO . ERRException
-        | isOK  p -> do
-            ok <- decodeFromPacket p
-            if isThereMore ok
-            then (StatementOK ok :) <$> readStatementResults is
-            else pure [StatementOK ok]
-        | otherwise -> do
-            (result, eof) <- readResultSet is p
-            if isThereMoreAfterEOF eof
-            then (result :) <$> readStatementResults is
-            else pure [result]
+readStatementResults :: MySQLConn -> Bool -> IO [StatementResult]
+readStatementResults conn binary = loop []
+  where
+    loop earlier = do
+        packet <- readConnPacket conn
+        if isERR packet then serverError conn packet
+        else if isOK packet then do
+            ok <- consumeOK conn packet
+            let results=StatementOK ok:earlier
+            if moreResults (okStatus ok) then loop results else finishResponse conn >> pure (reverse results)
+        else do
+            count <- getFromPacketExact getLenEncInt packet
+            fields <- readColumns conn count
+            let decode=if binary then decodeBinaryRow (prepareBinaryRow fields) else decodeTextRow (prepareTextRow fields)
+                rows acc = do
+                    next <- readConnPacket conn
+                    done <- isResultEnd conn next
+                    if done then (,) (reverse acc) <$> consumeEnd conn next
+                    else if isERR next then serverError conn next else decode next >>= \row -> rows (row:acc)
+            (values,flags) <- rows []
+            let results=StatementRows fields values:earlier
+            if moreResults flags then loop results else finishResponse conn >> pure (reverse results)
 
--- | Read the text-protocol result-set this column-count packet starts, with the
--- EOF packet that closes it.
-readResultSet :: InputStream Packet -> Packet -> IO (StatementResult, EOF)
-readResultSet is columnCountPacket = do
-    columnCount <- getFromPacket getLenEncInt columnCountPacket
-    fields <- replicateM columnCount ((decodeFromPacket <=< readPacket) is)
-    _ <- readPacket is -- eof packet after the column definitions
-    (rows, eof) <- readTextRows fields [] is
-    pure (StatementRows fields rows, eof)
-
--- | Read text-protocol rows up to the EOF packet that ends them; the rows read
--- so far are kept in reverse.
-readTextRows :: [ColumnDef] -> [[MySQLValue]] -> InputStream Packet -> IO ([[MySQLValue]], EOF)
-readTextRows fields earlierRows is = do
-    q <- readPacket is
-    if  | isEOF q -> (,) (reverse earlierRows) <$> decodeFromPacket q
-        | isERR q -> decodeFromPacket q >>= throwIO . ERRException
-        | otherwise -> do
-            row <- getFromPacket (getTextRow fields) q
-            readTextRows fields (row : earlierRows) is
-
--- | The 'OK's of a reply that should hold nothing else; a result-set among them
--- raises 'ExtraResultSets', after the whole reply has been read.
 onlyOKs :: [StatementResult] -> IO [OK]
-onlyOKs results = case results of
-    [] -> pure []
-    StatementOK ok : rest -> (ok :) <$> onlyOKs rest
-    StatementRows _ _ : _ -> throwIO ExtraResultSets
+onlyOKs = traverse $ \result -> case result of StatementOK ok -> pure ok; _ -> throwIO ExtraResultSets
 
--- | How the server answered a statement sent through a query function.
-data QueryReply
-    = WithoutResultSet      -- ^ only OK packets, e.g. for an INSERT
-    | ResultSetColumns Int  -- ^ a result-set with this many columns follows
-
--- | Read the reply to a query function's statement up to its first result-set.
---
--- An OK packet must be told apart here: its leading 0x00 also decodes as a
--- column count of zero, which used to leave the caller waiting forever for an
--- EOF packet the server never sends (issue #47). OKs flagged with more results
--- are skipped, so @SET \@x := 1; SELECT \@x@ gives the SELECT's rows.
---
--- Decision: answer such a statement with an empty result-set rather than an
--- exception, so code that worked around the hang keeps working and the fix is
--- not a breaking change. The OK's affected-rows count is dropped; 'execute_'
--- returns it.
-readQueryReply :: InputStream Packet -> IO QueryReply
-readQueryReply is = do
-    p <- readPacket is
-    if  | isERR p -> decodeFromPacket p >>= throwIO . ERRException
-        | isOK  p -> do
-            ok <- decodeFromPacket p
-            if isThereMore ok then readQueryReply is else pure WithoutResultSet
-        | otherwise -> ResultSetColumns <$> getFromPacket getLenEncInt p
-
--- | The rows of a result-set, read as they are asked for, up to its EOF packet.
---
--- Once finished, also when 'finishAfterEOF' throws, further reads answer
--- Nothing rather than wait on the socket for packets that will never come.
-resultSetRows :: InputStream Packet -> IORef Bool -> (Packet -> IO row) -> IO (InputStream row)
-resultSetRows is consumed decodeRow = do
-    finished <- newIORef False
-    Stream.makeInputStream $ do
-        alreadyFinished <- readIORef finished
-        if alreadyFinished then pure Nothing else do
-            q <- readPacket is
-            if  | isEOF q -> do
-                    writeIORef finished True
-                    writeIORef consumed True
-                    finishAfterEOF is q
-                    pure Nothing
-                | isERR q -> decodeFromPacket q >>= throwIO . ERRException
-                | otherwise -> Just <$> decodeRow q
-
--- | A binary-protocol row, whose packets start with 0x00 like an OK packet.
-decodeBinaryRow :: Get row -> Packet -> IO row
-decodeBinaryRow getRow q =
-    if isOK q then getFromPacket getRow q else throwIO (UnexpectedPacket q)
-
--- | What followed a reply flagged SERVER_MORE_RESULTS_EXISTS.
-data FurtherResults
-    = OnlyOKs        -- ^ e.g. the closing OK of a CALL, or more INSERTs' OKs
-    | SomeResultSet  -- ^ at least one result-set, which was discarded
-
--- | Finish a reply that ended in this 'OK', see 'skipFurtherResults'.
-finishAfterOK :: InputStream Packet -> OK -> IO ()
-finishAfterOK is ok =
-    when (isThereMore ok) (skipFurtherResults OnlyOKs is >>= throwOnResultSet)
-
--- | Finish a result-set at its EOF packet, see 'skipFurtherResults'.
-finishAfterEOF :: InputStream Packet -> Packet -> IO ()
-finishAfterEOF is eofPacket = do
-    eof <- decodeFromPacket eofPacket
-    when (isThereMoreAfterEOF eof) (skipFurtherResults OnlyOKs is >>= throwOnResultSet)
-
--- | SERVER_MORE_RESULTS_EXISTS on a result-set's closing EOF packet.
-isThereMoreAfterEOF :: EOF -> Bool
-isThereMoreAfterEOF eof = eofStatus eof .&. 0x08 /= 0
-
--- | Read every result that follows a reply flagged SERVER_MORE_RESULTS_EXISTS.
---
--- The client asks for multi-statements and multi-results, so a CALL or a query
--- holding several statements gets one result per statement. Any left unread
--- would be taken by the next command as its own reply, shifting every later
--- query's results by one.
-skipFurtherResults :: FurtherResults -> InputStream Packet -> IO FurtherResults
-skipFurtherResults seen is = do
-    p <- readPacket is
-    if  | isERR p -> decodeFromPacket p >>= throwIO . ERRException
-        | isOK  p -> do
-            ok <- decodeFromPacket p
-            if isThereMore ok then skipFurtherResults seen is else pure seen
-        | otherwise -> do
-            eof <- skipResultSet is p
-            if isThereMoreAfterEOF eof
-            then skipFurtherResults SomeResultSet is
-            else pure SomeResultSet
-
--- | Read the result-set this column-count packet starts, returning its closing
--- EOF packet.
-skipResultSet :: InputStream Packet -> Packet -> IO EOF
-skipResultSet is columnCountPacket = do
-    columnCount <- getFromPacket getLenEncInt columnCountPacket
-    replicateM_ columnCount (readPacket is)
-    _ <- readPacket is -- eof packet after the column definitions
-    skipRows is
-
--- | Read a result-set's rows up to and including the EOF packet that ends them.
-skipRows :: InputStream Packet -> IO EOF
-skipRows is = do
-    q <- readPacket is
-    if  | isEOF q -> decodeFromPacket q
-        | isERR q -> decodeFromPacket q >>= throwIO . ERRException
-        | otherwise -> skipRows is
-
-throwOnResultSet :: FurtherResults -> IO ()
-throwOnResultSet further = case further of
-    OnlyOKs -> pure ()
-    SomeResultSet -> throwIO ExtraResultSets
-
--- | Ask MySQL to prepare a query statement.
---
-prepareStmt :: MySQLConn -> Query -> IO StmtID
-prepareStmt conn@(MySQLConn is os _ _) (Query stmt) = do
-    guardUnconsumed conn
-    writeCommand (COM_STMT_PREPARE stmt) os
-    p <- readPacket is
-    if isERR p
-    then decodeFromPacket p >>= throwIO . ERRException
+executeCore :: MySQLConn -> Command -> IO OK
+executeCore conn cmd = do
+    sendCommand conn cmd
+    packet <- readConnPacket conn
+    if isERR packet then serverError conn packet
+    else if isOK packet then do
+        ok <- consumeOK conn packet
+        extra <- if moreResults (okStatus ok) then skipFurtherResults conn (isBinaryCommand cmd) False else pure False
+        finishResponse conn
+        when extra (throwIO ExtraResultSets)
+        pure ok
     else do
-        StmtPrepareOK stid colCnt paramCnt _ <- getFromPacket getStmtPrepareOK p
-        _ <- replicateM_ paramCnt (readPacket is)
-        _ <- unless (paramCnt == 0) (void (readPacket is))  -- EOF
-        _ <- replicateM_ colCnt (readPacket is)
-        _ <- unless (colCnt == 0) (void (readPacket is))  -- EOF
-        return stid
+        count <- getFromPacketExact getLenEncInt packet
+        void (readColumns conn count)
+        let skip = do
+                next <- readConnPacket conn
+                done <- isResultEnd conn next
+                if done then consumeEnd conn next else if isERR next then serverError conn next else skip
+        flags <- skip
+        when (moreResults flags) (void (skipFurtherResults conn (isBinaryCommand cmd) True))
+        finishResponse conn
+        throwIO ExtraResultSets
 
--- | Ask MySQL to prepare a query statement.
---
--- All details from @COM_STMT_PREPARE@ Response are returned: the 'StmtPrepareOK' packet,
--- params's 'ColumnDef', result's 'ColumnDef'.
---
-prepareStmtDetail :: MySQLConn -> Query -> IO (StmtPrepareOK, [ColumnDef], [ColumnDef])
-prepareStmtDetail conn@(MySQLConn is os _ _) (Query stmt) = do
-    guardUnconsumed conn
-    writeCommand (COM_STMT_PREPARE stmt) os
-    p <- readPacket is
-    if isERR p
-    then decodeFromPacket p >>= throwIO . ERRException
-    else do
-        sOK@(StmtPrepareOK _ colCnt paramCnt _) <- getFromPacket getStmtPrepareOK p
-        pdefs <- replicateM paramCnt ((decodeFromPacket <=< readPacket) is)
-        _ <- unless (paramCnt == 0) (void (readPacket is))  -- EOF
-        cdefs <- replicateM colCnt ((decodeFromPacket <=< readPacket) is)
-        _ <- unless (colCnt == 0) (void (readPacket is))  -- EOF
-        return (sOK, pdefs, cdefs)
-
--- | Ask MySQL to closed a query statement.
---
-closeStmt :: MySQLConn -> StmtID -> IO ()
-closeStmt (MySQLConn _ os _ _) stid = do
-    writeCommand (COM_STMT_CLOSE stid) os
-
--- | Ask MySQL to reset a query statement, all previous resultset will be cleared.
---
-resetStmt :: MySQLConn -> StmtID -> IO ()
-resetStmt (MySQLConn is os _ consumed) stid = do
-    writeCommand (COM_STMT_RESET stid) os  -- previous result-set may still be unconsumed
-    p <- readPacket is
-    if isERR p
-    then decodeFromPacket p >>= throwIO . ERRException
-    else writeIORef consumed True
-
--- | Execute prepared query statement with parameters, expecting no resultset.
---
-executeStmt :: MySQLConn -> StmtID -> [MySQLValue] -> IO OK
-executeStmt conn stid params =
-  executeCommand conn (COM_STMT_EXECUTE stid params (makeNullMap params))
-
--- | Send a statement that should answer with an 'OK' and read its whole reply,
--- see 'skipFurtherResults'. A result-set, also as the first reply (a SELECT or
--- a CALL running one), is read off the connection and raises 'ExtraResultSets',
--- unless a later statement fails: its 'ERRException' is raised instead.
 executeCommand :: MySQLConn -> Command -> IO OK
-executeCommand conn@(MySQLConn is os _ _) cmd = do
-    guardUnconsumed conn
-    writeCommand cmd os
-    p <- readPacket is
-    if  | isERR p -> decodeFromPacket p >>= throwIO . ERRException
-        | isOK  p -> do
-            ok <- decodeFromPacket p
-            finishAfterOK is ok
-            pure ok
-        | otherwise -> do
-            eof <- skipResultSet is p
-            when (isThereMoreAfterEOF eof) (void (skipFurtherResults SomeResultSet is))
-            throwIO ExtraResultSets
+executeCommand conn cmd = withCommand conn (executeCore conn cmd)
 
--- | Execute prepared query statement with parameters, expecting resultset.
---
--- Rules about 'UnconsumedResultSet' applied here too. A statement without a
--- result-set gives no columns and no rows; use 'executeStmt' to get its 'OK'.
---
-queryStmt :: MySQLConn -> StmtID -> [MySQLValue] -> IO ([ColumnDef], InputStream [MySQLValue])
-queryStmt conn@(MySQLConn is os _ consumed) stid params = do
-    guardUnconsumed conn
-    writeCommand (COM_STMT_EXECUTE stid params (makeNullMap params)) os
-    reply <- readQueryReply is
+isBinaryCommand :: Command -> Bool
+isBinaryCommand (COM_STMT_EXECUTE _ _ _) = True
+isBinaryCommand _ = False
+
+data QueryReply = WithoutResultSet | ResultSetColumns Int
+
+readQueryReply :: MySQLConn -> IO QueryReply
+readQueryReply conn = do
+    packet <- readConnPacket conn
+    if isERR packet then serverError conn packet
+    else if isOK packet then do
+        ok <- consumeOK conn packet
+        if moreResults (okStatus ok) then readQueryReply conn else finishResponse conn >> pure WithoutResultSet
+    else do
+        count <- getFromPacketExact getLenEncInt packet
+        when (count==0) (throwIO (ProtocolError "zero result column count"))
+        pure (ResultSetColumns count)
+
+queryCore :: MySQLConn -> Command -> Bool -> IO ([ColumnDef],InputStream [MySQLValue])
+queryCore conn cmd binary = do
+    sendCommand conn cmd
+    reply <- readQueryReply conn
     case reply of
         WithoutResultSet -> (,) [] <$> Stream.nullInput
-        ResultSetColumns len -> do
-            fields <- replicateM len $ (decodeFromPacket <=< readPacket) is
-            _ <- readPacket is -- eof packet, we don't verify this though
-            writeIORef consumed False
-            rows <- resultSetRows is consumed (decodeBinaryRow (getBinaryRow fields len))
-            return (fields, rows)
+        ResultSetColumns count -> do
+            fields <- readColumns conn count
+            let decode=if binary then decodeBinaryRow (prepareBinaryRow fields) else decodeTextRow (prepareTextRow fields)
+            stream <- resultSetRows conn binary decode
+            pure (fields,stream)
 
--- | 'V.Vector' version of 'queryStmt'
---
--- @since 0.5.1.0
---
-queryStmtVector :: MySQLConn -> StmtID -> [MySQLValue] -> IO (V.Vector ColumnDef, InputStream (V.Vector MySQLValue))
-queryStmtVector conn@(MySQLConn is os _ consumed) stid params = do
-    guardUnconsumed conn
-    writeCommand (COM_STMT_EXECUTE stid params (makeNullMap params)) os
-    reply <- readQueryReply is
+queryVectorCore :: MySQLConn -> Command -> Bool -> IO (V.Vector ColumnDef,InputStream (V.Vector MySQLValue))
+queryVectorCore conn cmd binary = do
+    sendCommand conn cmd
+    reply <- readQueryReply conn
     case reply of
         WithoutResultSet -> (,) V.empty <$> Stream.nullInput
-        ResultSetColumns len -> do
-            fields <- V.replicateM len $ (decodeFromPacket <=< readPacket) is
-            _ <- readPacket is -- eof packet, we don't verify this though
-            writeIORef consumed False
-            rows <- resultSetRows is consumed (decodeBinaryRow (getBinaryRowVector fields len))
-            return (fields, rows)
+        ResultSetColumns count -> do
+            fieldList <- readColumns conn count
+            let fields=V.fromList fieldList
+                decodeList=if binary then decodeBinaryRow (prepareBinaryRow fieldList) else decodeTextRow (prepareTextRow fieldList)
+                decode packet = V.fromListN count <$> decodeList packet
+            stream <- resultSetRows conn binary decode
+            pure (fields,stream)
 
--- | Run querys inside a transaction, querys will be rolled back if exception arise.
+-- The generation and owner protect both ordinary reads and rollback draining.
+-- Draining validates framing/terminators but deliberately avoids decoding rows
+-- that the application will never inspect. No row buffers are retained here.
+resultSetRows :: MySQLConn -> Bool -> (Packet -> IO row) -> IO (InputStream row)
+resultSetRows conn binary decode = do
+    modern <- usesOKTerminator conn
+    generation <- markStreaming conn
+    finished <- newIORef False
+    stream <- Stream.makeInputStream $ do
+        done <- readIORef finished
+        if done then pure Nothing else streamGuard conn generation $ do
+            packet <- readConnPacket conn
+            let ending = isResultEndFor modern packet
+            if ending then do
+                writeIORef finished True
+                flags <- consumeEnd conn packet
+                extra <- if moreResults flags then skipFurtherResults conn binary False else pure False
+                finishResponse conn
+                when extra (throwIO ExtraResultSets)
+                pure Nothing
+            else if isERR packet then writeIORef finished True >> serverError conn packet
+            else Just <$> decode packet
+    let drain = do
+            done <- readIORef finished
+            unless done $ streamGuard conn generation $ do
+                packet <- readConnPacket conn
+                let ending = isResultEndFor modern packet
+                if ending then do
+                    flags <- consumeEnd conn packet
+                    when (moreResults flags) (void (skipFurtherResults conn binary False))
+                    writeIORef finished True
+                    finishResponse conn
+                else if isERR packet then writeIORef finished True >> serverError conn packet else drain
+    writeIORef (connectionDrain conn) (Just drain)
+    pure stream
+
+skipFurtherResults :: MySQLConn -> Bool -> Bool -> IO Bool
+skipFurtherResults conn binary seen = do
+    packet <- readConnPacket conn
+    if isERR packet then serverError conn packet
+    else if isOK packet then do
+        ok <- consumeOK conn packet
+        if moreResults (okStatus ok) then skipFurtherResults conn binary seen else pure seen
+    else do
+        count <- getFromPacketExact getLenEncInt packet
+        void (readColumns conn count)
+        let skip = do
+                row <- readConnPacket conn
+                end <- isResultEnd conn row
+                if end then consumeEnd conn row else if isERR row then serverError conn row else skip
+        flags <- skip
+        if moreResults flags then skipFurtherResults conn binary True else pure True
+
+decodeBinaryRow :: Get [MySQLValue] -> Packet -> IO [MySQLValue]
+decodeBinaryRow decoder packet = if isOK packet then decodeTextRow decoder packet else throwIO (UnexpectedPacket packet)
+
+decodeTextRow :: Get [MySQLValue] -> Packet -> IO [MySQLValue]
+decodeTextRow parser packet = do
+    values <- getFromPacketExact parser packet
+    -- Each constructor has strict payloads. Force the whole spine and every
+    -- constructor here so invalid UTF-8/numbers fail while streamGuard still
+    -- owns the response, rather than as a delayed exception in application code.
+    _ <- evaluate (forceValues values)
+    pure values
+  where
+    forceValues []=()
+    forceValues (value:rest)=value `seq` forceValues rest
+{-# INLINE decodeTextRow #-}
+
+-- | Prepare server-side SQL. Statement IDs belong to this connection; close
+-- them explicitly with 'closeStmt' after consuming their results.
+prepareStmt :: MySQLConn -> Query -> IO StmtID
+prepareStmt conn qry = do
+    (StmtPrepareOK ident _ _ _,_,_) <- prepareStmtDetail conn qry
+    pure ident
+-- | Prepare SQL and return parameter metadata followed by result metadata.
+prepareStmtDetail :: MySQLConn -> Query -> IO (StmtPrepareOK,[ColumnDef],[ColumnDef])
+prepareStmtDetail conn (Query stmt) = withCommand conn $ do
+    sendCommand conn (COM_STMT_PREPARE stmt)
+    packet <- readConnPacket conn
+    when (isERR packet) (serverError conn packet)
+    info@(StmtPrepareOK _ columns params _) <- getFromPacketExact getStmtPrepareOK packet
+    let StmtPrepareOK ident _ _ _=info
+    effect <- readIORef (connectionQueryEffect conn)
+    prior <- readIORef (connectionOpaqueStatements conn)
+    let rest=filter (/=ident) prior
+    when (effect==Just True && length rest>=maximumColumns (connectionOptions conn))
+        (throwIO (ProtocolError "opaque prepared statement registry exceeds bound"))
+    writeIORef (connectionOpaqueStatements conn) (if effect==Just True then ident:rest else rest)
+    -- Preparing alone has not executed the statement's session effects.
+    writeIORef (connectionQueryEffect conn) (Just False)
+    pdefs <- readColumns conn params
+    cdefs <- readColumns conn columns
+    pure (info,pdefs,cdefs)
+-- | Release a statement. This command has no server reply and cannot run while
+-- a result is pending. Raw IDs cannot detect reuse by a later server statement.
+closeStmt :: MySQLConn -> StmtID -> IO ()
+closeStmt conn ident = withCommand conn $ do
+    sendCommand conn (COM_STMT_CLOSE ident)
+    atomicModifyIORef' (connectionOpaqueStatements conn) (\ids -> (filter (/=ident) ids,()))
+-- | Reset a statement and consume its own reply; pending rows must be read first.
+resetStmt :: MySQLConn -> StmtID -> IO ()
+resetStmt conn ident = void (command conn (COM_STMT_RESET ident))
+-- | Execute with binary parameters. Text values require a known client charset;
+-- numeric/binary values do not require a rendering snapshot.
+executeStmt :: MySQLConn -> StmtID -> [MySQLValue] -> IO OK
+executeStmt conn ident values = executeCommand conn (COM_STMT_EXECUTE ident values (makeNullMap values))
+-- | Stream prepared binary rows under the ownership contract of 'query'.
+queryStmt :: MySQLConn -> StmtID -> [MySQLValue] -> IO ([ColumnDef],InputStream [MySQLValue])
+queryStmt conn ident values = withCommand conn (queryCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True)
+-- | Vector variant of 'queryStmt'.
+queryStmtVector :: MySQLConn -> StmtID -> [MySQLValue] -> IO (V.Vector ColumnDef,InputStream (V.Vector MySQLValue))
+queryStmtVector conn ident values = withCommand conn (queryVectorCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True)
+
+-- No exception thrown by cleanup replaces an ordinary application failure.
+cleanupTransaction :: MySQLConn -> IO ()
+cleanupTransaction conn = do
+    phase <- connectionStatus conn
+    when (phase `elem` [Ready,Streaming]) $ do
+        cleaned <- timeout (cleanupTimeoutMicros (connectionOptions conn)) $ do
+            pending <- readIORef (connectionDrain conn)
+            maybe (pure ()) id pending
+            void (execute_ conn "ROLLBACK")
+        when (cleaned==Nothing) (abortConnection conn False >> throwIO CleanupDeadlineExceeded)
+
+-- | Own the connection across BEGIN, the body and completion. Nested/manual
+-- transactions are rejected. Unread rows or a body exception trigger draining
+-- and rollback within one cleanup deadline; cleanup preserves the primary
+-- exception unless a new cancellation arrives.
 --
--- @since 0.2.0.0
---
+-- Lost COMMIT acknowledgement raises 'CommitOutcomeUnknown' for synchronous
+-- failures. Cancellation is rethrown unchanged and uncertainty is recorded in
+-- 'connectionFailure'. The helper never retries COMMIT or replays the body.
 withTransaction :: MySQLConn -> IO a -> IO a
-withTransaction conn procedure = mask $ \restore -> do
-  _ <- execute_ conn "BEGIN"
-  r <- restore procedure `onException` (execute_ conn "ROLLBACK")
-  _ <- execute_ conn "COMMIT"
-  pure r
+withTransaction conn body = mask $ \restore -> do
+    beginTransactionLease conn
+    let run = do
+            guardUnconsumed conn
+            flags <- readIORef (connectionServerStatus conn)
+            active <- case flags of
+                Just value -> pure (value .&. 1 /= 0)
+                Nothing -> do
+                    (_,stream) <- query_ conn "SELECT @@in_transaction"
+                    values <- Stream.toList stream
+                    pure (values `notElem` [[[MySQLInt64 0]],[[MySQLInt8 0]],[[MySQLInt32 0]],[[MySQLInt64U 0]],[[MySQLInt8U 0]],[[MySQLInt32U 0]]])
+            when active (throwIO NestedTransactionUnsupported)
+            void (execute_ conn "BEGIN")
+            outcome <- try (restore body >>= \value -> guardUnconsumed conn >> pure value)
+            case outcome of
+                Left (primary :: SomeException) -> do
+                    cleanupTransaction conn `catch` \(secondary :: SomeException) -> do
+                        abortConnection conn False
+                        atomicModifyIORef' (connectionFailureRef conn) (\failure -> (fmap (\f -> f {secondaryCleanupFailure=True}) failure,()))
+                        when (isCancellation secondary) (throwIO secondary)
+                    throwIO primary
+                Right value -> do
+                    commitGeneration <- runtimeGeneration <$> readIORef (connectionRuntime conn)
+                    _ <- execute_ conn "COMMIT" `catch` \(err :: SomeException) -> do
+                        runtime <- readIORef (connectionRuntime conn)
+                        progress <- readIORef (connectionExchangeProgress conn)
+                        if runtimeStatus runtime `elem` [Broken,Closed] && runtimeGeneration runtime/=commitGeneration && progress==WireInFlight then do
+                            atomicModifyIORef' (connectionFailureRef conn) (\failure ->
+                                let marked=case failure of Nothing -> ConnectionFailure Executing True False
+                                                           Just previous -> previous {commitOutcomeUncertain=True}
+                                in (Just marked,()))
+                            if isCancellation err then throwIO err else throwIO (CommitOutcomeUnknown err)
+                        else throwIO err
+                    pure value
+    run `finally` endTransactionLease conn

@@ -18,6 +18,7 @@ module System.IO.Streams.TCP
   , connect
   , connectSocket
   , socketToConnection
+  , socketToConnectionAdaptive
   , defaultChunkSize
     -- * server
   , bindAndListen
@@ -36,6 +37,7 @@ import qualified Network.Socket.ByteString as NB
 import qualified Network.Socket.ByteString.Lazy as NL
 import qualified System.IO.Streams         as S
 import           Foreign.Storable   (sizeOf)
+import           Data.IORef (newIORef,readIORef,writeIORef)
 
 addrAny :: N.HostAddress
 #if MIN_VERSION_network(2,7,0)
@@ -107,11 +109,27 @@ socketToConnection bufsiz (sock, addr) = do
     is <- S.makeInputStream $ do
         s <- NB.recv sock bufsiz
         return $! if B.null s then Nothing else Just s
-    return (Connection is (send' sock) (N.close sock) (sock, addr))
-  where
-    send' _    (L.Empty) = return ()
-    send' sock' (L.Chunk bs L.Empty) = unless (B.null bs) (NB.sendAll sock' bs)
-    send' sock' lbs = NL.sendAll sock' lbs
+    return (Connection is (sendSocket sock) (N.close sock) (sock, addr))
+
+-- | Start with a small receive allocation and grow on full reads, up to the
+-- supplied ceiling. Each recv still returns independent immutable bytes; no
+-- mutable buffer is reused underneath a returned row or metadata slice.
+socketToConnectionAdaptive :: Int -> (N.Socket,N.SockAddr) -> IO TCPConnection
+socketToConnectionAdaptive ceilingBytes (sock,addr) = do
+    when (ceilingBytes<=0) (E.throwIO (userError "receive buffer ceiling must be positive"))
+    capacity <- newIORef (min 4096 ceilingBytes)
+    is <- S.makeInputStream $ do
+        size <- readIORef capacity
+        bytes <- NB.recv sock size
+        when (B.length bytes==size && size<ceilingBytes) $
+            writeIORef capacity (size+min size (ceilingBytes-size))
+        pure $! if B.null bytes then Nothing else Just bytes
+    pure (Connection is (sendSocket sock) (N.close sock) (sock,addr))
+
+sendSocket :: N.Socket -> L.ByteString -> IO ()
+sendSocket _ L.Empty = pure ()
+sendSocket sock (L.Chunk bytes L.Empty) = unless (B.null bytes) (NB.sendAll sock bytes)
+sendSocket sock bytes = NL.sendAll sock bytes
 
 -- | Connect to server using 'defaultChunkSize'.
 --

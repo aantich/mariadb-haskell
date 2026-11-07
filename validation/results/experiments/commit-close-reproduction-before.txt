@@ -1,0 +1,6 @@
+Observed before the fix with compiled candidate f1f884d835f986f89b8ac31faa22a507f6a8e90a2202768b1dd981c8a01c6453. In-memory transport; no credentials or real SQL.
+Left NetworkException
+Closed
+Nothing
+
+After the fix, both deterministic Stage1 regression cases pass: lost reply on concurrent close reports CommitOutcomeUnknown; a complete server ERR after close preserves ERRException.

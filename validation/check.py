@@ -12,6 +12,7 @@ import sys
 
 import run
 import publish_results as live
+import stage1_gates
 
 
 def main():
@@ -28,6 +29,7 @@ def main():
     parser.add_argument("--repetitions",type=int,default=7)
     parser.add_argument("--compare",type=Path)
     parser.add_argument("--freeze",type=Path)
+    parser.add_argument("--working-tree",action="store_true")
     args,_=parser.parse_known_args()
     full = not (args.only or args.no_upstream or args.no_benchmarks) and args.repetitions >= 7
     inputs = live.input_snapshot()
@@ -35,14 +37,35 @@ def main():
     if output.exists():
         raise SystemExit("run output already exists; use a new directory")
     attempt = {"state":"FAILED", "stage":"server verification", "started_at":live.now(),
-               "inputs":inputs, "run_directory":live.relative(output), "exit_code":1}
+               "inputs":inputs, "uncommitted_review":args.working_tree, "run_directory":live.relative(output), "exit_code":1}
 
     def finish(status, reason="", data=None):
         if full:
             attempt.update(finished_at=live.now(),exit_code=status,reason=reason)
             if data is not None:
                 attempt.update(state="COMPLETED",stage="complete")
-            live.publish(attempt,data)
+            gate = None
+            # The initial immutable capture predates an accepted implementation.
+            # Every normal candidate requires that reference; deleting its
+            # manifest must not silently disable the acceptance ratchet.
+            if data is not None and not args.freeze:
+                try:
+                    accepted,manifest = stage1_gates.reference()
+                    original = json.loads(live.BASELINE.read_text())
+                    gate = stage1_gates.compare(data,accepted,original)
+                    gate.update(accepted_reference=manifest,tested_input_sha256=inputs['sha256'])
+                    (run.HERE / "results/stage1-gates.json").write_text(json.dumps(gate,indent=2)+"\n")
+                    if not gate['correctness_accepted'] or not gate['evidence_accepted']:
+                        status = status or 1
+                except (OSError, ValueError, KeyError) as error:
+                    # A damaged/missing reference must leave a visible failed
+                    # attempt, rather than crashing before the live publication.
+                    # The candidate's raw results remain in its run directory.
+                    attempt.update(state="FAILED", stage="acceptance evidence",
+                                   reason="Acceptance evidence could not be verified: " + str(error))
+                    data, gate, status = None, None, status or 1
+            attempt['exit_code'] = status
+            live.publish(attempt,data,gate=gate)
             print("Live results updated:",live.REPORT,flush=True)
         else:
             print("Partial/short development run: live full-suite results were not replaced.",flush=True)
@@ -57,21 +80,35 @@ def main():
         return finish(1,"MariaDB verification failed before build; see terminal output and MACOS.md.")
     print("Server verified before build:",version,flush=True)
     attempt["stage"]="build"
-    build = subprocess.run(["cabal","build","exe:mariadb-validation","test:test","test:integration","--enable-tests","-O2"],cwd=run.ROOT)
+    try:
+        build = subprocess.run(["cabal","build","exe:mariadb-validation","test:test","test:integration","--enable-tests","-O2"],cwd=run.ROOT)
+    except OSError as error:
+        return finish(1, "Build process could not start: " + str(error))
+    except KeyboardInterrupt:
+        return finish(130, "Validation interrupted during build.")
     if build.returncode:
         return finish(build.returncode,"Current source did not build; no suite results were produced.")
     attempt["stage"]="suite"
-    options = [*sys.argv[1:],"--output",str(output)]
+    options = [*[arg for arg in sys.argv[1:] if arg != "--working-tree"],"--output",str(output)]
     if full and not args.compare and not args.freeze:
         options += ["--compare",str(live.BASELINE)]
-    status = subprocess.call([sys.executable,str(run.HERE/"run.py"),*options],cwd=run.ROOT)
+    try:
+        status = subprocess.call([sys.executable,str(run.HERE/"run.py"),*options],cwd=run.ROOT)
+    except OSError as error:
+        return finish(1, "Recorder process could not start: " + str(error))
+    except KeyboardInterrupt:
+        return finish(130, "Validation interrupted during suite execution.")
     final = live.input_snapshot()
     if final["files"] != inputs["files"] or final["commit"] != inputs["commit"]:
         return finish(1,"Code or Git revision changed during build/execution; rerun on stable committed inputs.")
     results = output / "results.json"
     if not results.exists():
         return finish(status or 1,"The recorder stopped without a complete results file; see terminal output and run logs.")
-    return finish(status,data=json.loads(results.read_text()) if full else None)
+    try:
+        data = json.loads(results.read_text()) if full else None
+    except (OSError, ValueError) as error:
+        return finish(status or 1, "Recorder results could not be read: " + str(error))
+    return finish(status,data=data)
 
 
 if __name__=="__main__": raise SystemExit(main())

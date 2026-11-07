@@ -47,16 +47,17 @@ tLsToConnection (ctx, addr) = do
     is <- Stream.makeInputStream input
     return (Connection is write (closeTLS ctx) (ctx, addr))
   where
-    input = (do
+    -- Preserve TLS failures and asynchronous cancellation. Treating either as
+    -- EOF would let the caller mistake an interrupted reply for a clean close.
+    input = do
         s <- TLS.recvData ctx
         return $! if B.null s then Nothing else Just s
-        ) `E.catch` (\(_::E.SomeException) -> return Nothing)
     write s = TLS.sendData ctx s
 
 -- | Close a TLS 'Context' and its underlying socket.
 --
 closeTLS :: Context -> IO ()
-closeTLS ctx = (TLS.bye ctx >> TLS.contextClose ctx) -- sometimes socket was closed before 'TLS.bye'
+closeTLS ctx = (TLS.bye ctx `E.finally` TLS.contextClose ctx) -- sometimes socket was closed before 'TLS.bye'
     `E.catch` (\(_::E.SomeException) -> return ())   -- so we catch the 'Broken pipe' error here
 
 -- | Convenience function for initiating an TLS connection to the given

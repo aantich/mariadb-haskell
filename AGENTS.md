@@ -39,3 +39,29 @@ Colors must not imply a missing feature is a pass or hide a timing regression.
 Compare performance only with matching workloads, compiler, dependencies,
 machine and server settings. Preserve old profiles when another environment
 needs its own baseline. Document actual commands and results, including failures.
+
+Historical override, night of 6–7 November 2026: implement the approved Stage 1 plan
+and repeatedly validate/fix it, but leave ALL changes uncommitted for Anton's
+morning diff review. Do not commit or push during this implementation run.
+Use `python3 validation/check.py --working-tree` for an honestly fingerprinted
+uncommitted full run, and `python3 validation/publish_results.py --check
+--working-tree` for review freshness. Normal committed-publication/CI checks
+remain strict; a review run does not claim its parent commit contains the code.
+Publication to main follows human review, not this overnight authorization.
+
+Superseding user instruction, 7 November 2026 after two review passes: commit
+and push the reviewed Stage 1 changes. Publish on main using the committed-input
+validation workflow above. Performance investigations are postponed; retain
+their evidence and open status, preserve the original baseline and do not
+silently advance the accepted performance reference. Propose the next stage
+without implementing it before approval.
+
+User requirement, 7 November 2026: this is a public open source project; write
+maintainable, idiomatic Haskell and useful comments with every change. Document
+public types/functions with Haddock, including ownership, lifetime, error and
+resource-limit contracts. Explain protocol invariants, cancellation boundaries,
+SQL-classification assumptions and measured performance choices where they are
+implemented. Prefer named fields, ordinary layout and small composable helpers
+over positional Boolean arguments or compressed imperative-looking code. Keep
+comments accurate and explain why a subtle choice exists; avoid narrating
+obvious expressions. Apply the same readability standard to validation tools.

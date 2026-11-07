@@ -42,6 +42,8 @@ data ColumnDef = ColumnDef
     , columnDecimals  ::  !Word8                  -- ^ Number of decimals in field.
     } deriving (Show, Eq)
 
+-- | Decode protocol-4.1 column metadata, requiring its twelve-byte fixed
+-- section. Variable-length schema/table/column names remain exact bytes.
 getField :: Get ColumnDef
 getField = ColumnDef
         <$> (skipN 4                 -- const "def"
@@ -50,7 +52,7 @@ getField = ColumnDef
         <*> getLenEncBytes          -- origTable
         <*> getLenEncBytes          -- name
         <*> getLenEncBytes          -- origName
-        <*  skipN 1                  -- const 0x0c
+        <*  (getWord8 >>= \n -> if n == 12 then pure () else fail "invalid column fixed length")
         <*> getWord16le             -- charset
         <*> getWord32le             -- length
         <*> getFieldType            -- type
@@ -59,6 +61,8 @@ getField = ColumnDef
         <* skipN 2                   -- const 0x00 0x00
 {-# INLINE getField #-}
 
+-- | Encode column metadata, including the 0x0c fixed-section length between
+-- names and charset/type information. Statement and result metadata share it.
 putField :: ColumnDef -> Put
 putField (ColumnDef db tbl otbl name oname charset len typ flags dec) = do
     putLenEncBytes "def"
@@ -67,6 +71,7 @@ putField (ColumnDef db tbl otbl name oname charset len typ flags dec) = do
     putLenEncBytes otbl
     putLenEncBytes name
     putLenEncBytes oname
+    putWord8 0x0c
     putWord16le charset
     putWord32le len
     putFieldType typ

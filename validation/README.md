@@ -17,7 +17,7 @@ python3 -m unittest discover -s validation -p 'test_*.py'
 python3 validation/check.py
 ```
 
-The `check.py` entry point verifies MariaDB before building, rebuilds the current source and invokes the recorder. This prevents stale executables being measured after source edits. The recorder checks connectivity, server identity, the reserved database, packet limits and binlog configuration. If preflight fails, it runs no tests or benchmarks. It then runs every new correctness case in a separate process, runs both inherited suites unchanged, seeds the reserved benchmark table, and interleaves seven repetitions of Haskell and matching MariaDB Connector/C workloads. Every measured process performs two warm-ups before recording timings. A hung/crashed case cannot stop the remaining new cases. `run.py` is the lower-level recorder for an already-built harness.
+The `check.py` entry point verifies MariaDB before building, rebuilds the current source and invokes the recorder. This prevents stale executables being measured after source edits. The recorder checks connectivity, server identity, the reserved database, packet limits and binlog configuration. If preflight fails, it runs no tests or benchmarks. It then runs every new correctness case in a separate process, runs both inherited suites with their assertions preserved, seeds the reserved benchmark table, and interleaves seven repetitions of Haskell and matching MariaDB Connector/C workloads. Every measured process performs two warm-ups before recording timings. A hung/crashed case cannot stop the remaining new cases. `run.py` is the lower-level recorder for an already-built harness.
 
 Both MariaDB's default session timezone and the test-process timezone are pinned to UTC. This avoids seasonal timezone assumptions in inherited binlog tests. The runner verifies password-plugin and client-certificate fixtures with MariaDB's own client before attributing failures to the Haskell driver.
 
@@ -62,6 +62,16 @@ Speed comparisons require matching machine, server version/settings, compiler, r
 The initial [frozen baseline](baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md) contains 300 executable checks, 11 missing-API entries and two unavailable-environment entries. The two inherited suites appear as aggregate records in JSON; their logs contain the individual 179 unit/property cases (one inherited external HTTPS ignore) and 32 integration cases.
 
 ## Scope and interpretation
+
+### Stage 1 review runs and supplementary evidence
+
+For the explicitly requested uncommitted review, use `python3 validation/check.py --working-tree`, followed by `python3 validation/publish_results.py --check --working-tree`. The report records the parent commit and hashes every actual build/test input. Normal CI and publication checks still reject dirty inputs. No command commits or pushes changes.
+
+The frozen workloads, shared helpers, Connector/C source and recorder remain unchanged. `Validation.Stage1` adds deterministic transport fixtures, real loopback-proxy faults and live MariaDB cases. `stage1_gates.py` checks the 23 targeted original failures, preserves every original/last-accepted pass, rejects hidden failures, requires comparable complete evidence and flags timing/allocation increases above 5%. It does not turn a known deferred failure into a successful feature test. The accepted reference manifest is advanced only after human review, never by a failed attempt or an unreviewed working tree.
+
+`python3 validation/supplementary.py --output PATH` builds first and records separate setup/parameter/transaction/batch measurements plus retention experiments. Its before-change reference covers only the original six supplementary profiles. New retention experiments have no invented before measurement: they sample current live heap after major GC at row checkpoints across 10,000 and 1,000,000 rows and hold a one-byte slice after a 16 MiB result. GC checkpoints occur inside those memory experiments; their timing is not comparable with frozen throughput workloads. Existing `max_live_bytes` remains explicitly labeled as a process high-water metric.
+
+`python3 validation/profile_workloads.py --profiles PROFILE ... --output PATH` runs selected **unchanged** frozen workloads as separate development experiments. It requires a successful fresh build and stable input hashes; failures stop measurement. It never replaces the complete live report. All optimization experiments, including unsuccessful ones and the explicitly invalid stale-binary experiment, are retained for review. See [implementation evidence](../docs/STAGE1_IMPLEMENTATION_NOTES.md) for the final confirmation window and performance investigations.
 
 [COVERAGE.md](COVERAGE.md) maps the cases, workloads and environment requirements. The suite covers the driver's relevant protocol, connection, value, SQL, transaction, streaming, error and replication surfaces. It is not a certification of every MariaDB storage engine, query optimizer plan, Galera topology or backup tool.
 

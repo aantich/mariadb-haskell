@@ -1,24 +1,26 @@
 {-|
-Module      : Database.MySQL.Connection
-Description : TLS support for mysql-haskell via @tls@ package.
+Module      : Database.MySQL.TLS
+Description : MariaDB TLS connections via the @tls@ package
 Copyright   : (c) Winterland, 2016
 License     : BSD
 Maintainer  : drkoster@qq.com
 Stability   : experimental
 Portability : PORTABLE
 
-This module provides secure MySQL connection using 'tls' package, please make sure your certificate is v3 extension enabled.
+TLS connections use the same ownership, limits and session initialization as
+TCP. Supply certificate/hostname validation through 'TLS.ClientParams'.
 
 -}
 
 module Database.MySQL.TLS (
       connect
     , connectDetail
+    , connectWithOptions
+    , connectDetailWithOptions
     , module Data.TLSSetting
     ) where
 
-import           Control.Exception              (bracketOnError, throwIO, catch, SomeException)
-import           Control.Monad                  (void)
+import           Control.Exception              (bracketOnError, throwIO, finally)
 import qualified Data.Binary                    as Binary
 import qualified Data.Binary.Put                as Binary
 import           Data.ByteString                (ByteString)
@@ -26,66 +28,59 @@ import qualified Data.ByteString                as B
 import qualified Data.ByteString.Lazy           as L
 import           Data.Word                      (Word8)
 import qualified Data.Connection                as Conn
-import           Data.IORef                     (newIORef)
+import           Data.IORef                     (writeIORef)
 import           Data.TLSSetting
-import           Database.MySQL.Connection      hiding (connect, connectDetail)
+import           Database.MySQL.Connection      hiding (connect, connectDetail, connectWithOptions, connectDetailWithOptions)
 import           Database.MySQL.Protocol.Auth
-import           Database.MySQL.Protocol.Command
 import           Database.MySQL.Protocol.Packet
 import           System.IO.Streams               (InputStream)
 import qualified Network.TLS                    as TLS
 import qualified System.IO.Streams.TCP          as TCP
-import qualified Data.Connection                as TCP
 import qualified System.IO.Streams.TLS          as TLS
 
 --------------------------------------------------------------------------------
 
 -- | Provide a 'TLS.ClientParams' and a subject name to establish a TLS connection.
 --
-connect :: ConnectInfo -> (TLS.ClientParams, String) -> IO MySQLConn
-connect c cp = fmap snd (connectDetail c cp)
-
-connectDetail :: ConnectInfo -> (TLS.ClientParams, String) -> IO (Greeting, MySQLConn)
-connectDetail (ConnectInfo host port db user pass charset) (cparams, subName) =
-    bracketOnError (connectWithBufferSize host port bUFSIZE)
-       (TCP.close) $ \ c -> do
-            let is = TCP.source c
-            is' <- decodeInputStream is
-            p <- readPacket is'
-            greet <- decodeFromPacket p
-            if supportTLS (greetingCaps greet)
-            then do
-                let cparams' = cparams {
-                            TLS.clientUseServerNameIndication = False
-                        ,   TLS.clientServerIdentification = (subName, "")
-                        }
-                let (sock, sockAddr) = Conn.connExtraInfo c
-                write c (encodeToPacket 1 $ sslRequest charset)
-                bracketOnError (TLS.contextNew sock cparams')
-                               ( \ ctx -> TLS.bye ctx >> TCP.close c ) $ \ ctx -> do
-                    TLS.handshake ctx
-                    tc <- TLS.tLsToConnection (ctx, sockAddr)
-                    let tlsIs = TCP.source tc
-                    tlsIs' <- decodeInputStream tlsIs
-                    let auth = mkAuth db user pass charset greet
-                    write tc (encodeToPacket 2 auth)
-                    q <- readPacket tlsIs'
-                    completeAuth tlsIs' (write tc) pass q tlsFullAuth
-                    consumed <- newIORef True
-                    let waitNotMandatoryOK = catch
-                            (void (waitCommandReply tlsIs'))
-                            ((\ _ -> return ()) :: SomeException -> IO ())
-                        conn = MySQLConn tlsIs' (write tc)
-                            (writeCommand COM_QUIT (write tc) >> waitNotMandatoryOK >> TCP.close tc)
-                            consumed
-                    return (greet, conn)
-            else error "Database.MySQL.TLS: server doesn't support TLS connection"
-  where
-    connectWithBufferSize h p bs = TCP.connectSocket h p >>= TCP.socketToConnection bs
-    write c a = TCP.send c $ Binary.runPut . Binary.put $ a
+connect :: ConnectInfo -> (TLS.ClientParams,String) -> IO MySQLConn
+connect = connectWithOptions defaultConnectionOptions
+-- | Connect over TLS with explicit resource/session options. Failure during
+-- handshake, authentication or initialization closes both TLS and raw transport.
+connectWithOptions :: ConnectionOptions -> ConnectInfo -> (TLS.ClientParams,String) -> IO MySQLConn
+connectWithOptions options ci params = snd <$> connectDetailWithOptions options ci params
+-- | Establish TLS and return the MariaDB greeting alongside the connection.
+connectDetail :: ConnectInfo -> (TLS.ClientParams,String) -> IO (Greeting,MySQLConn)
+connectDetail = connectDetailWithOptions defaultConnectionOptions
+-- | Explicit-options variant of 'connectDetail'. The plaintext greeting uses
+-- sequence zero, SSLRequest one and the authenticated TLS response sequence two.
+connectDetailWithOptions :: ConnectionOptions -> ConnectInfo -> (TLS.ClientParams,String) -> IO (Greeting,MySQLConn)
+connectDetailWithOptions options ci (params,name) = do
+    validateOptions options
+    bracketOnError (TCP.connectSocket (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
+        input <- decodeInputStreamWithLimit (maximumMessageBytes options) (Conn.source raw)
+        packet <- readPacket input
+        if pSeqN packet /= 0 then throwIO (ProtocolError "invalid greeting sequence") else pure ()
+        greeting <- decodeFromPacket packet
+        if not (supportTLS (greetingCaps greeting)) then throwIO (AuthException "MariaDB server does not offer TLS") else pure ()
+        let caps=negotiatedCapabilities options greeting
+            params'=params {TLS.clientUseServerNameIndication=False,TLS.clientServerIdentification=(name,"")}
+            (sock,addr)=Conn.connExtraInfo raw
+            ssl=SSLRequest (caps + 0x800) (fromIntegral (maximumMessageBytes options)) (ciCharset ci)
+        Conn.send raw (Binary.runPut (Binary.put (encodeToPacket 1 ssl)))
+        bracketOnError (TLS.contextNew sock params') (\ctx -> TLS.contextClose ctx `finally` Conn.close raw) $ \ctx -> do
+            TLS.handshake ctx
+            secure <- TLS.tLsToConnection (ctx,addr)
+            conn <- newByteConnection options (Conn.source secure) (\p -> Conn.send secure (Binary.runPut (Binary.put p))) (TLS.contextClose ctx `finally` Conn.close raw)
+            setExchangeSequence conn 2
+            writeIORef (connectionCapabilities conn) (caps+0x800)
+            mysqlWrite conn (encodeToPacket 2 (mkAuthWithOptions options (caps+0x800) ci greeting))
+            response <- readConnPacket conn
+            completeAuth (mysqlRead conn) (mysqlWrite conn) (ciPassword ci) response tlsFullAuth
+            initializeSession conn
+            pure (greeting,conn)
 
 -- | Full auth handler for TLS connections: sends the cleartext password
--- as a NUL-terminated packet, which MySQL accepts over encrypted connections.
+-- as a NUL-terminated packet on the encrypted transport.
 tlsFullAuth :: Word8 -> ByteString -> (Packet -> IO ()) -> InputStream Packet -> IO ()
 tlsFullAuth seqN pass writePacket is = do
     let payload = pass `B.append` "\0"

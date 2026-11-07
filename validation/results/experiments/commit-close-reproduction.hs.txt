@@ -1,0 +1,25 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+import Control.Concurrent
+import Control.Exception
+import Data.IORef
+import Database.MySQL.Base
+import qualified Database.MySQL.Connection as C
+import qualified System.IO.Streams as S
+main = do
+ reached <- newEmptyMVar
+ released <- newEmptyMVar
+ finished <- newEmptyMVar
+ reads <- newIORef (0::Int)
+ input <- S.makeInputStream $ do
+   n <- atomicModifyIORef' reads (\x -> (x+1,x))
+   if n==0 then pure (Just (encodeToPacket 1 (OK 0 0 2 0)))
+   else putMVar reached () >> readMVar released >> throwIO NetworkException
+ c <- C.newConnection defaultConnectionOptions input (const (pure ())) (putMVar released ())
+ writeIORef (C.connectionServerStatus c) (Just 2)
+ _ <- forkIO $ (try (withTransaction c (pure (7::Int))) :: IO (Either SomeException Int)) >>= putMVar finished
+ takeMVar reached
+ close c
+ result <- takeMVar finished
+ print result
+ print =<< connectionStatus c
+ print =<< connectionFailure c

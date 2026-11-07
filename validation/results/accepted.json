@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "reference": "references/pre-stage1.json",
+  "sha256": "da103068ef554a3bd122419d0fc2cea218a40131501d4230aaa7602c5ecef9b8",
+  "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
+  "note": "Last accepted main before Stage 1; not advanced by failing attempts."
+}

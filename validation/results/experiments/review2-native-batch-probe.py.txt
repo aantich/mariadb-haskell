@@ -1,0 +1,48 @@
+"""Independent MariaDB Connector/C result-shape check; credentials stay local."""
+import ctypes as C
+import json
+from pathlib import Path
+
+lib = C.CDLL('/opt/homebrew/opt/mariadb@12.3/lib/libmariadb.dylib')
+def function(name, result, arguments):
+    value = getattr(lib, name)
+    value.restype, value.argtypes = result, arguments
+    return value
+pointer, string = C.c_void_p, C.c_char_p
+init = function('mysql_init', pointer, [pointer])
+connect = function('mysql_real_connect', pointer, [pointer, string, string, string, string, C.c_uint, string, C.c_ulong])
+query = function('mysql_real_query', C.c_int, [pointer, string, C.c_ulong])
+store = function('mysql_store_result', pointer, [pointer])
+free = function('mysql_free_result', None, [pointer])
+next_result = function('mysql_next_result', C.c_int, [pointer])
+affected = function('mysql_affected_rows', C.c_ulonglong, [pointer])
+error = function('mysql_error', string, [pointer])
+close = function('mysql_close', None, [pointer])
+config = json.loads(Path('validation/.local/environment.json').read_text())
+encode = lambda name: config[name].encode()
+connection = init(None)
+assert connect(connection, encode('MB_HOST'), encode('MB_USER'), encode('MB_PASSWORD'), encode('MB_DATABASE'), int(config['MB_PORT']), None, 1 << 16), error(connection)
+def execute(sql):
+    encoded = sql.encode()
+    assert query(connection, encoded, len(encoded)) == 0, error(connection)
+    replies = []
+    while True:
+        result = store(connection)
+        if result:
+            free(result)
+        else:
+            replies.append(affected(connection))
+        status = next_result(connection)
+        if status < 0:
+            return replies
+        assert status == 0, error(connection)
+try:
+    execute('CREATE TEMPORARY TABLE mb_review2_native_batch(n INT)')
+    for suffix in [';', '; -- final comment', '; # final comment', ' /* semicolon ; */']:
+        execute('TRUNCATE mb_review2_native_batch')
+        first = 'INSERT INTO mb_review2_native_batch VALUES(7)' + suffix
+        second = 'INSERT INTO mb_review2_native_batch VALUES(8)' + suffix
+        separator = '\n' if suffix.startswith(';') else '\n;'
+        print(repr(suffix), execute(first + separator + second))
+finally:
+    close(connection)

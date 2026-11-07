@@ -1,0 +1,35 @@
+import ctypes as C,json
+from pathlib import Path
+lib=C.CDLL('/opt/homebrew/opt/mariadb@12.3/lib/libmariadb.dylib')
+def fn(name,restype,args):
+ f=getattr(lib,name);f.restype=restype;f.argtypes=args;return f
+ptr=C.c_void_p;uint=C.c_uint;ulong=C.c_ulong;char=C.c_char_p
+init=fn('mysql_init',ptr,[ptr]);connect=fn('mysql_real_connect',ptr,[ptr,char,char,char,char,uint,char,ulong]);query=fn('mysql_real_query',C.c_int,[ptr,char,ulong]);store=fn('mysql_store_result',ptr,[ptr]);free=fn('mysql_free_result',None,[ptr]);nextres=fn('mysql_next_result',C.c_int,[ptr]);error=fn('mysql_error',char,[ptr]);close=fn('mysql_close',None,[ptr]);first=fn('mysql_session_track_get_first',C.c_int,[ptr,C.c_int,C.POINTER(char),C.POINTER(C.c_size_t)]);nxt=fn('mysql_session_track_get_next',C.c_int,[ptr,C.c_int,C.POINTER(char),C.POINTER(C.c_size_t)])
+cfg=json.load(open(Path(__file__).parent/'environment.json'));enc=lambda key:cfg[key].encode();c=init(None)
+assert connect(c,enc('MB_HOST'),enc('MB_USER'),enc('MB_PASSWORD'),enc('MB_DATABASE'),int(cfg['MB_PORT']),None,(1<<23)|(1<<16)),error(c)
+def run(sql):
+ b=sql.encode();rc=query(c,b,len(b));print('SQL',sql,'ERROR' if rc else 'OK')
+ if rc:print(error(c).decode());return
+ while True:
+  res=store(c)
+  if res:free(res)
+  data=char();size=C.c_size_t();values=[]
+  rc=first(c,0,C.byref(data),C.byref(size))
+  while rc==0:
+   values.append(C.string_at(data,size.value).decode());rc=nxt(c,0,C.byref(data),C.byref(size))
+  if values:print('TRACK',values)
+  rc=nextres(c)
+  if rc<0:break
+  if rc>0:print('LATER ERROR',error(c).decode());break
+run("SET session_track_system_variables=CONCAT(@@session.session_track_system_variables,',sql_mode,collation_connection,session_track_system_variables')")
+run("SET sql_mode='NO_BACKSLASH_ESCAPES,ANSI_QUOTES'")
+run("SET NAMES latin1")
+run("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
+run("DROP PROCEDURE IF EXISTS mb_stage1_tracking_probe")
+run("CREATE PROCEDURE mb_stage1_tracking_probe() BEGIN SET sql_mode=''; SELECT 1; SET sql_mode='NO_BACKSLASH_ESCAPES'; SELECT 2; END")
+run("SET sql_mode='ANSI_QUOTES'")
+run("CALL mb_stage1_tracking_probe()")
+run("SET sql_mode='NO_BACKSLASH_ESCAPES'; SELECT * FROM mb_stage1_no_such_table")
+run("SELECT @@sql_mode")
+run("DROP PROCEDURE mb_stage1_tracking_probe")
+close(c)

@@ -40,6 +40,24 @@ class PublicationTests(unittest.TestCase):
         self.assertIn(self.inputs["commit"], text)
         self.assertIn("does not mean all functionality passes", text)
 
+    def test_review_graphic_identifies_actual_working_tree(self):
+        self.attempt["uncommitted_review"] = True
+        document = self.publish()
+        graphic = live.render_overview(document)
+        self.assertIn("working tree digest", graphic)
+        self.assertNotIn(" /  commit ", graphic)
+
+    def test_new_completed_run_does_not_inherit_old_acceptance(self):
+        document = self.publish()
+        document["stage1_acceptance"] = {"tested_input_sha256": "old"}
+        self.current.write_text(json.dumps(document))
+        self.assertNotIn("stage1_acceptance", self.publish())
+
+    def test_changed_connector_c_version_withholds_performance_comparison(self):
+        baseline = copy.deepcopy(self.data)
+        self.data["connector_c_version"] = "different"
+        self.assertFalse(live.compatible(self.data, baseline))
+
     def test_results_only_publication_commit_is_allowed(self):
         snapshot = {**self.inputs, "commit": "later-results-only-commit"}
         live.verify(self.publish(), snapshot)
@@ -49,10 +67,35 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "stale"):
             live.verify(self.publish(), snapshot)
 
+    def test_fingerprint_must_match_the_actual_input_snapshot(self):
+        document = self.publish()
+        snapshot = {**self.inputs, 'sha256': 'different-fingerprint'}
+        with self.assertRaisesRegex(ValueError, 'fingerprint'):
+            live.verify(document, snapshot)
+
     def test_dirty_source_cannot_claim_committed_results(self):
         snapshot = {**self.inputs, "dirty_inputs": ["src/Driver.hs"]}
         with self.assertRaisesRegex(ValueError, "committed"):
             live.verify(self.publish(), snapshot)
+
+    def test_dirty_review_requires_both_recorded_intent_and_explicit_check(self):
+        self.inputs['dirty_inputs']=['src/Driver.hs']
+        self.attempt['uncommitted_review']=True
+        document=self.publish()
+        with self.assertRaisesRegex(ValueError,'uncommitted'):
+            live.verify(document,self.inputs)
+        live.verify(document,self.inputs,allow_working_tree=True)
+        document['latest_attempt']['uncommitted_review']=False
+        document['latest_completed_run']['attempt']['uncommitted_review']=False
+        with self.assertRaisesRegex(ValueError,'uncommitted'):
+            live.verify(document,self.inputs,allow_working_tree=True)
+
+    def test_review_permission_does_not_accept_stale_source(self):
+        self.inputs['dirty_inputs']=['src/Driver.hs']
+        self.attempt['uncommitted_review']=True
+        snapshot={**self.inputs,'files':{'src/Driver.hs':'different'}}
+        with self.assertRaisesRegex(ValueError,'stale'):
+            live.verify(self.publish(),snapshot,allow_working_tree=True)
 
     def test_partial_or_short_runs_cannot_replace_current_results(self):
         self.publish()

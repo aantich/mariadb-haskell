@@ -1,0 +1,794 @@
+Resolving dependencies...
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - blaze-builder-0.4.4.1 (lib) (requires build)
+ - base16-bytestring-1.0.2.0 (lib) (requires build)
+ - basement-0.0.16 (lib) (requires build)
+ - bytestring-lexing-0.5.0.16 (lib) (requires build)
+ - cereal-0.5.8.3 (lib) (requires build)
+ - data-default-0.8.0.2 (lib) (requires build)
+ - half-0.3.3 (lib) (requires build)
+ - hourglass-0.2.12 (lib) (requires build)
+ - hsc2hs-0.68.10 (exe:hsc2hs) (requires build)
+ - hashable-1.5.1.0 (lib) (requires build)
+ - old-locale-1.0.0.7 (lib) (requires build)
+ - monad-loops-0.4.3 (lib) (requires build)
+ - integer-logarithms-1.0.5 (lib) (requires build)
+ - network-byte-order-0.1.9 (lib) (requires build)
+ - appar-0.1.8 (lib:appar) (requires build)
+ - primitive-0.9.1.0 (lib) (requires build)
+ - ram-0.22.1 (lib) (requires build)
+ - splitmix-0.1.3.2 (lib) (requires build)
+ - assoc-1.1.1 (lib) (requires build)
+ - time-hourglass-0.3.0 (lib) (requires build)
+ - attoparsec-0.14.4 (lib:attoparsec-internal) (requires build)
+ - vector-stream-0.1.0.1 (lib) (requires build)
+ - word-compat-0.0.6 (lib) (requires build)
+ - memory-0.18.0 (lib) (requires build)
+ - data-default-class-0.2.0.0 (lib) (requires build)
+ - zlib-0.7.1.1 (lib) (requires build)
+ - unix-time-0.5.1 (lib) (requires build)
+ - network-3.2.12.0 (lib) (requires build)
+ - text-short-0.1.6.1 (lib) (requires build)
+ - unordered-containers-0.2.21 (lib) (requires build)
+ - ech-config-0.0.2 (lib) (requires build)
+ - scientific-0.3.10.0 (lib) (requires build)
+ - cborg-0.2.10.0 (lib) (requires build)
+ - random-1.3.1 (lib) (requires build)
+ - these-1.2.1 (lib) (requires build)
+ - vector-0.13.2.0 (lib) (requires build)
+ - asn1-types-0.3.4 (lib:asn1-types) (requires build)
+ - zlib-bindings-0.1.1.5 (lib) (requires build)
+ - iproute-1.8.0 (lib) (requires build)
+ - base64-2.1 (lib) (requires build)
+ - base16-1.0 (lib) (requires build)
+ - attoparsec-0.14.4 (lib) (requires build)
+ - strict-0.5.1 (lib) (requires build)
+ - blaze-textual-0.2.3.1 (lib) (requires build)
+ - asn1-encoding-0.9.6 (lib) (requires build)
+ - crypton-pem-0.3.0 (lib) (requires build)
+ - crypton-asn1-types-0.4.1 (lib) (requires build)
+ - crypton-2.1.12 (lib) (requires build)
+ - io-streams-1.5.2.2 (lib) (requires build)
+ - serialise-0.2.6.1 (lib) (requires build)
+ - crypton-asn1-parse-0.10.0 (lib) (requires build)
+ - crypton-asn1-encoding-0.10.0 (lib) (requires build)
+ - hpke-0.4.0 (lib) (requires build)
+ - crypton-x509-1.10.1 (lib) (requires build)
+ - crypton-x509-store-1.10.0 (lib) (requires build)
+ - crypton-x509-validation-1.10.1 (lib) (requires build)
+ - crypton-x509-system-1.10.0 (lib) (requires build)
+ - tls-2.4.14 (lib) (requires build)
+ - mysql-haskell-1.3.3 (lib) (configuration changed)
+Starting     base16-bytestring-1.0.2.0 (lib)
+Starting     bytestring-lexing-0.5.0.16 (lib)
+Starting     cereal-0.5.8.3 (lib)
+Starting     data-default-0.8.0.2 (lib)
+Starting     half-0.3.3 (lib)
+Starting     blaze-builder-0.4.4.1 (lib)
+Starting     hourglass-0.2.12 (lib)
+Starting     old-locale-1.0.0.7 (lib)
+Starting     monad-loops-0.4.3 (lib)
+Starting     network-byte-order-0.1.9 (lib)
+Starting     hashable-1.5.1.0 (lib)
+Starting     appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+Starting     integer-logarithms-1.0.5 (lib)
+Starting     hsc2hs-0.68.10 (exe:hsc2hs)
+Starting     primitive-0.9.1.0 (lib)
+Starting     basement-0.0.16 (lib)
+Building     cereal-0.5.8.3 (lib)
+Building     bytestring-lexing-0.5.0.16 (lib)
+Building     base16-bytestring-1.0.2.0 (lib)
+Building     hourglass-0.2.12 (lib)
+Building     monad-loops-0.4.3 (lib)
+Building     appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+Building     hsc2hs-0.68.10 (exe:hsc2hs)
+Building     data-default-0.8.0.2 (lib)
+Building     half-0.3.3 (lib)
+Building     integer-logarithms-1.0.5 (lib)
+Building     network-byte-order-0.1.9 (lib)
+Building     blaze-builder-0.4.4.1 (lib)
+Building     old-locale-1.0.0.7 (lib)
+Building     primitive-0.9.1.0 (lib)
+Building     hashable-1.5.1.0 (lib)
+Building     basement-0.0.16 (lib)
+Haddock      old-locale-1.0.0.7 (lib)
+Haddock      data-default-0.8.0.2 (lib)
+Haddock      base16-bytestring-1.0.2.0 (lib)
+Haddock      monad-loops-0.4.3 (lib)
+Haddock      appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+Haddock      network-byte-order-0.1.9 (lib)
+Installing   old-locale-1.0.0.7 (lib)
+Installing   base16-bytestring-1.0.2.0 (lib)
+Haddock      half-0.3.3 (lib)
+Haddock      integer-logarithms-1.0.5 (lib)
+Installing   monad-loops-0.4.3 (lib)
+Installing   data-default-0.8.0.2 (lib)
+Completed    old-locale-1.0.0.7 (lib)
+Starting     ram-0.22.1 (lib)
+Completed    base16-bytestring-1.0.2.0 (lib)
+Starting     splitmix-0.1.3.2 (lib)
+Completed    monad-loops-0.4.3 (lib)
+Installing   appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+Starting     assoc-1.1.1 (lib)
+Installing   network-byte-order-0.1.9 (lib)
+Completed    data-default-0.8.0.2 (lib)
+Starting     time-hourglass-0.3.0 (lib)
+Installing   integer-logarithms-1.0.5 (lib)
+Completed    appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+Starting     attoparsec-0.14.4 (lib:attoparsec-internal)
+Completed    network-byte-order-0.1.9 (lib)
+Starting     vector-stream-0.1.0.1 (lib)
+Installing   half-0.3.3 (lib)
+Completed    integer-logarithms-1.0.5 (lib)
+Starting     word-compat-0.0.6 (lib)
+Building     ram-0.22.1 (lib)
+Haddock      blaze-builder-0.4.4.1 (lib)
+Completed    half-0.3.3 (lib)
+Building     splitmix-0.1.3.2 (lib)
+Starting     data-default-class-0.2.0.0 (lib)
+Building     assoc-1.1.1 (lib)
+Building     time-hourglass-0.3.0 (lib)
+Building     attoparsec-0.14.4 (lib:attoparsec-internal)
+Building     vector-stream-0.1.0.1 (lib)
+Building     word-compat-0.0.6 (lib)
+Haddock      assoc-1.1.1 (lib)
+Building     data-default-class-0.2.0.0 (lib)
+Installing   blaze-builder-0.4.4.1 (lib)
+Haddock      hashable-1.5.1.0 (lib)
+Completed    blaze-builder-0.4.4.1 (lib)
+Starting     ech-config-0.0.2 (lib)
+Haddock      data-default-class-0.2.0.0 (lib)
+Haddock      word-compat-0.0.6 (lib)
+Installing   assoc-1.1.1 (lib)
+Haddock      splitmix-0.1.3.2 (lib)
+Completed    assoc-1.1.1 (lib)
+Installing   data-default-class-0.2.0.0 (lib)
+Installing   word-compat-0.0.6 (lib)
+Completed    data-default-class-0.2.0.0 (lib)
+Installing   hashable-1.5.1.0 (lib)
+Haddock      attoparsec-0.14.4 (lib:attoparsec-internal)
+Installing   splitmix-0.1.3.2 (lib)
+Building     ech-config-0.0.2 (lib)
+Completed    word-compat-0.0.6 (lib)
+Installing   hsc2hs-0.68.10 (exe:hsc2hs)
+Completed    hashable-1.5.1.0 (lib)
+Starting     these-1.2.1 (lib)
+Starting     text-short-0.1.6.1 (lib)
+Starting     unordered-containers-0.2.21 (lib)
+Completed    hsc2hs-0.68.10 (exe:hsc2hs)
+Starting     zlib-0.7.1.1 (lib)
+Starting     unix-time-0.5.1 (lib)
+Completed    splitmix-0.1.3.2 (lib)
+Starting     network-3.2.12.0 (lib)
+Installing   attoparsec-0.14.4 (lib:attoparsec-internal)
+Completed    attoparsec-0.14.4 (lib:attoparsec-internal)
+Starting     random-1.3.1 (lib)
+Building     these-1.2.1 (lib)
+Building     text-short-0.1.6.1 (lib)
+Building     unordered-containers-0.2.21 (lib)
+Building     zlib-0.7.1.1 (lib)
+Haddock      vector-stream-0.1.0.1 (lib)
+Haddock      ech-config-0.0.2 (lib)
+Haddock      hourglass-0.2.12 (lib)
+Haddock      cereal-0.5.8.3 (lib)
+Installing   vector-stream-0.1.0.1 (lib)
+Building     random-1.3.1 (lib)
+Installing   ech-config-0.0.2 (lib)
+Haddock      primitive-0.9.1.0 (lib)
+Completed    vector-stream-0.1.0.1 (lib)
+Completed    ech-config-0.0.2 (lib)
+Haddock      bytestring-lexing-0.5.0.16 (lib)
+Installing   hourglass-0.2.12 (lib)
+Haddock      ram-0.22.1 (lib)
+Installing   cereal-0.5.8.3 (lib)
+Completed    hourglass-0.2.12 (lib)
+Installing   bytestring-lexing-0.5.0.16 (lib)
+Completed    cereal-0.5.8.3 (lib)
+Completed    bytestring-lexing-0.5.0.16 (lib)
+Haddock      these-1.2.1 (lib)
+Haddock      text-short-0.1.6.1 (lib)
+Installing   ram-0.22.1 (lib)
+Installing   primitive-0.9.1.0 (lib)
+Installing   these-1.2.1 (lib)
+Completed    ram-0.22.1 (lib)
+Haddock      time-hourglass-0.3.0 (lib)
+Installing   text-short-0.1.6.1 (lib)
+Completed    these-1.2.1 (lib)
+Starting     strict-0.5.1 (lib)
+Completed    primitive-0.9.1.0 (lib)
+Starting     scientific-0.3.10.0 (lib)
+Starting     cborg-0.2.10.0 (lib)
+Building     unix-time-0.5.1 (lib)
+Starting     vector-0.13.2.0 (lib)
+Completed    text-short-0.1.6.1 (lib)
+Starting     base16-1.0 (lib)
+Starting     base64-2.1 (lib)
+Installing   time-hourglass-0.3.0 (lib)
+Haddock      zlib-0.7.1.1 (lib)
+Completed    time-hourglass-0.3.0 (lib)
+Building     strict-0.5.1 (lib)
+Building     scientific-0.3.10.0 (lib)
+Building     cborg-0.2.10.0 (lib)
+Building     network-3.2.12.0 (lib)
+Building     vector-0.13.2.0 (lib)
+Building     base64-2.1 (lib)
+Building     base16-1.0 (lib)
+Installing   zlib-0.7.1.1 (lib)
+Completed    zlib-0.7.1.1 (lib)
+Starting     zlib-bindings-0.1.1.5 (lib)
+Haddock      unix-time-0.5.1 (lib)
+Building     zlib-bindings-0.1.1.5 (lib)
+Installing   unix-time-0.5.1 (lib)
+Completed    unix-time-0.5.1 (lib)
+Haddock      base16-1.0 (lib)
+Haddock      scientific-0.3.10.0 (lib)
+Haddock      zlib-bindings-0.1.1.5 (lib)
+Haddock      strict-0.5.1 (lib)
+Installing   base16-1.0 (lib)
+Completed    base16-1.0 (lib)
+Starting     crypton-asn1-types-0.4.1 (lib)
+Installing   zlib-bindings-0.1.1.5 (lib)
+Installing   scientific-0.3.10.0 (lib)
+Starting     crypton-2.1.12 (lib)
+Completed    zlib-bindings-0.1.1.5 (lib)
+Installing   strict-0.5.1 (lib)
+Completed    scientific-0.3.10.0 (lib)
+Starting     attoparsec-0.14.4 (lib)
+Completed    strict-0.5.1 (lib)
+Building     crypton-asn1-types-0.4.1 (lib)
+Building     attoparsec-0.14.4 (lib)
+Building     crypton-2.1.12 (lib)
+Haddock      random-1.3.1 (lib)
+Haddock      crypton-asn1-types-0.4.1 (lib)
+Haddock      unordered-containers-0.2.21 (lib)
+Installing   crypton-asn1-types-0.4.1 (lib)
+Installing   random-1.3.1 (lib)
+Completed    crypton-asn1-types-0.4.1 (lib)
+Starting     crypton-asn1-parse-0.10.0 (lib)
+Starting     crypton-asn1-encoding-0.10.0 (lib)
+Completed    random-1.3.1 (lib)
+Building     crypton-asn1-parse-0.10.0 (lib)
+Installing   unordered-containers-0.2.21 (lib)
+Building     crypton-asn1-encoding-0.10.0 (lib)
+Completed    unordered-containers-0.2.21 (lib)
+Haddock      crypton-asn1-parse-0.10.0 (lib)
+Installing   crypton-asn1-parse-0.10.0 (lib)
+Completed    crypton-asn1-parse-0.10.0 (lib)
+Haddock      crypton-asn1-encoding-0.10.0 (lib)
+Installing   crypton-asn1-encoding-0.10.0 (lib)
+Haddock      basement-0.0.16 (lib)
+Completed    crypton-asn1-encoding-0.10.0 (lib)
+Haddock      network-3.2.12.0 (lib)
+Haddock      base64-2.1 (lib)
+Installing   network-3.2.12.0 (lib)
+Completed    network-3.2.12.0 (lib)
+Starting     iproute-1.8.0 (lib)
+Installing   base64-2.1 (lib)
+Completed    base64-2.1 (lib)
+Starting     crypton-pem-0.3.0 (lib)
+Building     iproute-1.8.0 (lib)
+Haddock      cborg-0.2.10.0 (lib)
+Building     crypton-pem-0.3.0 (lib)
+Installing   basement-0.0.16 (lib)
+Completed    basement-0.0.16 (lib)
+Starting     memory-0.18.0 (lib)
+Installing   cborg-0.2.10.0 (lib)
+Haddock      crypton-pem-0.3.0 (lib)
+Completed    cborg-0.2.10.0 (lib)
+Building     memory-0.18.0 (lib)
+Installing   crypton-pem-0.3.0 (lib)
+Completed    crypton-pem-0.3.0 (lib)
+Haddock      iproute-1.8.0 (lib)
+Installing   iproute-1.8.0 (lib)
+Completed    iproute-1.8.0 (lib)
+Haddock      memory-0.18.0 (lib)
+Installing   memory-0.18.0 (lib)
+Completed    memory-0.18.0 (lib)
+Starting     asn1-types-0.3.4 (all, legacy fallback: cabal-version is less than 1.8)
+Building     asn1-types-0.3.4 (all, legacy fallback: cabal-version is less than 1.8)
+Haddock      asn1-types-0.3.4 (all, legacy fallback: cabal-version is less than 1.8)
+Installing   asn1-types-0.3.4 (all, legacy fallback: cabal-version is less than 1.8)
+Completed    asn1-types-0.3.4 (all, legacy fallback: cabal-version is less than 1.8)
+Starting     asn1-encoding-0.9.6 (lib)
+Haddock      attoparsec-0.14.4 (lib)
+Building     asn1-encoding-0.9.6 (lib)
+Installing   attoparsec-0.14.4 (lib)
+Completed    attoparsec-0.14.4 (lib)
+Haddock      asn1-encoding-0.9.6 (lib)
+Installing   asn1-encoding-0.9.6 (lib)
+Completed    asn1-encoding-0.9.6 (lib)
+Haddock      vector-0.13.2.0 (lib)
+Installing   vector-0.13.2.0 (lib)
+Completed    vector-0.13.2.0 (lib)
+Starting     blaze-textual-0.2.3.1 (lib)
+Starting     io-streams-1.5.2.2 (lib)
+Starting     serialise-0.2.6.1 (lib)
+Building     blaze-textual-0.2.3.1 (lib)
+Building     serialise-0.2.6.1 (lib)
+Building     io-streams-1.5.2.2 (lib)
+Haddock      blaze-textual-0.2.3.1 (lib)
+Installing   blaze-textual-0.2.3.1 (lib)
+Completed    blaze-textual-0.2.3.1 (lib)
+Haddock      io-streams-1.5.2.2 (lib)
+Haddock      serialise-0.2.6.1 (lib)
+Installing   io-streams-1.5.2.2 (lib)
+Completed    io-streams-1.5.2.2 (lib)
+Installing   serialise-0.2.6.1 (lib)
+Completed    serialise-0.2.6.1 (lib)
+Haddock      crypton-2.1.12 (lib)
+Installing   crypton-2.1.12 (lib)
+Completed    crypton-2.1.12 (lib)
+Starting     crypton-x509-1.10.1 (lib)
+Starting     hpke-0.4.0 (lib)
+Building     hpke-0.4.0 (lib)
+Building     crypton-x509-1.10.1 (lib)
+Haddock      hpke-0.4.0 (lib)
+Installing   hpke-0.4.0 (lib)
+Completed    hpke-0.4.0 (lib)
+Haddock      crypton-x509-1.10.1 (lib)
+Installing   crypton-x509-1.10.1 (lib)
+Completed    crypton-x509-1.10.1 (lib)
+Starting     crypton-x509-store-1.10.0 (lib)
+Building     crypton-x509-store-1.10.0 (lib)
+Haddock      crypton-x509-store-1.10.0 (lib)
+Installing   crypton-x509-store-1.10.0 (lib)
+Completed    crypton-x509-store-1.10.0 (lib)
+Starting     crypton-x509-system-1.10.0 (lib)
+Starting     crypton-x509-validation-1.10.1 (lib)
+Building     crypton-x509-system-1.10.0 (lib)
+Building     crypton-x509-validation-1.10.1 (lib)
+Haddock      crypton-x509-system-1.10.0 (lib)
+Installing   crypton-x509-system-1.10.0 (lib)
+Completed    crypton-x509-system-1.10.0 (lib)
+Haddock      crypton-x509-validation-1.10.1 (lib)
+Installing   crypton-x509-validation-1.10.1 (lib)
+Completed    crypton-x509-validation-1.10.1 (lib)
+Starting     tls-2.4.14 (lib)
+Building     tls-2.4.14 (lib)
+Haddock      tls-2.4.14 (lib)
+Installing   tls-2.4.14 (lib)
+Completed    tls-2.4.14 (lib)
+Configuring library for mysql-haskell-1.3.3...
+Preprocessing library for mysql-haskell-1.3.3...
+Running Haddock on library for mysql-haskell-1.3.3...
+Warning: The following packages have no Haddock documentation installed. No
+links will be generated to these packages: attoparsec-0.14.4
+<no location info>: warning: [GHC-42258] [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id dt-dflt-clss-0.2.0.0-82fd5800)
+
+[ 1 of 25] Compiling Data.Binary.Parser.Word8 ( src/Data/Binary/Parser/Word8.hs, nothing ) [Flags changed]
+[ 2 of 25] Compiling Data.Binary.Parser.Numeric ( src/Data/Binary/Parser/Numeric.hs, nothing ) [Flags changed]
+[ 3 of 25] Compiling Data.Binary.Parser ( src/Data/Binary/Parser.hs, nothing ) [Flags changed]
+[ 4 of 25] Compiling Data.Connection  ( src/Data/Connection.hs, nothing ) [Flags changed]
+[ 5 of 25] Compiling Data.Word.Word24 ( src/Data/Word/Word24.hs, nothing ) [Flags changed]
+[ 6 of 25] Compiling Data.Int.Int24   ( src/Data/Int/Int24.hs, nothing ) [Flags changed]
+[ 7 of 25] Compiling Database.MySQL.Protocol.Escape ( src/Database/MySQL/Protocol/Escape.hs, nothing ) [Flags changed]
+[ 8 of 25] Compiling Database.MySQL.Protocol.Packet ( src/Database/MySQL/Protocol/Packet.hs, nothing ) [Flags changed]
+[ 9 of 25] Compiling Database.MySQL.Protocol.ColumnDef ( src/Database/MySQL/Protocol/ColumnDef.hs, nothing ) [Flags changed]
+[10 of 25] Compiling Database.MySQL.Protocol.MySQLValue ( src/Database/MySQL/Protocol/MySQLValue.hs, nothing ) [Flags changed]
+[11 of 25] Compiling Database.MySQL.Protocol.Command ( src/Database/MySQL/Protocol/Command.hs, nothing ) [Flags changed]
+[12 of 25] Compiling Database.MySQL.Field ( src/Database/MySQL/Field.hs, nothing ) [Flags changed]
+[13 of 25] Compiling Database.MySQL.BinLogProtocol.BinLogMeta ( src/Database/MySQL/BinLogProtocol/BinLogMeta.hs, nothing ) [Flags changed]
+[14 of 25] Compiling Database.MySQL.Protocol.Auth ( src/Database/MySQL/Protocol/Auth.hs, nothing ) [Flags changed]
+[15 of 25] Compiling Database.MySQL.BinLogProtocol.BinLogValue ( src/Database/MySQL/BinLogProtocol/BinLogValue.hs, nothing ) [Flags changed]
+[16 of 25] Compiling Database.MySQL.Query ( src/Database/MySQL/Query.hs, nothing ) [Flags changed]
+[17 of 25] Compiling Database.MySQL.BinLogProtocol.BinLogEvent ( src/Database/MySQL/BinLogProtocol/BinLogEvent.hs, nothing ) [Flags changed]
+[18 of 25] Compiling Paths_mysql_haskell ( dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/autogen/Paths_mysql_haskell.hs, nothing ) [Flags changed]
+[19 of 25] Compiling Data.TLSSetting  ( src/Data/TLSSetting.hs, nothing ) [Flags changed]
+[20 of 25] Compiling System.IO.Streams.TCP ( src/System/IO/Streams/TCP.hs, nothing ) [Flags changed]
+[21 of 25] Compiling Database.MySQL.Connection ( src/Database/MySQL/Connection.hs, nothing ) [Flags changed]
+[22 of 25] Compiling Database.MySQL.Base ( src/Database/MySQL/Base.hs, nothing ) [Flags changed]
+[23 of 25] Compiling Database.MySQL.BinLog ( src/Database/MySQL/BinLog.hs, nothing ) [Flags changed]
+[24 of 25] Compiling System.IO.Streams.TLS ( src/System/IO/Streams/TLS.hs, nothing ) [Flags changed]
+[25 of 25] Compiling Database.MySQL.TLS ( src/Database/MySQL/TLS.hs, nothing ) [Flags changed]
+Haddock coverage:
+ 100% ( 23 / 23) in 'Data.Binary.Parser.Word8'
+ 100% (  8 /  8) in 'Data.Binary.Parser.Numeric'
+Warning: 'ByteString' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+ 100% ( 31 / 31) in 'Data.Binary.Parser'
+Warning: 'Connection' is ambiguous. It is defined
+    * at src/Data/Connection.hs:37:21
+    * at src/Data/Connection.hs:37:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Data/Connection.hs:37:1
+  50% (  1 /  2) in 'Data.Connection'
+  Missing documentation for:
+    Module header
+  90% (  9 / 10) in 'Data.Word.Word24'
+  Missing documentation for:
+    byteSwap24# (src/Data/Word/Word24.hs:215)
+  80% (  4 /  5) in 'Data.Int.Int24'
+  Missing documentation for:
+    narrow24Int# (src/Data/Int/Int24.hs:86)
+  33% (  1 /  3) in 'Database.MySQL.Protocol.Escape'
+  Missing documentation for:
+    escapeText (src/Database/MySQL/Protocol/Escape.hs:50)
+    escapeBytes (src/Database/MySQL/Protocol/Escape.hs:121)
+Warning: 'OK' is ambiguous. It is defined
+    * at src/Database/MySQL/Protocol/Packet.hs:131:11
+    * at src/Database/MySQL/Protocol/Packet.hs:131:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Protocol/Packet.hs:131:1
+  27% ( 12 / 43) in 'Database.MySQL.Protocol.Packet'
+  Missing documentation for:
+    putPacket (src/Database/MySQL/Protocol/Packet.hs:42)
+    getPacket (src/Database/MySQL/Protocol/Packet.hs:49)
+    isERR (src/Database/MySQL/Protocol/Packet.hs:63)
+    isOK (src/Database/MySQL/Protocol/Packet.hs:67)
+    isEOF (src/Database/MySQL/Protocol/Packet.hs:71)
+    getFromPacket (src/Database/MySQL/Protocol/Packet.hs:102)
+    DecodePacketException (src/Database/MySQL/Protocol/Packet.hs:107)
+    encodeToPacket (src/Database/MySQL/Protocol/Packet.hs:112)
+    putToPacket (src/Database/MySQL/Protocol/Packet.hs:119)
+    getOK (src/Database/MySQL/Protocol/Packet.hs:139)
+    putOK (src/Database/MySQL/Protocol/Packet.hs:147)
+    ERR (src/Database/MySQL/Protocol/Packet.hs:161)
+    getERR (src/Database/MySQL/Protocol/Packet.hs:168)
+    putERR (src/Database/MySQL/Protocol/Packet.hs:176)
+    EOF (src/Database/MySQL/Protocol/Packet.hs:190)
+    getEOF (src/Database/MySQL/Protocol/Packet.hs:196)
+    putEOF (src/Database/MySQL/Protocol/Packet.hs:202)
+    getByteStringNul (src/Database/MySQL/Protocol/Packet.hs:218)
+    getRemainingByteString (src/Database/MySQL/Protocol/Packet.hs:222)
+    putLenEncBytes (src/Database/MySQL/Protocol/Packet.hs:226)
+    getLenEncBytes (src/Database/MySQL/Protocol/Packet.hs:232)
+    putLenEncInt (src/Database/MySQL/Protocol/Packet.hs:276)
+    putWord24le (src/Database/MySQL/Protocol/Packet.hs:281)
+    getWord24le (src/Database/MySQL/Protocol/Packet.hs:287)
+    putWord48le (src/Database/MySQL/Protocol/Packet.hs:294)
+    getWord48le (src/Database/MySQL/Protocol/Packet.hs:300)
+    getWord24be (src/Database/MySQL/Protocol/Packet.hs:307)
+    getInt24be (src/Database/MySQL/Protocol/Packet.hs:314)
+    getWord40be (src/Database/MySQL/Protocol/Packet.hs:321)
+    getWord48be (src/Database/MySQL/Protocol/Packet.hs:325)
+    getWord56be (src/Database/MySQL/Protocol/Packet.hs:329)
+   5% (  3 / 52) in 'Database.MySQL.Protocol.ColumnDef'
+  Missing documentation for:
+    getField (src/Database/MySQL/Protocol/ColumnDef.hs:46)
+    putField (src/Database/MySQL/Protocol/ColumnDef.hs:63)
+    mySQLTypeDecimal (src/Database/MySQL/Protocol/ColumnDef.hs:96)
+    mySQLTypeTiny (src/Database/MySQL/Protocol/ColumnDef.hs:97)
+    mySQLTypeShort (src/Database/MySQL/Protocol/ColumnDef.hs:98)
+    mySQLTypeLong (src/Database/MySQL/Protocol/ColumnDef.hs:99)
+    mySQLTypeFloat (src/Database/MySQL/Protocol/ColumnDef.hs:100)
+    mySQLTypeDouble (src/Database/MySQL/Protocol/ColumnDef.hs:101)
+    mySQLTypeNull (src/Database/MySQL/Protocol/ColumnDef.hs:102)
+    mySQLTypeTimestamp (src/Database/MySQL/Protocol/ColumnDef.hs:103)
+    mySQLTypeLongLong (src/Database/MySQL/Protocol/ColumnDef.hs:104)
+    mySQLTypeInt24 (src/Database/MySQL/Protocol/ColumnDef.hs:105)
+    mySQLTypeDate (src/Database/MySQL/Protocol/ColumnDef.hs:106)
+    mySQLTypeTime (src/Database/MySQL/Protocol/ColumnDef.hs:107)
+    mySQLTypeDateTime (src/Database/MySQL/Protocol/ColumnDef.hs:108)
+    mySQLTypeYear (src/Database/MySQL/Protocol/ColumnDef.hs:109)
+    mySQLTypeNewDate (src/Database/MySQL/Protocol/ColumnDef.hs:110)
+    mySQLTypeVarChar (src/Database/MySQL/Protocol/ColumnDef.hs:111)
+    mySQLTypeBit (src/Database/MySQL/Protocol/ColumnDef.hs:112)
+    mySQLTypeTimestamp2 (src/Database/MySQL/Protocol/ColumnDef.hs:113)
+    mySQLTypeDateTime2 (src/Database/MySQL/Protocol/ColumnDef.hs:114)
+    mySQLTypeTime2 (src/Database/MySQL/Protocol/ColumnDef.hs:115)
+    mySQLTypeNewDecimal (src/Database/MySQL/Protocol/ColumnDef.hs:116)
+    mySQLTypeEnum (src/Database/MySQL/Protocol/ColumnDef.hs:117)
+    mySQLTypeSet (src/Database/MySQL/Protocol/ColumnDef.hs:118)
+    mySQLTypeTinyBlob (src/Database/MySQL/Protocol/ColumnDef.hs:119)
+    mySQLTypeMediumBlob (src/Database/MySQL/Protocol/ColumnDef.hs:120)
+    mySQLTypeLongBlob (src/Database/MySQL/Protocol/ColumnDef.hs:121)
+    mySQLTypeBlob (src/Database/MySQL/Protocol/ColumnDef.hs:122)
+    mySQLTypeVarString (src/Database/MySQL/Protocol/ColumnDef.hs:123)
+    mySQLTypeString (src/Database/MySQL/Protocol/ColumnDef.hs:124)
+    mySQLTypeGeometry (src/Database/MySQL/Protocol/ColumnDef.hs:125)
+    getFieldType (src/Database/MySQL/Protocol/ColumnDef.hs:128)
+    putFieldType (src/Database/MySQL/Protocol/ColumnDef.hs:132)
+    flagNotNull (src/Database/MySQL/Protocol/ColumnDef.hs:162)
+    flagPrimaryKey (src/Database/MySQL/Protocol/ColumnDef.hs:163)
+    flagUniqueKey (src/Database/MySQL/Protocol/ColumnDef.hs:164)
+    flagMultipleKey (src/Database/MySQL/Protocol/ColumnDef.hs:165)
+    flagBlob (src/Database/MySQL/Protocol/ColumnDef.hs:166)
+    flagUnsigned (src/Database/MySQL/Protocol/ColumnDef.hs:167)
+    flagZeroFill (src/Database/MySQL/Protocol/ColumnDef.hs:168)
+    flagBinary (src/Database/MySQL/Protocol/ColumnDef.hs:169)
+    flagEnum (src/Database/MySQL/Protocol/ColumnDef.hs:170)
+    flagAutoIncrement (src/Database/MySQL/Protocol/ColumnDef.hs:171)
+    flagTimeStamp (src/Database/MySQL/Protocol/ColumnDef.hs:172)
+    flagSet (src/Database/MySQL/Protocol/ColumnDef.hs:173)
+    flagNoDefaultValue (src/Database/MySQL/Protocol/ColumnDef.hs:174)
+    flagPartKey (src/Database/MySQL/Protocol/ColumnDef.hs:175)
+    flagNumeric (src/Database/MySQL/Protocol/ColumnDef.hs:176)
+Warning: 'FieldType' is ambiguous. It is defined
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:87:21
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:87:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Protocol/ColumnDef.hs:87:1
+Warning: 'LocalTime' is ambiguous. It is defined
+    * in ‘Data.Time.LocalTime.Internal.LocalTime’
+    * in ‘Data.Time.LocalTime.Internal.LocalTime’
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined in ‘Data.Time.LocalTime.Internal.LocalTime’
+Warning: 'TimeOfDay' is ambiguous. It is defined
+    * in ‘Data.Time.LocalTime.Internal.TimeOfDay’
+    * in ‘Data.Time.LocalTime.Internal.TimeOfDay’
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined in ‘Data.Time.LocalTime.Internal.TimeOfDay’
+  88% ( 23 / 26) in 'Database.MySQL.Protocol.MySQLValue'
+  Missing documentation for:
+    getTextRowVector (src/Database/MySQL/Protocol/MySQLValue.hs:320)
+    getBinaryField (src/Database/MySQL/Protocol/MySQLValue.hs:198)
+    getBinaryRowVector (src/Database/MySQL/Protocol/MySQLValue.hs:523)
+  50% (  3 /  6) in 'Database.MySQL.Protocol.Command'
+  Missing documentation for:
+    StmtID (src/Database/MySQL/Protocol/Command.hs:31)
+    putCommand (src/Database/MySQL/Protocol/Command.hs:52)
+    getStmtPrepareOK (src/Database/MySQL/Protocol/Command.hs:99)
+  21% ( 11 / 51) in 'Database.MySQL.Field'
+  Missing documentation for:
+    encodeInt8 (src/Database/MySQL/Field.hs:122)
+    decodeInt8 (src/Database/MySQL/Field.hs:125)
+    encodeWord8 (src/Database/MySQL/Field.hs:133)
+    decodeWord8 (src/Database/MySQL/Field.hs:136)
+    encodeInt16 (src/Database/MySQL/Field.hs:144)
+    decodeInt16 (src/Database/MySQL/Field.hs:147)
+    encodeWord16 (src/Database/MySQL/Field.hs:155)
+    decodeWord16 (src/Database/MySQL/Field.hs:158)
+    encodeInt32 (src/Database/MySQL/Field.hs:166)
+    decodeInt32 (src/Database/MySQL/Field.hs:169)
+    encodeWord32 (src/Database/MySQL/Field.hs:177)
+    decodeWord32 (src/Database/MySQL/Field.hs:180)
+    encodeInt64 (src/Database/MySQL/Field.hs:188)
+    decodeInt64 (src/Database/MySQL/Field.hs:191)
+    encodeWord64 (src/Database/MySQL/Field.hs:199)
+    decodeWord64 (src/Database/MySQL/Field.hs:202)
+    decodeFloat' (src/Database/MySQL/Field.hs:215)
+    encodeDouble (src/Database/MySQL/Field.hs:223)
+    decodeDouble (src/Database/MySQL/Field.hs:226)
+    encodeScientific (src/Database/MySQL/Field.hs:234)
+    decodeScientific (src/Database/MySQL/Field.hs:237)
+    encodeText (src/Database/MySQL/Field.hs:249)
+    decodeText (src/Database/MySQL/Field.hs:252)
+    encodeLazyText (src/Database/MySQL/Field.hs:260)
+    decodeLazyText (src/Database/MySQL/Field.hs:263)
+    encodeString (src/Database/MySQL/Field.hs:282)
+    decodeString (src/Database/MySQL/Field.hs:305)
+    encodeByteString (src/Database/MySQL/Field.hs:313)
+    decodeByteString (src/Database/MySQL/Field.hs:316)
+    encodeLazyByteString (src/Database/MySQL/Field.hs:324)
+    decodeLazyByteString (src/Database/MySQL/Field.hs:327)
+    encodeDay (src/Database/MySQL/Field.hs:335)
+    decodeDay (src/Database/MySQL/Field.hs:338)
+    encodeLocalTime (src/Database/MySQL/Field.hs:350)
+    decodeLocalTime (src/Database/MySQL/Field.hs:353)
+    decodeTimeOfDay (src/Database/MySQL/Field.hs:368)
+    encodeBool (src/Database/MySQL/Field.hs:383)
+    decodeBool (src/Database/MySQL/Field.hs:387)
+    encodeMaybe (src/Database/MySQL/Field.hs:396)
+    decodeMaybe (src/Database/MySQL/Field.hs:400)
+Warning: 'FieldType' is ambiguous. It is defined
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:87:21
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:87:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Protocol/ColumnDef.hs:87:1
+  66% (  2 /  3) in 'Database.MySQL.BinLogProtocol.BinLogMeta'
+  Missing documentation for:
+    getBinLogMeta (src/Database/MySQL/BinLogProtocol/BinLogMeta.hs:65)
+   7% (  1 / 14) in 'Database.MySQL.Protocol.Auth'
+  Missing documentation for:
+    Greeting (src/Database/MySQL/Protocol/Auth.hs:55)
+    putGreeting (src/Database/MySQL/Protocol/Auth.hs:68)
+    getGreeting (src/Database/MySQL/Protocol/Auth.hs:88)
+    Auth (src/Database/MySQL/Protocol/Auth.hs:118)
+    getAuth (src/Database/MySQL/Protocol/Auth.hs:129)
+    putAuth (src/Database/MySQL/Protocol/Auth.hs:138)
+    SSLRequest (src/Database/MySQL/Protocol/Auth.hs:155)
+    getSSLRequest (src/Database/MySQL/Protocol/Auth.hs:162)
+    putSSLRequest (src/Database/MySQL/Protocol/Auth.hs:165)
+    clientCap (src/Database/MySQL/Protocol/Auth.hs:179)
+    clientMaxPacketSize (src/Database/MySQL/Protocol/Auth.hs:191)
+    supportTLS (src/Database/MySQL/Protocol/Auth.hs:195)
+    sslRequest (src/Database/MySQL/Protocol/Auth.hs:198)
+Warning: 'Word24' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'MySQLVaule' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+  66% (  4 /  6) in 'Database.MySQL.BinLogProtocol.BinLogValue'
+  Missing documentation for:
+    getMicroSecond (src/Database/MySQL/BinLogProtocol/BinLogValue.hs:287)
+    getBits' (src/Database/MySQL/BinLogProtocol/BinLogValue.hs:297)
+  16% (  4 / 25) in 'Database.MySQL.BinLogProtocol.BinLogEvent'
+  Missing documentation for:
+    BinLogPacket (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:78)
+    putSemiAckResp (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:90)
+    getBinLogPacket (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:93)
+    getFromBinLogPacket (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:108)
+    getFromBinLogPacket' (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:114)
+    FormatDescription (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:121)
+    getFormatDescription (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:131)
+    eventHeaderLen (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:138)
+    RotateEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:147)
+    getRotateEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:151)
+    getQueryEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:166)
+    getQueryEvent' (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:183)
+    TableMapEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:187)
+    getTableMapEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:199)
+    DeleteRowsEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:221)
+    getDeleteRowEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:231)
+    WriteRowsEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:243)
+    getWriteRowEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:253)
+    UpdateRowsEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:265)
+    getUpdateRowEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:275)
+    getPresentMap (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:291)
+ 100% ( 10 / 10) in 'Data.TLSSetting'
+Warning: 'HostName' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'PortNumber' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'TCP_NODELAY' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'Connection' is ambiguous. It is defined
+    * at src/Data/Connection.hs:37:21
+    * at src/Data/Connection.hs:37:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Data/Connection.hs:37:1
+Warning: 'Socket' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+ 100% ( 13 / 13) in 'System.IO.Streams.TCP'
+Warning: 'MySQLConn' is ambiguous. It is defined
+    * at src/Database/MySQL/Connection.hs:123:18
+    * at src/Database/MySQL/Connection.hs:123:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Connection.hs:123:1
+Warning: 'closeStmt' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: Database.MySQL.Connection: Could not find documentation for exported module: Database.MySQL.Connection
+  33% ( 32 / 95) in 'Database.MySQL.Connection'
+  Missing documentation for:
+    MySQLConn (src/Database/MySQL/Connection.hs:123)
+    NetworkException (src/Database/MySQL/Connection.hs:932)
+    UnconsumedResultSet (src/Database/MySQL/Connection.hs:934)
+    ERRException (src/Database/MySQL/Connection.hs:936)
+    UnexpectedPacket (src/Database/MySQL/Connection.hs:938)
+    utf8mb4_unicode_ci (src/Database/MySQL/Connection.hs:354)
+    ExchangeProgress (src/Database/MySQL/Connection.hs:101)
+    AuthException (src/Database/MySQL/Connection.hs:572)
+    Runtime (src/Database/MySQL/Connection.hs:102)
+    abortConnection (src/Database/MySQL/Connection.hs:232)
+    advanceFraming (src/Database/MySQL/Connection.hs:212)
+    bUFSIZE (src/Database/MySQL/Connection.hs:357)
+    beginTransactionLease (src/Database/MySQL/Connection.hs:328)
+    claimCommand (src/Database/MySQL/Connection.hs:249)
+    classifyQueryEffect (src/Database/MySQL/Connection.hs:696)
+    consumeCommandOK (src/Database/MySQL/Connection.hs:713)
+    consumeEnd (src/Database/MySQL/Connection.hs:821)
+    consumeOK (src/Database/MySQL/Connection.hs:738)
+    decodeFramedInput (src/Database/MySQL/Connection.hs:586)
+    decodeInputStream (src/Database/MySQL/Connection.hs:578)
+    decodeInputStreamWithLimit (src/Database/MySQL/Connection.hs:581)
+    emptyFramingStates (src/Database/MySQL/Connection.hs:204)
+    encodedLength (src/Database/MySQL/Connection.hs:959)
+    endTransactionLease (src/Database/MySQL/Connection.hs:335)
+    finishResponse (src/Database/MySQL/Connection.hs:270)
+    guardUnconsumed (src/Database/MySQL/Connection.hs:907)
+    initializeSession (src/Database/MySQL/Connection.hs:861)
+    isCancellation (src/Database/MySQL/Connection.hs:943)
+    isResultEnd (src/Database/MySQL/Connection.hs:814)
+    isResultEndFor (src/Database/MySQL/Connection.hs:817)
+    lenString (src/Database/MySQL/Connection.hs:760)
+    markResponseStream (src/Database/MySQL/Connection.hs:320)
+    markStreaming (src/Database/MySQL/Connection.hs:315)
+    mkAuth (src/Database/MySQL/Connection.hs:422)
+    mkAuthWithOptions (src/Database/MySQL/Connection.hs:417)
+    negotiatedCapabilities (src/Database/MySQL/Connection.hs:413)
+    newByteConnection (src/Database/MySQL/Connection.hs:162)
+    newConnection (src/Database/MySQL/Connection.hs:151)
+    newConnectionUsing (src/Database/MySQL/Connection.hs:165)
+    readColumns (src/Database/MySQL/Connection.hs:838)
+    readConnPacket (src/Database/MySQL/Connection.hs:624)
+    readMetadataEnd (src/Database/MySQL/Connection.hs:830)
+    readPacket (src/Database/MySQL/Connection.hs:605)
+    readPacketWithLimit (src/Database/MySQL/Connection.hs:608)
+    releaseTransport (src/Database/MySQL/Connection.hs:227)
+    sendCommand (src/Database/MySQL/Connection.hs:642)
+    serverError (src/Database/MySQL/Connection.hs:719)
+    setExchangeSequence (src/Database/MySQL/Connection.hs:209)
+    streamGuard (src/Database/MySQL/Connection.hs:302)
+    trackingPairs (src/Database/MySQL/Connection.hs:777)
+    updateStatus (src/Database/MySQL/Connection.hs:727)
+    updateTracked (src/Database/MySQL/Connection.hs:795)
+    usesOKTerminator (src/Database/MySQL/Connection.hs:811)
+    utf8_general_ci (src/Database/MySQL/Connection.hs:353)
+    validateOptions (src/Database/MySQL/Connection.hs:90)
+    waitCommandReply (src/Database/MySQL/Connection.hs:919)
+    waitCommandReplys (src/Database/MySQL/Connection.hs:925)
+    withCommand (src/Database/MySQL/Connection.hs:284)
+    withSessionLease (src/Database/MySQL/Connection.hs:948)
+    writeCommand (src/Database/MySQL/Connection.hs:627)
+    writeEncoded (src/Database/MySQL/Connection.hs:630)
+    writeIORef' (src/Database/MySQL/Connection.hs:930)
+    FramingState (src/Database/MySQL/Connection.hs:200)
+Warning: 'ERRException' is ambiguous. It is defined
+    * at src/Database/MySQL/Connection.hs:936:21
+    * at src/Database/MySQL/Connection.hs:936:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Connection.hs:936:1
+Warning: 'WrongParamsCount' is ambiguous. It is defined
+    * at src/Database/MySQL/Query.hs:59:25
+    * at src/Database/MySQL/Query.hs:59:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Query.hs:59:1
+Warning: 'ExtraResultSets' is ambiguous. It is defined
+    * at src/Database/MySQL/Base.hs:191:24
+    * at src/Database/MySQL/Base.hs:191:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Base.hs:191:1
+  91% ( 64 / 70) in 'Database.MySQL.Base'
+  Missing documentation for:
+    MySQLConn (src/Database/MySQL/Connection.hs:123)
+    NetworkException (src/Database/MySQL/Connection.hs:932)
+    UnconsumedResultSet (src/Database/MySQL/Connection.hs:934)
+    ERRException (src/Database/MySQL/Connection.hs:936)
+    UnexpectedPacket (src/Database/MySQL/Connection.hs:938)
+    DecodePacketException (src/Database/MySQL/Protocol/Packet.hs:107)
+Warning: 'BinLogPacket' is ambiguous. It is defined
+    * at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:78:21
+    * at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:78:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:78:1
+Warning: 'BinLogTracker' is ambiguous. It is defined
+    * at src/Database/MySQL/BinLog.hs:53:22
+    * at src/Database/MySQL/BinLog.hs:53:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/BinLog.hs:53:1
+Warning: 'FormatDescription' is ambiguous. It is defined
+    * at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:121:26
+    * at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:121:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:121:1
+  93% ( 15 / 16) in 'Database.MySQL.BinLog'
+  Missing documentation for:
+    SlaveID (src/Database/MySQL/BinLog.hs:49)
+Warning: 'Connection' is ambiguous. It is defined
+    * at src/Data/Connection.hs:37:21
+    * at src/Data/Connection.hs:37:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Data/Connection.hs:37:1
+Warning: 'HostName' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'PortNumber' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'Socket' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+ 100% ( 10 / 10) in 'System.IO.Streams.TLS'
+ 100% (  6 /  6) in 'Database.MySQL.TLS'
+Warning: Database.MySQL.Protocol.MySQLValue: could not find link destinations for: 
+	- Database.MySQL.Protocol.MySQLValue.Rep_DateParts
+	- Database.MySQL.Protocol.MySQLValue.Rep_MySQLValue
+Warning: Database.MySQL.BinLogProtocol.BinLogValue: could not find link destinations for: 
+	- Database.MySQL.BinLogProtocol.BinLogValue.Rep_BinLogValue
+Warning: Database.MySQL.BinLogProtocol.BinLogEvent: could not find link destinations for: 
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_DeleteRowsEvent
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_FormatDescription
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_QueryEvent
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_TableMapEvent
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_UpdateRowsEvent
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_WriteRowsEvent
+Warning: Database.MySQL.BinLog: could not find link destinations for: 
+	- Database.MySQL.BinLog.Rep_BinLogTracker
+	- Database.MySQL.BinLog.Rep_RowBinLogEvent
+Documentation created:
+/Users/aantich/dev/mariadbnew/projects/mariadb-haskell/./dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/doc/html/mysql-haskell

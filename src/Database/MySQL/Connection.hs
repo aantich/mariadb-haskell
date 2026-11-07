@@ -1,14 +1,17 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-|
 Module      : Database.MySQL.Connection
-Description : Connection managment
+Description : Internal MariaDB transport and connection lifecycle
 Copyright   : (c) Winterland, 2016
 License     : BSD
 Maintainer  : drkoster@qq.com
 Stability   : experimental
 Portability : PORTABLE
 
-This is an internal module, the 'MySQLConn' type should not directly acessed to user.
+Applications should use the abstract 'MySQLConn' exported by
+"Database.MySQL.Base". This exposed internal module also supports deterministic
+transport fixtures; modifying its records bypasses the public safety contract.
 
 -}
 
@@ -16,9 +19,7 @@ module Database.MySQL.Connection
     ( module Database.MySQL.Connection
     ) where
 
-import           Control.Exception               (Exception (displayException),
-                                                  bracketOnError,
-                                                  throwIO, catch, SomeException)
+import           Control.Exception hiding (handle)
 import           Control.Monad
 import qualified Crypto.Hash                     as Crypto
 import           Crypto.Hash.Algorithms          (SHA1(..))
@@ -36,8 +37,7 @@ import qualified Data.ByteArray                  as BA
 import           Data.ByteString                 (ByteString)
 import qualified Data.ByteString                 as B
 import qualified Data.ByteString.Lazy            as L
-import qualified Data.ByteString.Unsafe          as B
-import           Data.IORef                      (IORef, newIORef, readIORef,
+import           Data.IORef                      (IORef, newIORef, readIORef, atomicModifyIORef',
                                                   writeIORef)
 import qualified Data.PEM                        as PEM
 import           Data.Typeable
@@ -50,142 +50,382 @@ import qualified Network.Socket                  as N
 import           System.IO.Streams               (InputStream)
 import qualified System.IO.Streams               as Stream
 import qualified System.IO.Streams.TCP           as TCP
-import qualified Data.Connection                 as TCP
+import qualified Data.Connection                 as Conn
 
 --------------------------------------------------------------------------------
 
--- | 'MySQLConn' wrap both 'InputStream' and 'OutputStream' for MySQL 'Packet'.
---
--- You shouldn't use one 'MySQLConn' in different thread, if you do that,
--- consider protecting it with a @MVar@.
---
-data MySQLConn = MySQLConn {
-        mysqlRead        :: {-# UNPACK #-} !(InputStream  Packet)
-    ,   mysqlWrite       :: (Packet -> IO ())
-    ,   mysqlCloseSocket :: IO ()
-    ,   isConsumed       :: {-# UNPACK #-} !(IORef Bool)
+import Control.Concurrent (ThreadId, myThreadId)
+import System.Timeout (timeout)
+import qualified Data.Binary.Parser as P
+import qualified Data.ByteString.Char8 as BC
+import qualified Data.Text.Encoding as TE
+import qualified Data.Vector as V
+import Data.Int (Int64)
+import Data.Maybe (isJust)
+import Database.MySQL.Protocol.ColumnDef
+import Database.MySQL.Protocol.MySQLValue
+import Database.MySQL.Query
+
+-- | Per-connection resource bounds. Limits are validated before opening a
+-- transport; none can be zero. Message limits include continuation fragments.
+data ConnectionOptions = ConnectionOptions
+    { maximumMessageBytes :: !Word64 -- ^ Maximum inbound/outbound logical message.
+    , maximumMetadataBytes :: !Word64 -- ^ Per-metadata-block and OK tracking budget.
+    , maximumColumns :: !Int -- ^ Maximum fields in a result or statement metadata block.
+    , cleanupTimeoutMicros :: !Int -- ^ One deadline for draining and rollback.
+    , enableSessionTracking :: !Bool -- ^ Negotiate tracking and OK terminators together.
+    } deriving (Eq, Show)
+
+-- | 64 MiB messages, 16 MiB metadata, 65,535 columns, one-second cleanup, tracking.
+defaultConnectionOptions :: ConnectionOptions
+defaultConnectionOptions = ConnectionOptions
+    { maximumMessageBytes = 64 * 1024 * 1024
+    , maximumMetadataBytes = 16 * 1024 * 1024
+    , maximumColumns = 65535
+    , cleanupTimeoutMicros = 1000000
+    , enableSessionTracking = True
     }
 
--- | Everything you need to establish a MySQL connection.
---
--- To setup a TLS connection, use module "Database.MySQL.TLS" or "Database.MySQL.OpenSSL".
---
+-- A cached fact must not pin a large result buffer or grow without bound.
+-- Startup snapshots and subsequent tracker deltas share this byte limit.
+maximumRenderingValueBytes :: Int
+maximumRenderingValueBytes = 4096
+
+validateOptions :: ConnectionOptions -> IO ()
+validateOptions options = unless
+    (maximumMessageBytes options > 0 && maximumMessageBytes options <= fromIntegral (maxBound :: Word32)
+      && maximumMessageBytes options <= fromIntegral (maxBound :: Int)
+      && maximumMetadataBytes options > 0 && maximumColumns options > 0 && cleanupTimeoutMicros options > 0)
+    (throwIO (ProtocolError "invalid connection resource options"))
+
+-- | Observable lifecycle. Only 'Ready' admits a new command. 'Broken' and
+-- 'Closed' are terminal; an unfinished stream retains its creating thread.
+data ConnectionStatus = Ready | Executing | Streaming | Replicating | Broken | Closed deriving (Eq, Show)
+-- Completion must be distinct from "bytes were sent": a concurrent close after
+-- a terminal COMMIT reply does not make a known server error uncertain.
+data ExchangeProgress = BeforeSend | WireInFlight | ReplyComplete deriving (Eq,Show)
+data Runtime = Runtime
+    { runtimeStatus :: !ConnectionStatus
+    , runtimeGeneration :: !Word64
+    , runtimeOwner :: !(Maybe ThreadId)
+    , transactionOwner :: !(Maybe ThreadId)
+    } deriving Show
+-- | Bounded diagnostics, deliberately excluding SQL, parameters and credentials.
+data ConnectionFailure = ConnectionFailure
+    { failurePhase :: !ConnectionStatus -- ^ Phase in which the connection was retired.
+    , commitOutcomeUncertain :: !Bool -- ^ COMMIT may have reached MariaDB without a reply.
+    , secondaryCleanupFailure :: !Bool -- ^ Cleanup also failed after a primary exception.
+    } deriving (Eq, Show)
+-- | Local ownership, resource, session-context and transaction failures.
+-- 'CommitOutcomeUnknown' retains the original synchronous exception; inspect
+-- connection diagnostics for uncertain commits interrupted by cancellation.
+data ConnectionError = ConnectionUnavailable ConnectionStatus | ConcurrentConnectionUse | StaleResultStream
+                     | NestedTransactionUnsupported | SessionContextUnavailable | ProtocolError String
+                     | CommitOutcomeUnknown SomeException | CleanupDeadlineExceeded
+    deriving (Typeable, Show)
+instance Exception ConnectionError
+
+-- | A MariaDB session with one command/stream owner at a time. Obtain it through
+-- the connection constructors and close it with 'close'. The public Base module
+-- keeps this representation abstract; direct internal record access bypasses
+-- the ownership, resource and session-state contracts.
+data MySQLConn = MySQLConn
+    { mysqlRead :: !(InputStream Packet)
+    , mysqlWrite :: !(Packet -> IO ())
+    , mysqlCloseSocket :: !(IO ())
+    , connectionOptions :: !ConnectionOptions
+    , connectionRuntime :: !(IORef Runtime)
+    , connectionFailureRef :: !(IORef (Maybe ConnectionFailure))
+    , connectionServerStatus :: !(IORef (Maybe Word16))
+    , connectionRenderContext :: !(IORef (Maybe RenderContext))
+    , connectionCapabilities :: !(IORef Word32)
+    , connectionSequence :: !(IORef FramingState)
+    , connectionExchangeProgress :: !(IORef ExchangeProgress)
+    , connectionReleased :: !(IORef Bool)
+    , connectionDrain :: !(IORef (Maybe (IO ())))
+    , connectionServerPacketLimit :: !(IORef Word64)
+    , connectionQueryEffect :: !(IORef (Maybe Bool))
+    , connectionOpaqueStatements :: !(IORef [Word32])
+    }
+
+-- | Read lifecycle diagnostics without claiming a command or performing I/O.
+connectionStatus :: MySQLConn -> IO ConnectionStatus
+connectionStatus = fmap runtimeStatus . readIORef . connectionRuntime
+-- | Return retirement diagnostics, or 'Nothing' if no failure has been recorded.
+connectionFailure :: MySQLConn -> IO (Maybe ConnectionFailure)
+connectionFailure = readIORef . connectionFailureRef
+
+-- Shared construction is also used by deterministic transport fixtures.
+newConnection :: ConnectionOptions -> InputStream Packet -> (Packet -> IO ()) -> IO () -> IO MySQLConn
+newConnection options input output abort = newConnectionUsing options makeReader output abort
+  where
+    makeReader framing = Stream.makeInputStream $ do
+        packet <- Stream.read input
+        case packet of
+            Nothing -> pure Nothing
+            Just value -> advanceFraming (maximumMessageBytes options) framing (pLen value) (pSeqN value) >> pure (Just value)
+
+-- Live sockets validate framing in the byte decoder itself, without another
+-- InputStream wrapper and another read/Maybe allocation for each physical row.
+newByteConnection :: ConnectionOptions -> InputStream ByteString -> (Packet -> IO ()) -> IO () -> IO MySQLConn
+newByteConnection options input output abort = newConnectionUsing options (\framing -> decodeFramedInput (maximumMessageBytes options) framing input) output abort
+
+newConnectionUsing :: ConnectionOptions -> (IORef FramingState -> IO (InputStream Packet)) -> (Packet -> IO ()) -> IO () -> IO MySQLConn
+newConnectionUsing options makeReader output abort = do
+    validateOptions options
+    state <- newIORef (Runtime Ready 0 Nothing Nothing)
+    failure <- newIORef Nothing
+    status <- newIORef Nothing
+    context <- newIORef Nothing
+    caps <- newIORef 0
+    framing <- newIORef (FramingState 0 0)
+    started <- newIORef BeforeSend
+    released <- newIORef False
+    drain <- newIORef Nothing
+    serverLimit <- newIORef (maximumMessageBytes options)
+    effect <- newIORef Nothing
+    opaque <- newIORef []
+    input <- makeReader framing
+    let checkedOutput packet = advanceFraming (maximumMessageBytes options) framing (pLen packet) (pSeqN packet) >> output packet
+    pure MySQLConn
+        { mysqlRead = input
+        , mysqlWrite = checkedOutput
+        , mysqlCloseSocket = abort
+        , connectionOptions = options
+        , connectionRuntime = state
+        , connectionFailureRef = failure
+        , connectionServerStatus = status
+        , connectionRenderContext = context
+        , connectionCapabilities = caps
+        , connectionSequence = framing
+        , connectionExchangeProgress = started
+        , connectionReleased = released
+        , connectionDrain = drain
+        , connectionServerPacketLimit = serverLimit
+        , connectionQueryEffect = effect
+        , connectionOpaqueStatements = opaque
+        }
+
+data FramingState = FramingState {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word64
+-- The 257 possible empty states are constants, shared by every connection.
+-- Ordinary short packets need no new framing-state allocation per row.
+emptyFramingStates :: V.Vector FramingState
+emptyFramingStates=V.generate 257 (\n -> FramingState (fromIntegral n) 0)
+{-# NOINLINE emptyFramingStates #-}
+-- 256 is the dedicated replication sequence policy; continuations still use
+-- the logical assembler's modulo-256 check. Ordinary exchanges never use it.
+setExchangeSequence :: MySQLConn -> Word16 -> IO ()
+setExchangeSequence conn sequenceN = writeIORef (connectionSequence conn) (FramingState sequenceN 0)
+
+advanceFraming :: Word64 -> IORef FramingState -> Int64 -> Word8 -> IO ()
+advanceFraming limit ref lengthBytes sequenceN = do
+    FramingState expected accumulated <- readIORef ref
+    unless (expected==256 || expected==fromIntegral sequenceN) (throwIO (ProtocolError "unexpected packet sequence"))
+    when (lengthBytes<0 || lengthBytes>16777215) (throwIO (ProtocolError "invalid physical packet length"))
+    let bytes=fromIntegral lengthBytes
+    when (accumulated>limit || bytes>limit-accumulated) (throwIO (ProtocolError "logical packet exceeds client limit"))
+    let next=if expected==256 then 256 else (expected+1) .&. 255
+        continued=if lengthBytes==16777215 then accumulated+bytes else 0
+    writeIORef' ref (if continued==0 then V.unsafeIndex emptyFramingStates (fromIntegral next) else FramingState next continued)
+{-# INLINE advanceFraming #-}
+
+-- Claim the finalizer once so close, cancellation and a failed stream cannot
+-- double-close a transport. Transport finalizers must release resources even
+-- if their graceful TLS/socket shutdown fails.
+releaseTransport :: MySQLConn -> IO ()
+releaseTransport conn = do
+    already <- atomicModifyIORef' (connectionReleased conn) (\x -> (True,x))
+    unless already (mysqlCloseSocket conn)
+
+abortConnection :: MySQLConn -> Bool -> IO ()
+abortConnection conn uncertain = mask_ $ do
+    phase <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
+        (rt { runtimeStatus=if runtimeStatus rt == Closed then Closed else Broken, runtimeOwner=Nothing },runtimeStatus rt)
+    atomicModifyIORef' (connectionFailureRef conn) $ \prior ->
+        let failure=case prior of
+                Nothing -> ConnectionFailure phase uncertain False
+                Just previous -> previous {commitOutcomeUncertain=commitOutcomeUncertain previous || uncertain}
+        in (Just failure,())
+    writeIORef (connectionRenderContext conn) Nothing
+    writeIORef (connectionDrain conn) Nothing
+    -- An ordinary close error must not replace the original protocol failure.
+    -- A new cancellation still belongs to the caller and must propagate.
+    releaseTransport conn `catch` (\(err :: SomeException) -> when (isCancellation err) (throwIO err))
+
+-- The atomic claim rejects misuse instead of queueing commands. The surrounding
+-- mask in withCommand closes the cancellation gap between claiming and setup.
+claimCommand :: MySQLConn -> IO ()
+claimCommand conn = do
+    tid <- myThreadId
+    result <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
+        let unavailable err = (rt,Left err) in
+        if maybe False (/=tid) (transactionOwner rt) then unavailable ConcurrentConnectionUse
+        else case runtimeStatus rt of
+            Ready -> (rt {runtimeStatus=Executing,runtimeGeneration=runtimeGeneration rt+1,runtimeOwner=Just tid},Right ())
+            Streaming -> unavailable (ConnectionUnavailable Streaming)
+            Executing -> unavailable ConcurrentConnectionUse
+            other -> unavailable (ConnectionUnavailable other)
+    case result of
+        Left (ConnectionUnavailable Streaming) -> throwIO UnconsumedResultSet
+        Left err -> throwIO err
+        Right () -> do
+            writeIORef (connectionExchangeProgress conn) BeforeSend
+            writeIORef (connectionQueryEffect conn) Nothing
+
+-- Finalize every exchange-local reference before publishing Ready. Masking
+-- protects this thread from cancellation; it does not exclude another thread
+-- from claiming Ready immediately after the atomic runtime update.
+finishResponse :: MySQLConn -> IO ()
+finishResponse conn = mask_ $ do
+    writeIORef (connectionDrain conn) Nothing
+    caps <- readIORef (connectionCapabilities conn)
+    started <- readIORef (connectionExchangeProgress conn)
+    writeIORef (connectionExchangeProgress conn) ReplyComplete
+    effect <- readIORef (connectionQueryEffect conn)
+    when (started/=BeforeSend && (caps .&. 0x800000 == 0 || effect==Just True)) (writeIORef (connectionRenderContext conn) Nothing)
+    atomicModifyIORef' (connectionRuntime conn) $ \rt ->
+        (if runtimeStatus rt `elem` [Executing,Streaming] then rt {runtimeStatus=Ready,runtimeOwner=Nothing} else rt,())
+
+-- A pre-send validation failure releases the claim. Once writing may have
+-- started, any incomplete reply retires the connection rather than guessing
+-- whether the next packet belongs to this command or the next one.
+withCommand :: MySQLConn -> IO a -> IO a
+withCommand conn action = mask $ \restore -> do
+    claimCommand conn
+    generation <- runtimeGeneration <$> readIORef (connectionRuntime conn)
+    result <- restore action `catch` \(err :: SomeException) -> do
+        runtime <- readIORef (connectionRuntime conn)
+        started <- readIORef (connectionExchangeProgress conn)
+        -- The action may have completed its reply before throwing. A successor
+        -- can already own Ready, so finalizers may touch only their generation.
+        when (runtimeGeneration runtime == generation && runtimeStatus runtime `elem` [Executing,Streaming,Replicating]) $
+            if started==WireInFlight then abortConnection conn False else finishResponse conn
+        throwIO err
+    runtime <- readIORef (connectionRuntime conn)
+    when (runtimeGeneration runtime == generation && runtimeStatus runtime == Executing) (finishResponse conn)
+    pure result
+
+-- A completed stream must never read from a later exchange. Check generation
+-- before ownership so stale handles fail without consuming a single packet.
+streamGuard :: MySQLConn -> Word64 -> IO a -> IO a
+streamGuard conn generation action = do
+    rt <- readIORef (connectionRuntime conn)
+    tid <- myThreadId
+    unless (runtimeGeneration rt == generation) (throwIO StaleResultStream)
+    unless (runtimeStatus rt `elem` [Streaming,Replicating]) (throwIO (ConnectionUnavailable (runtimeStatus rt)))
+    unless (runtimeOwner rt == Just tid) (throwIO ConcurrentConnectionUse)
+    action `catch` \(err :: SomeException) -> do
+        current <- readIORef (connectionRuntime conn)
+        when (runtimeGeneration current == generation && runtimeStatus current `elem` [Streaming,Replicating])
+            (abortConnection conn False)
+        throwIO err
+
+markStreaming :: MySQLConn -> IO Word64
+markStreaming conn = markResponseStream conn Streaming
+
+-- A concurrent close is terminal, including the gap between metadata receipt
+-- and stream construction. Never overwrite Closed/Broken with a stream phase.
+markResponseStream :: MySQLConn -> ConnectionStatus -> IO Word64
+markResponseStream conn phase = do
+    result <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
+        if runtimeStatus rt == Executing
+        then (rt {runtimeStatus=phase}, Right (runtimeGeneration rt))
+        else (rt, Left (ConnectionUnavailable (runtimeStatus rt)))
+    either throwIO pure result
+
+beginTransactionLease :: MySQLConn -> IO ()
+beginTransactionLease conn = do
+    tid <- myThreadId
+    result <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
+        if isJust (transactionOwner rt) then (rt,False) else (rt {transactionOwner=Just tid},True)
+    unless result (throwIO NestedTransactionUnsupported)
+
+endTransactionLease :: MySQLConn -> IO ()
+endTransactionLease conn = atomicModifyIORef' (connectionRuntime conn) (\rt -> (rt {transactionOwner=Nothing},()))
+
+-- | Endpoint, credentials and initial one-byte protocol collation ID. Do not
+-- log this value: its inherited Show instance includes the password.
 data ConnectInfo = ConnectInfo
-    { ciHost     :: HostName
-    , ciPort     :: PortNumber
+    { ciHost :: HostName
+    , ciPort :: PortNumber
     , ciDatabase :: ByteString
-    , ciUser     :: ByteString
+    , ciUser :: ByteString
     , ciPassword :: ByteString
-    , ciCharset  :: Word8
+    , ciCharset :: Word8
     } deriving Show
 
--- | A simple 'ConnectInfo' targeting localhost with @user=root@ and empty password.
---
---  Default charset is set to @utf8_general_ci@ to support older(< 5.5.3) MySQL versions,
---  but be aware this is a partial utf8 encoding, you may want to use 'defaultConnectInfoMB4'
---  instead to support full utf8 charset(emoji, etc.). You can query your server's support
---  with @SELECT id, collation_name FROM information_schema.collations ORDER BY id;@
---
-defaultConnectInfo :: ConnectInfo
-defaultConnectInfo = ConnectInfo "127.0.0.1" 3306 "" "root" "" utf8_general_ci
+-- | Local TCP defaults using full Unicode (utf8mb4). MB4 is a compatibility alias.
+defaultConnectInfo, defaultConnectInfoMB4 :: ConnectInfo
+defaultConnectInfo = ConnectInfo "127.0.0.1" 3306 "" "root" "" utf8mb4_unicode_ci
+defaultConnectInfoMB4 = defaultConnectInfo
+utf8_general_ci, utf8mb4_unicode_ci :: Word8
+utf8_general_ci=33
+utf8mb4_unicode_ci=224
 
--- | 'defaultConnectInfo' with charset set to @utf8mb4_unicode_ci@
---
--- This is recommanded on any MySQL server version >= 5.5.3.
---
-defaultConnectInfoMB4 :: ConnectInfo
-defaultConnectInfoMB4 = ConnectInfo "127.0.0.1" 3306 "" "root" "" utf8mb4_unicode_ci
-
-utf8_general_ci :: Word8
-utf8_general_ci = 33
-
-utf8mb4_unicode_ci :: Word8
-utf8mb4_unicode_ci = 224
-
---------------------------------------------------------------------------------
-
--- | Socket buffer size.
---
--- maybe exposed to 'ConnectInfo' laster?
---
 bUFSIZE :: Int
-bUFSIZE = 16384
+bUFSIZE=16384
 
--- | Establish a MySQL connection.
---
+-- | Open TCP with 'defaultConnectionOptions' and establish a rendering snapshot.
 connect :: ConnectInfo -> IO MySQLConn
-connect = fmap snd . connectDetail
+connect = connectWithOptions defaultConnectionOptions
+-- | Open TCP with explicit bounds. Constructor failure closes the transport.
+connectWithOptions :: ConnectionOptions -> ConnectInfo -> IO MySQLConn
+connectWithOptions opts ci = snd <$> connectDetailWithOptions opts ci
+-- | Open TCP and also return the server greeting.
+connectDetail :: ConnectInfo -> IO (Greeting,MySQLConn)
+connectDetail = connectDetailWithOptions defaultConnectionOptions
+-- | Explicit-options variant of 'connectDetail'.
+connectDetailWithOptions :: ConnectionOptions -> ConnectInfo -> IO (Greeting,MySQLConn)
+connectDetailWithOptions opts ci = do
+    validateOptions opts
+    bracketOnError (TCP.connectSocket (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
+        conn <- newByteConnection opts (Conn.source raw) (\packet -> Conn.send raw (Binary.runPut (Binary.put packet))) (Conn.close raw)
+        greet <- readConnPacket conn >>= decodeFromPacket
+        let caps=negotiatedCapabilities opts greet
+        writeIORef (connectionCapabilities conn) caps
+        mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
+        q <- readConnPacket conn
+        completeAuth (mysqlRead conn) (mysqlWrite conn) (ciPassword ci) q (plainFullAuth (greetingSalt1 greet <> greetingSalt2 greet))
+        initializeSession conn
+        pure (greet,conn)
 
--- | Establish a MySQL connection with 'Greeting' back, so you can find server's version .etc.
---
-connectDetail :: ConnectInfo -> IO (Greeting, MySQLConn)
-connectDetail (ConnectInfo host port db user pass charset)
-    = bracketOnError open TCP.close go
-  where
-    open  = connectWithBufferSize host port bUFSIZE
-    go c  = do
-        let is = TCP.source c
-        is' <- decodeInputStream is
-        p <- readPacket is'
-        greet <- decodeFromPacket p
-        let salt = greetingSalt1 greet `B.append` greetingSalt2 greet
-            auth = mkAuth db user pass charset greet
-        write c $ encodeToPacket 1 auth
-        q <- readPacket is'
-        completeAuth is' (write c) pass q (plainFullAuth salt)
-        consumed <- newIORef True
-        let waitNotMandatoryOK = catch
-                (void (waitCommandReply is'))           -- server will either reply an OK packet
-                ((\ _ -> return ()) :: SomeException -> IO ())   -- or directy close the connection
-            conn = MySQLConn is'
-                (write c)
-                (writeCommand COM_QUIT (write c) >> waitNotMandatoryOK >> TCP.close c)
-                consumed
-        return (greet, conn)
-
-    connectWithBufferSize h p bs = TCP.connectSocket h p >>= TCP.socketToConnection bs
-    write c a = TCP.send c $ Binary.runPut . Binary.put $ a
-
--- | Connect to MySQL via a Unix domain socket.
---
+-- | Open a Unix-domain socket with the same session and ownership contracts as TCP.
 connectUnixSocket :: FilePath -> ConnectInfo -> IO MySQLConn
-connectUnixSocket socketPath ci = fmap snd (connectUnixSocketDetail socketPath ci)
+connectUnixSocket = connectUnixSocketWithOptions defaultConnectionOptions
+-- | Open a Unix-domain socket with explicit resource bounds.
+connectUnixSocketWithOptions :: ConnectionOptions -> FilePath -> ConnectInfo -> IO MySQLConn
+connectUnixSocketWithOptions opts path ci = snd <$> connectUnixSocketDetailWithOptions opts path ci
+-- | Open a Unix-domain socket and also return the server greeting.
+connectUnixSocketDetail :: FilePath -> ConnectInfo -> IO (Greeting,MySQLConn)
+connectUnixSocketDetail = connectUnixSocketDetailWithOptions defaultConnectionOptions
+-- | Explicit-options variant of 'connectUnixSocketDetail'.
+connectUnixSocketDetailWithOptions :: ConnectionOptions -> FilePath -> ConnectInfo -> IO (Greeting,MySQLConn)
+connectUnixSocketDetailWithOptions opts path ci = do
+    validateOptions opts
+    let open=bracketOnError (N.socket N.AF_UNIX N.Stream 0) N.close $ \sock -> do
+            N.connect sock (N.SockAddrUnix path)
+            TCP.socketToConnectionAdaptive bUFSIZE (sock,N.SockAddrUnix path)
+    bracketOnError open Conn.close $ \raw -> do
+        conn <- newByteConnection opts (Conn.source raw) (\packet -> Conn.send raw (Binary.runPut (Binary.put packet))) (Conn.close raw)
+        greet <- readConnPacket conn >>= decodeFromPacket
+        let caps=negotiatedCapabilities opts greet
+        writeIORef (connectionCapabilities conn) caps
+        mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
+        q <- readConnPacket conn
+        completeAuth (mysqlRead conn) (mysqlWrite conn) (ciPassword ci) q (plainFullAuth (greetingSalt1 greet <> greetingSalt2 greet))
+        initializeSession conn
+        pure (greet,conn)
 
--- | Connect to MySQL via a Unix domain socket with 'Greeting' back,
--- so you can find server's version .etc.
---
-connectUnixSocketDetail :: FilePath -> ConnectInfo -> IO (Greeting, MySQLConn)
-connectUnixSocketDetail socketPath (ConnectInfo _host _port db user pass charset)
-    = bracketOnError open TCP.close go
-  where
-    open  = bracketOnError
-                (N.socket N.AF_UNIX N.Stream 0)
-                N.close
-                (\sock -> do
-                    N.connect sock (N.SockAddrUnix socketPath)
-                    TCP.socketToConnection bUFSIZE (sock, N.SockAddrUnix socketPath)
-                )
-    go c  = do
-        let is = TCP.source c
-        is' <- decodeInputStream is
-        p <- readPacket is'
-        greet <- decodeFromPacket p
-        let salt = greetingSalt1 greet `B.append` greetingSalt2 greet
-            auth = mkAuth db user pass charset greet
-        write c $ encodeToPacket 1 auth
-        q <- readPacket is'
-        completeAuth is' (write c) pass q (plainFullAuth salt)
-        consumed <- newIORef True
-        let waitNotMandatoryOK = catch
-                (void (waitCommandReply is'))           -- server will either reply an OK packet
-                ((\_ -> return ()) :: SomeException -> IO ())   -- or directy close the connection
-            conn = MySQLConn is'
-                (write c)
-                (writeCommand COM_QUIT (write c) >> waitNotMandatoryOK >> TCP.close c)
-                consumed
-        return (greet, conn)
+negotiatedCapabilities :: ConnectionOptions -> Greeting -> Word32
+-- Advertise tracking and EOF deprecation only as a pair: both OK-envelope and
+-- result-terminator parsing must be available before either is used on the wire.
+negotiatedCapabilities options greeting = clientCap .|.
+    (if enableSessionTracking options && greetingCaps greeting .&. 0x01800000 == 0x01800000 then 0x01800000 else 0)
 
-    write c a = TCP.send c $ Binary.runPut . Binary.put $ a
+mkAuthWithOptions :: ConnectionOptions -> Word32 -> ConnectInfo -> Greeting -> Auth
+mkAuthWithOptions options caps ci greeting =
+    let Auth _ _ charset user response database plugin = mkAuth (ciDatabase ci) (ciUser ci) (ciPassword ci) (ciCharset ci) greeting
+    in Auth caps (fromIntegral (maximumMessageBytes options)) charset user response database plugin
 
 mkAuth :: ByteString -> ByteString -> ByteString -> Word8 -> Greeting -> Auth
 mkAuth db user pass charset greet =
@@ -341,139 +581,423 @@ doRSAAuth writePacket seqN pass nonce pemKey = do
 data AuthException = AuthException String deriving (Typeable, Show)
 instance Exception AuthException
 
--- | A specialized 'decodeInputStream' here for speed
+
+-- Physical framing reads exactly one packet. Limits are checked before its body.
 decodeInputStream :: InputStream ByteString -> IO (InputStream Packet)
-decodeInputStream is = Stream.makeInputStream $ do
-    bs <- Stream.readExactly 4 is
-    let len =  fromIntegral (bs `B.unsafeIndex` 0)
-           .|. fromIntegral (bs `B.unsafeIndex` 1) `shiftL` 8
-           .|. fromIntegral (bs `B.unsafeIndex` 2) `shiftL` 16
-        seqN = bs `B.unsafeIndex` 3
-    body <- loopRead [] len is
-    return . Just $ Packet len seqN body
+decodeInputStream = decodeInputStreamWithLimit (maximumMessageBytes defaultConnectionOptions)
+
+decodeInputStreamWithLimit :: Word64 -> InputStream ByteString -> IO (InputStream Packet)
+decodeInputStreamWithLimit limit input = do
+    framing <- newIORef (FramingState 256 0)
+    decodeFramedInput limit framing input
+
+decodeFramedInput :: Word64 -> IORef FramingState -> InputStream ByteString -> IO (InputStream Packet)
+decodeFramedInput limit framing input = Stream.makeInputStream $ do
+    header <- Stream.readExactly 4 input
+    let len=fromIntegral (B.index header 0) .|. (fromIntegral (B.index header 1) `shiftL` 8) .|. (fromIntegral (B.index header 2) `shiftL` 16)
+    advanceFraming limit framing len (B.index header 3)
+    body <- loop [] len
+    pure (Just (Packet len (B.index header 3) body))
   where
-    loopRead acc 0 _  = return $! L.fromChunks (reverse acc)
-    loopRead acc k is' = do
-        bs <- Stream.read is'
-        case bs of Nothing -> throwIO NetworkException
-                   Just bs' -> do let l = fromIntegral (B.length bs')
-                                  if l >= k
-                                  then do
-                                      let (a, rest) = B.splitAt (fromIntegral k) bs'
-                                      unless (B.null rest) (Stream.unRead rest is')
-                                      return $! L.fromChunks (reverse (a:acc))
-                                  else do
-                                      let k' = k - l
-                                      k' `seq` loopRead (bs':acc) k' is'
-
--- | Close a MySQL connection.
---
-close :: MySQLConn -> IO ()
-close (MySQLConn _ _ closeSocket _) = closeSocket
-
--- | Send a 'COM_PING'.
---
-ping :: MySQLConn -> IO OK
-ping = flip command COM_PING
-
---------------------------------------------------------------------------------
--- helpers
-
--- | Send a 'Command' which don't return a resultSet.
---
-command :: MySQLConn -> Command -> IO OK
-command conn@(MySQLConn is os _ _) cmd = do
-    guardUnconsumed conn
-    writeCommand cmd os
-    waitCommandReply is
-{-# INLINE command #-}
-
-waitCommandReply :: InputStream Packet -> IO OK
-waitCommandReply is = do
-    p <- readPacket is
-    if  | isERR p -> decodeFromPacket p >>= throwIO . ERRException
-        | isOK  p -> decodeFromPacket p
-        | otherwise -> throwIO (UnexpectedPacket p)
-{-# INLINE waitCommandReply #-}
-
-waitCommandReplys :: InputStream Packet -> IO [OK]
-waitCommandReplys is = do
-    p <- readPacket is
-    if  | isERR p -> decodeFromPacket p >>= throwIO . ERRException
-        | isOK  p -> do ok <- decodeFromPacket p
-                        if isThereMore ok
-                        then (ok :) <$> waitCommandReplys is
-                        else return [ok]
-        | otherwise -> throwIO (UnexpectedPacket p)
-{-# INLINE waitCommandReplys #-}
+    loop acc 0 = pure (L.fromChunks (reverse acc))
+    loop acc remaining = do
+        chunk <- Stream.read input >>= maybe (throwIO NetworkException) pure
+        if B.null chunk then loop acc remaining else do
+            let count=fromIntegral (B.length chunk)
+            if count >= remaining then do
+                let (part,rest)=B.splitAt (fromIntegral remaining) chunk
+                unless (B.null rest) (Stream.unRead rest input)
+                pure (L.fromChunks (reverse (part:acc)))
+            else loop (chunk:acc) (remaining-count)
 
 readPacket :: InputStream Packet -> IO Packet
-readPacket is = Stream.read is >>= maybe
-    (throwIO NetworkException)
-    (\ p@(Packet len _ bs) -> if len < 16777215 then return p else go len [bs])
+readPacket = readPacketWithLimit (maximumMessageBytes defaultConnectionOptions)
+
+readPacketWithLimit :: Word64 -> InputStream Packet -> IO Packet
+readPacketWithLimit limit input = do
+    first <- Stream.read input >>= maybe (throwIO NetworkException) pure
+    validateLength (pLen first)
+    if pLen first < 16777215 then pure first else go (pLen first) (pSeqN first) [pBody first]
   where
-    go len acc = Stream.read is >>= maybe
-        (throwIO NetworkException)
-        (\ (Packet len' seqN bs) -> do
-            let len'' = len + len'
-                acc' = bs:acc
-            if len' < 16777215
-            then return (Packet len'' seqN (L.concat . reverse $ acc'))
-            else len'' `seq` go len'' acc'
-        )
-{-# INLINE readPacket #-}
+    validateLength len = when (len < 0 || fromIntegral len > limit) (throwIO (ProtocolError "logical packet exceeds message limit"))
+    go total sequenceN chunks = do
+        packet <- Stream.read input >>= maybe (throwIO NetworkException) pure
+        unless (pSeqN packet == sequenceN+1) (throwIO (ProtocolError "invalid continuation sequence"))
+        when (pLen packet < 0 || pLen packet > 16777215) (throwIO (ProtocolError "invalid fragment length"))
+        let size=total+pLen packet
+        validateLength size
+        if pLen packet < 16777215 then pure (Packet size (pSeqN packet) (L.concat (reverse (pBody packet:chunks))))
+        else go size (pSeqN packet) (pBody packet:chunks)
+
+readConnPacket :: MySQLConn -> IO Packet
+readConnPacket conn = readPacketWithLimit (maximumMessageBytes (connectionOptions conn)) (mysqlRead conn)
 
 writeCommand :: Command -> (Packet -> IO ()) -> IO ()
-writeCommand a writePacket = let bs = Binary.runPut (putCommand a) in
-    go (L.length bs) 0 bs writePacket
-  where
-    go len seqN bs writePacket' = do
-        if len < 16777215
-        then writePacket (Packet len seqN bs)
-        else do
-            let (bs', rest) = L.splitAt 16777215 bs
-                seqN' = seqN + 1
-                len'  = len - 16777215
+writeCommand cmd writer = let body=Binary.runPut (putCommand cmd) in writeEncoded (L.length body) body writer
 
-            writePacket (Packet 16777215 seqN bs')
-            seqN' `seq` len' `seq` go len' seqN' rest writePacket'
-{-# INLINE writeCommand #-}
+writeEncoded :: Int64 -> L.ByteString -> (Packet -> IO ()) -> IO ()
+writeEncoded count body writer = send count 0 body
+  where
+    send len sequenceN payload
+        | len < 16777215 = writer (Packet len sequenceN payload)
+        | otherwise = do
+            let (part,rest)=L.splitAt 16777215 payload
+            writer (Packet 16777215 sequenceN part)
+            send (len-16777215) (sequenceN+1) rest
+-- Validate/encode the complete outgoing command before marking WireInFlight.
+-- Traversing bounded lazy chunks keeps oversized builders from being flattened
+-- into a second contiguous allocation merely to discover their size.
+sendCommand :: MySQLConn -> Command -> IO ()
+sendCommand conn cmd = do
+    policy <- readIORef (connectionQueryEffect conn)
+    when (policy==Nothing) $ case cmd of
+        COM_QUERY bytes -> classifyQueryEffect conn (Query bytes)
+        COM_STMT_PREPARE bytes -> classifyQueryEffect conn (Query bytes)
+        COM_STMT_EXECUTE ident _ _ -> do
+            opaque <- readIORef (connectionOpaqueStatements conn)
+            writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
+        _ -> pure ()
+    encoder <- case cmd of
+        COM_STMT_EXECUTE ident values nullMap -> do
+            let needsEncoding (MySQLText _)=True; needsEncoding _=False
+            charset <- if any needsEncoding values then renderClientCharset <$> getRenderContext conn else pure "utf8mb4"
+            mapM_ (either (throwIO . UnencodableParameter) pure . validateValue) values
+            encoded <- forM values $ \value -> case value of
+                MySQLText text -> either (throwIO . UnencodableParameter) (pure . putLenEncBytes) (encodeCharsetText charset text)
+                _ -> pure (putBinaryField value)
+            pure $ do
+                Binary.putWord8 0x17
+                Binary.putWord32le ident
+                Binary.putWord8 0
+                Binary.putWord32le 1
+                unless (null values) $ do
+                    Binary.putByteString (fromBitMap nullMap)
+                    Binary.putWord8 1
+                    mapM_ putParamMySQLType values
+                    sequence_ encoded
+        _ -> pure (putCommand cmd)
+    let body=Binary.runPut encoder
+    serverLimit <- readIORef (connectionServerPacketLimit conn)
+    size <- encodedLength (min serverLimit (maximumMessageBytes (connectionOptions conn))) body
+    setExchangeSequence conn 0
+    writeIORef (connectionExchangeProgress conn) WireInFlight
+    writeEncoded size body (mysqlWrite conn)
+
+-- | Idempotently close the transport. Ready connections attempt bounded COM_QUIT;
+-- active ones are interrupted immediately without trying to drain their reply.
+close :: MySQLConn -> IO ()
+close conn = mask_ $ do
+    prior <- atomicModifyIORef' (connectionRuntime conn) (\rt -> (rt {runtimeStatus=Closed,runtimeOwner=Nothing},runtimeStatus rt))
+    unless (prior == Closed) $ do
+        when (prior `elem` [Executing,Streaming,Replicating]) $
+            atomicModifyIORef' (connectionFailureRef conn) (\failure ->
+                (case failure of Nothing -> Just (ConnectionFailure prior False False); Just _ -> failure,()))
+        writeIORef (connectionDrain conn) Nothing
+        let goodbye=when (prior==Ready) $ void $ timeout (cleanupTimeoutMicros (connectionOptions conn)) $ do
+                setExchangeSequence conn 0
+                writeCommand COM_QUIT (mysqlWrite conn)
+        (goodbye `catch` (\(err :: SomeException) -> when (isCancellation err) (throwIO err))) `finally` releaseTransport conn
+
+-- The cheap path recognizes flat ASCII SQL with only known stable calls.
+-- Everything else uses the same lexer as parameter templates; a prefix alone
+-- never establishes that an arbitrary statement cannot alter session state.
+classifyQueryEffect :: MySQLConn -> Query -> IO ()
+classifyQueryEffect conn qry@(Query input) = do
+    context <- readIORef (connectionRenderContext conn)
+    let uncertain=if simpleStableQuery input then False else
+            case context >>= either (const Nothing) Just . (`compileQuery` qry) of
+                Just plan -> planOpaque plan || planMultiple plan
+                Nothing -> True
+    writeIORef (connectionQueryEffect conn) (Just uncertain)
+
+-- | Check server responsiveness through the ordinary command ownership guard.
+ping :: MySQLConn -> IO OK
+ping conn = command conn COM_PING
+-- | Low-level command expecting one OK/ERR reply. Commands producing rows or no
+-- reply require their dedicated APIs instead (for example 'closeStmt' in Base).
+command :: MySQLConn -> Command -> IO OK
+command conn cmd = withCommand conn $ sendCommand conn cmd >> readConnPacket conn >>= consumeCommandOK conn
+
+consumeCommandOK :: MySQLConn -> Packet -> IO OK
+consumeCommandOK conn packet
+    | isERR packet = serverError conn packet
+    | isOK packet = consumeOK conn packet
+    | otherwise = throwIO (UnexpectedPacket packet)
+
+serverError :: MySQLConn -> Packet -> IO a
+serverError conn packet = do
+    err <- decodeFromPacket packet
+    writeIORef (connectionServerStatus conn) Nothing
+    writeIORef (connectionRenderContext conn) Nothing
+    finishResponse conn
+    throwIO (ERRException err)
+
+updateStatus :: MySQLConn -> Word16 -> IO ()
+updateStatus conn flags = do
+    previous <- readIORef (connectionServerStatus conn)
+    unless (previous==Just flags) $ do
+        writeIORef (connectionServerStatus conn) (Just flags)
+        when (maybe True (\old -> (old .&. 0x8200) /= (flags .&. 0x8200)) previous) $
+            atomicModifyIORef' (connectionRenderContext conn) $ \ctx ->
+                let change c = c {renderSQLModes=toggle "NO_BACKSLASH_ESCAPES" 0x200 (toggle "ANSI_QUOTES" 0x8000 (renderSQLModes c))}
+                    toggle name flag modes = if flags .&. flag /= 0 then name:filter (/=name) modes else filter (/=name) modes
+                in (fmap change ctx,())
+
+consumeOK :: MySQLConn -> Packet -> IO OK
+consumeOK conn packet = case P.parseDetailLazy getOK (pBody packet) of
+    Left (buffer,offset,message) -> throwIO (DecodePacketFailed buffer offset message)
+    Right (_,offset,ok) -> do
+        updateStatus conn (okStatus ok)
+        caps <- readIORef (connectionCapabilities conn)
+        when (caps .&. 0x800000 /= 0) $ do
+            when (pLen packet<offset || fromIntegral (pLen packet-offset)>maximumMetadataBytes (connectionOptions conn))
+                (throwIO (ProtocolError "OK/session envelope exceeds metadata budget"))
+            let trailer=L.toStrict (L.drop offset (pBody packet))
+                changed=okStatus ok .&. 0x4000 /= 0
+            if B.null trailer then when changed (throwIO (ProtocolError "missing session tracking payload")) else do
+                (_,rest) <- either (throwIO . ProtocolError) pure (lenString trailer)
+                if changed then do
+                    (tracking,leftover) <- either (throwIO . ProtocolError) pure (lenString rest)
+                    unless (B.null leftover) (throwIO (ProtocolError "trailing session payload"))
+                    when (fromIntegral (B.length tracking)>maximumMetadataBytes (connectionOptions conn)) (throwIO (ProtocolError "session tracking payload exceeds metadata budget"))
+                    pairs <- either (throwIO . ProtocolError) pure (trackingPairs tracking)
+                    mapM_ (updateTracked conn) pairs
+                else unless (B.null rest) (throwIO (ProtocolError "unexpected OK trailer"))
+        pure ok
+
+lenString :: ByteString -> Either String (ByteString,ByteString)
+lenString bytes = do
+    when (B.null bytes) (Left "truncated length string")
+    let tag=B.head bytes; after=B.tail bytes
+        takeLength width = do
+            when (B.length after < width) (Left "truncated encoded length")
+            let n=B.foldr (\w a -> a*256+fromIntegral w) (0::Word64) (B.take width after)
+            pure (n,B.drop width after)
+    (count,rest) <- case tag of
+        0xfc -> takeLength 2; 0xfd -> takeLength 3; 0xfe -> takeLength 8
+        _ | tag < 0xfb -> Right (fromIntegral tag,after)
+          | otherwise -> Left "invalid non-null string length"
+    when (count > fromIntegral (B.length rest)) (Left "truncated length string body")
+    pure (B.splitAt (fromIntegral count) rest)
+-- Each tracker item is length-delimited. Skip unknown kinds by their envelope,
+-- not by a guessed layout, and bound both item and variable counts. Retained
+-- rendering values are copied by updateTracked to avoid pinning a large packet.
+trackingPairs :: ByteString -> Either String [(ByteString,ByteString)]
+trackingPairs = items 0 []
+  where
+    items :: Int -> [(ByteString,ByteString)] -> ByteString -> Either String [(ByteString,ByteString)]
+    items count acc bytes
+        | B.null bytes = Right (reverse acc)
+        | count>=65535 = Left "too many session tracking items"
+        | otherwise = do
+            (payload,rest) <- lenString (B.tail bytes)
+            (count',acc') <- if B.head bytes==0 then variables (count+1) acc payload else Right (count+1,acc)
+            items count' acc' rest
+    variables count acc body | B.null body = Right (count,acc)
+    variables count acc body = do
+        when (count>=65535) (Left "too many tracked variables")
+        (name,rest) <- lenString body
+        (value,left) <- lenString rest
+        variables (count+1) ((name,value):acc) left
+
+updateTracked :: MySQLConn -> (ByteString,ByteString) -> IO ()
+updateTracked conn (name,value)
+    | name `elem` ["sql_mode","character_set_client","character_set_connection","collation_connection"] && B.length value>maximumRenderingValueBytes = throwIO (ProtocolError "tracked rendering value exceeds bound")
+    | name == "session_track_system_variables" = do
+        let selected=BC.split ',' value
+        unless (value=="*" || all (`elem` selected) ["sql_mode","character_set_client","character_set_connection"])
+            (writeIORef (connectionRenderContext conn) Nothing)
+    | otherwise = atomicModifyIORef' (connectionRenderContext conn) $ \ctx ->
+        let apply c = case name of
+                "sql_mode" -> c {renderSQLModes=BC.split ',' (B.copy value)}
+                "character_set_client" -> c {renderClientCharset=B.copy value}
+                "character_set_connection" -> c {renderConnectionCharset=B.copy value,renderConnectionCollation=Nothing}
+                "collation_connection" -> c {renderConnectionCollation=Just (B.copy value)}
+                _ -> c
+        in (fmap apply ctx,())
+
+usesOKTerminator :: MySQLConn -> IO Bool
+usesOKTerminator conn = (/=0) . (.&. 0x1000000) <$> readIORef (connectionCapabilities conn)
+
+isResultEnd :: MySQLConn -> Packet -> IO Bool
+isResultEnd conn packet = (\modern -> isResultEndFor modern packet) <$> usesOKTerminator conn
+
+isResultEndFor :: Bool -> Packet -> Bool
+isResultEndFor modern packet = if modern then pLen packet > 0 && pLen packet < 16777215 && not (L.null (pBody packet)) && L.head (pBody packet)==0xfe else isEOF packet
+{-# INLINE isResultEndFor #-}
+
+consumeEnd :: MySQLConn -> Packet -> IO Word16
+consumeEnd conn packet = do
+    modern <- usesOKTerminator conn
+    if modern then okStatus <$> consumeOK conn packet else do
+        unless (pLen packet==5) (throwIO (ProtocolError "invalid legacy EOF length"))
+        EOF _ flags <- decodeFromPacket packet
+        updateStatus conn flags
+        pure flags
+
+readMetadataEnd :: MySQLConn -> IO ()
+readMetadataEnd conn = do
+    modern <- usesOKTerminator conn
+    unless modern $ do
+        packet <- readConnPacket conn
+        unless (isEOF packet) (throwIO (UnexpectedPacket packet))
+        void (consumeEnd conn packet)
+
+readColumns :: MySQLConn -> Int -> IO [ColumnDef]
+readColumns conn count = do
+    unless (count>=0 && count<=maximumColumns (connectionOptions conn)) (throwIO (ProtocolError "column count exceeds client limit"))
+    let loop 0 _ = pure []
+        loop n total = do
+            packet <- readConnPacket conn
+            when (isERR packet) (serverError conn packet)
+            let budget=maximumMetadataBytes (connectionOptions conn)
+                size=fromIntegral (pLen packet)
+            when (total>budget || size>budget-total) (throwIO (ProtocolError "metadata exceeds client limit"))
+            let total'=total+size
+            field <- getFromPacketExact getField packet
+            (field:) <$> loop (n-1) total'
+    fields <- loop count 0
+    when (count>0) (readMetadataEnd conn)
+    pure fields
+
+-- | Return known session facts without issuing SQL. A snapshot can become stale
+-- after another operation; connected APIs obtain it under their command claim.
+-- Unknown facts raise 'SessionContextUnavailable' rather than silently probing.
+getRenderContext :: MySQLConn -> IO RenderContext
+getRenderContext conn = readIORef (connectionRenderContext conn) >>= maybe (throwIO SessionContextUnavailable) pure
+
+initializeSession :: MySQLConn -> IO ()
+initializeSession = refreshSessionState
+-- | Reconfigure tracking and explicitly snapshot rendering facts under one lease.
+-- This executes SQL and therefore changes preceding-statement diagnostics such
+-- as ROW_COUNT(). Existing tracker selections, including '*', are preserved.
+refreshSessionState :: MySQLConn -> IO ()
+refreshSessionState conn = withSessionLease conn $ do
+    guardUnconsumed conn
+    caps <- readIORef (connectionCapabilities conn)
+    when (caps .&. 0x800000 /= 0) $ void $ command conn (COM_QUERY "SET SESSION session_track_system_variables=IF(@@session.session_track_system_variables='*','*',CONCAT_WS(',',NULLIF(@@session.session_track_system_variables,''),'sql_mode,character_set_client,character_set_connection,character_set_results,session_track_system_variables'))")
+    (context, limit) <- withCommand conn $ do
+        sendCommand conn (COM_QUERY "SELECT @@sql_mode,@@character_set_client,@@character_set_connection,@@collation_connection,VERSION(),CAST(@@max_allowed_packet AS CHAR)")
+        first <- readConnPacket conn
+        when (isERR first) (serverError conn first)
+        count <- getFromPacketExact getLenEncInt first
+        unless (count == 6) (throwIO (ProtocolError "invalid session snapshot column count"))
+        fields <- readColumns conn count
+        rowPacket <- readConnPacket conn
+        when (fromIntegral (pLen rowPacket) > maximumMetadataBytes (connectionOptions conn))
+            (throwIO (ProtocolError "session snapshot exceeds metadata budget"))
+        rawValues <- getFromPacketExact (getTextRow fields) rowPacket
+        -- Force/validate the snapshot while this exchange is still owned. A
+        -- lazy UTF-8 exception after Ready would escape retirement, and a
+        -- permissive decoder could otherwise accept an unparsed row trailer.
+        values <- forM rawValues $ \value -> do
+            bytes <- case value of
+                MySQLText text -> evaluate (TE.encodeUtf8 text)
+                MySQLBytes raw -> pure raw
+                _ -> throwIO (ProtocolError "invalid session snapshot value type")
+            -- These six cold-start facts outlive the receive buffers. Retain
+            -- explicitly owned, bounded storage regardless of codec internals;
+            -- ordinary result payloads are not copied by this policy.
+            B.copy <$> boundedSnapshotValue bytes
+        snapshot <- case values of
+            [modes, client, server, collation, version, packetLimit] -> do
+                versionID <- maybe (throwIO (ProtocolError "invalid server version snapshot")) pure (versionNumber version)
+                limit <- case BC.readInteger packetLimit of
+                    Just (n, rest) | B.null rest && n > 0 && n <= fromIntegral (maxBound :: Word64) -> pure (fromIntegral n)
+                    _ -> throwIO (ProtocolError "invalid server packet limit snapshot")
+                pure (RenderContext (BC.split ',' modes) client server (Just collation) versionID, limit)
+            _ -> throwIO (ProtocolError "invalid session snapshot")
+        end <- readConnPacket conn
+        isEnd <- isResultEnd conn end
+        unless isEnd (throwIO (UnexpectedPacket end))
+        flags <- consumeEnd conn end
+        when (flags .&. 8 /= 0) (throwIO (ProtocolError "unexpected additional session snapshot result"))
+        pure snapshot
+    writeIORef (connectionServerPacketLimit conn) limit
+    writeIORef (connectionRenderContext conn) (Just context)
+  where
+    -- Failure must be detected under the command claim, not turned into version
+    -- zero after Ready: version gates determine which SQL bytes are executable.
+    versionNumber value = case traverse component (take 3 (BC.split '.' (BC.takeWhile (\w -> w == '.' || w >= '0' && w <= '9') value))) of
+        Just [a,b,c] | a > 0 -> Just (a*10000+b*100+c)
+        _ -> Nothing
+    component value = case BC.readInt value of
+        Just (n, rest) | n >= 0 && n < 100 && B.null rest -> Just n
+        _ -> Nothing
+    boundedSnapshotValue bytes = do
+        when (B.length bytes > maximumRenderingValueBytes)
+            (throwIO (ProtocolError "session snapshot value exceeds bound"))
+        pure bytes
 
 guardUnconsumed :: MySQLConn -> IO ()
-guardUnconsumed (MySQLConn _ _ _ consumed) = do
-    c <- readIORef consumed
-    unless c (throwIO UnconsumedResultSet)
-{-# INLINE guardUnconsumed #-}
+guardUnconsumed conn = do
+    rt <- readIORef (connectionRuntime conn)
+    tid <- myThreadId
+    when (maybe False (/=tid) (transactionOwner rt)) (throwIO ConcurrentConnectionUse)
+    case runtimeStatus rt of
+        Ready -> pure ()
+        Streaming -> throwIO UnconsumedResultSet
+        Executing -> throwIO ConcurrentConnectionUse
+        other -> throwIO (ConnectionUnavailable other)
+
+-- Legacy low-level helpers retain their behavior for independent packet streams.
+waitCommandReply :: InputStream Packet -> IO OK
+waitCommandReply input = do
+    packet <- readPacket input
+    if isERR packet then decodeFromPacket packet >>= throwIO . ERRException
+    else if isOK packet then decodeFromPacket packet else throwIO (UnexpectedPacket packet)
+
+waitCommandReplys :: InputStream Packet -> IO [OK]
+waitCommandReplys input = do
+    ok <- waitCommandReply input
+    if isThereMore ok then (ok:) <$> waitCommandReplys input else pure [ok]
 
 writeIORef' :: IORef a -> a -> IO ()
-writeIORef' ref x = x `seq` writeIORef ref x
-{-# INLINE writeIORef' #-}
+writeIORef' ref value = value `seq` writeIORef ref value
 
---------------------------------------------------------------------------------
--- Exceptions
-
-data NetworkException = NetworkException deriving (Typeable, Show)
+-- | An expected packet/body could not be read from a closed packet source.
+-- Other socket/TLS exceptions can propagate directly; inspect connection status
+-- to decide whether a new connection is required.
+data NetworkException = NetworkException deriving (Typeable,Show)
 instance Exception NetworkException
-
-data UnconsumedResultSet = UnconsumedResultSet deriving (Typeable, Show)
+-- | A command was attempted while the preceding result still owns the wire.
+-- No bytes for the new command have been sent; consume or discard that result.
+data UnconsumedResultSet = UnconsumedResultSet deriving (Typeable,Show)
 instance Exception UnconsumedResultSet
-
-data ERRException = ERRException ERR deriving (Typeable, Show)
+-- | MariaDB returned an ERR reply. Ordinary commands consume the complete reply
+-- before permitting reuse, but invalidate cached rendering facts. Replication
+-- and constructor failures have their own terminal lifecycle rules.
+data ERRException = ERRException ERR deriving (Typeable,Show)
 instance Exception ERRException
-
-data UnexpectedPacket = UnexpectedPacket Packet deriving (Typeable, Show)
+-- | A packet marker/shape is unexpected for the current protocol phase.
+data UnexpectedPacket = UnexpectedPacket Packet deriving (Typeable,Show)
 instance Exception UnexpectedPacket
 
--- | A statement produced a result set the function running it could not
--- return: @execute@ and @executeStmt@ return none, the query functions only the
--- first. It was read and discarded, so the connection is still usable.
---
--- @since 1.3.2
-data ExtraResultSets = ExtraResultSets deriving (Typeable, Show)
-instance Exception ExtraResultSets where
-    displayException ExtraResultSets =
-        "mysql-haskell: the statement produced a result set this function could not "
-        ++ "return (execute_ and executeStmt return none, query_ and queryStmt only the "
-        ++ "first). It was read and discarded, so the connection is still usable. Run "
-        ++ "statements that return rows through a query function, one result set per call."
+-- System.Timeout's private exception is not necessarily SomeAsyncException.
+isCancellation :: SomeException -> Bool
+isCancellation err@(SomeException inner) = isJust (fromException err :: Maybe SomeAsyncException)
+    || tyConName (typeRepTyCon (typeOf inner)) == "Timeout"
 
+-- A refresh's configuration and snapshot exchanges are one logical operation.
+withSessionLease :: MySQLConn -> IO a -> IO a
+withSessionLease conn action = mask $ \restore -> do
+    tid <- myThreadId
+    acquired <- atomicModifyIORef' (connectionRuntime conn) $ \rt -> case transactionOwner rt of
+        Nothing | runtimeStatus rt==Ready -> (rt {transactionOwner=Just tid},Right True)
+        Just owner | owner==tid && runtimeStatus rt==Ready -> (rt,Right False)
+        _ -> (rt,Left ConcurrentConnectionUse)
+    own <- either throwIO pure acquired
+    restore action `finally` when own (endTransactionLease conn)
+
+-- Force bounded encoded chunks once, without first allocating an oversized message.
+encodedLength :: Word64 -> L.ByteString -> IO Int64
+encodedLength limit = loop 0 . L.toChunks
+  where
+    loop count []=pure (fromIntegral count)
+    loop count (chunk:rest)=do
+        let next=count+fromIntegral (B.length chunk)
+        when (next>limit) (throwIO (ProtocolError "outgoing message exceeds client/server limit"))
+        next `seq` loop next rest
+
+{-# INLINE readConnPacket #-}
+{-# INLINE streamGuard #-}

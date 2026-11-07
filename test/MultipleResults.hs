@@ -3,6 +3,7 @@
 -- connection, or the next query receives the previous one's leftovers.
 module MultipleResults (tests) where
 
+import Data.Word (Word64)
 import           Control.Exception (try)
 import           Data.Int          (Int64)
 import           Database.MySQL.Base
@@ -107,7 +108,7 @@ tests = testGroup "statements with several results"
     ]
 
 -- | The affected rows of an 'OK', or the rows of a result set.
-resultShape :: StatementResult -> Either Int [[MySQLValue]]
+resultShape :: StatementResult -> Either Word64 [[MySQLValue]]
 resultShape result = case result of
     StatementOK ok -> Left (okAffectedRows ok)
     StatementRows _ rows -> Right rows

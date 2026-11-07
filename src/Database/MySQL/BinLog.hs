@@ -61,8 +61,10 @@ data BinLogTracker = BinLogTracker
 registerPesudoSlave :: MySQLConn -> SlaveID -> IO OK
 registerPesudoSlave conn sid = command conn (COM_REGISTER_SLAVE sid "" "" "" 0 0 0)
 
--- | Setup binlog listening on given connection, during listening
--- the connection CAN NOT be used to do query, or an 'UnconsumedResultSet' will be thrown.
+-- | Dedicate the connection to binlog listening. Consume the returned stream on
+-- the calling thread; other commands are rejected while it is 'Replicating'.
+-- Setup/stream failures retire the connection. End-of-stream closes it, because
+-- replication has a distinct packet-sequence policy from ordinary commands.
 --
 dumpBinLog :: MySQLConn               -- ^ connection to be listened
            -> SlaveID                 -- ^ a number for our pesudo slave.
@@ -71,34 +73,46 @@ dumpBinLog :: MySQLConn               -- ^ connection to be listened
                                       -- if master doesn't support, this parameter will be ignored.
            -> IO (FormatDescription, IORef ByteString, InputStream BinLogPacket)
                 -- ^ 'FormatDescription', 'IORef' contains current binlog filename, 'BinLogPacket' stream.
-dumpBinLog conn@(MySQLConn is wp _ consumed) sid (BinLogTracker initfn initpos) wantAck = do
+dumpBinLog conn sid (BinLogTracker initfn initpos) wantAck = do
     guardUnconsumed conn
     checksum <- isCheckSumEnabled conn
     when checksum $ void $ execute_ conn "SET @master_binlog_checksum = @@global.binlog_checksum"
     semiAck  <- isSemiSyncEnabled conn
     let needAck = semiAck && wantAck
     when needAck . void $ execute_ conn "SET @rpl_semi_sync_slave = 1"
-    writeCommand (COM_BINLOG_DUMP initpos 0x00 sid initfn) wp
-    writeIORef consumed False
+    withCommand conn $ do
+        sendCommand conn (COM_BINLOG_DUMP initpos 0x00 sid initfn)
+        generation <- markResponseStream conn Replicating
+        -- Binlog packets are not ordinary command replies. Physical message
+        -- limits and continuation checks still apply under this sequence policy.
+        setExchangeSequence conn 256
+        let readEvent = readBinLogPacket checksum needAck conn
+            writePacket = mysqlWrite conn
+        rp <- skipToPacketT readEvent BINLOG_ROTATE_EVENT
+        re <- getFromBinLogPacket getRotateEvent rp
+        fref <- newIORef (rFileName re)
 
-    rp <- skipToPacketT (readBinLogPacket checksum needAck is) BINLOG_ROTATE_EVENT
-    re <- getFromBinLogPacket getRotateEvent rp
-    fref <- newIORef (rFileName re)
+        p <- skipToPacketT readEvent BINLOG_FORMAT_DESCRIPTION_EVENT
+        replyAck needAck p fref writePacket
+        fmt <- getFromBinLogPacket getFormatDescription p
 
-    p <- skipToPacketT (readBinLogPacket checksum needAck is) BINLOG_FORMAT_DESCRIPTION_EVENT
-    replyAck needAck p fref wp
-    fmt <- getFromBinLogPacket getFormatDescription p
-
-    es <- Stream.makeInputStream $ do
-        q <- readBinLogPacket checksum needAck is
-        case q of
-            Nothing   -> writeIORef consumed True >> return Nothing
-            Just q' -> do when (blEventType q' == BINLOG_ROTATE_EVENT) $ do
-                                e <- getFromBinLogPacket getRotateEvent q'
-                                writeIORef' fref (rFileName e)
-                          replyAck needAck q' fref wp
-                          return q
-    return (fmt, fref, es)
+        finished <- newIORef False
+        es <- Stream.makeInputStream $ do
+            done <- readIORef finished
+            if done then pure Nothing else streamGuard conn generation $ do
+                q <- readEvent
+                case q of
+                    Nothing -> do
+                        writeIORef finished True
+                        close conn
+                        pure Nothing
+                    Just event -> do
+                        when (blEventType event == BINLOG_ROTATE_EVENT) $ do
+                            rotation <- getFromBinLogPacket getRotateEvent event
+                            writeIORef' fref (rFileName rotation)
+                        replyAck needAck event fref writePacket
+                        pure (Just event)
+        pure (fmt, fref, es)
   where
     skipToPacketT iop typ = do
         p <- iop
@@ -116,12 +130,12 @@ dumpBinLog conn@(MySQLConn is wp _ consumed) sid (BinLogTracker initfn initpos) 
         putWord64le pos
         putByteString fn
 
-    readBinLogPacket checksum needAck is' = do
-        p <- readPacket is'
+    readBinLogPacket checksum needAck connection = do
+        p <- readConnPacket connection
         if  | isOK p -> Just <$> getFromPacket (getBinLogPacket checksum needAck) p
             | isEOF p -> return Nothing
             | isERR p -> decodeFromPacket p >>= throwIO . ERRException
-            | otherwise -> error ("unkown package" <> show p)
+            | otherwise -> throwIO (UnexpectedPacket p)
 
 -- | Row based binlog event type.
 --

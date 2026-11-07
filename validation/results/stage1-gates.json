@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "correctness_failures": [],
+  "evidence_failures": [],
+  "evidence_accepted": true,
+  "timing_investigations": [
+    {
+      "reference": "original",
+      "id": "haskell/latency.text",
+      "percent": 9.691518015957712
+    },
+    {
+      "reference": "original",
+      "id": "haskell/write.text",
+      "percent": 8.310719131614652
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/read.text.narrow",
+      "percent": 7.6985413290113325
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.tls.narrow",
+      "percent": 5.780128447298827
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/write.text",
+      "percent": 5.635929489430436
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.text.narrow",
+      "percent": 6.645279560036643
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/latency.text",
+      "percent": 7.618667730355
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.parallel-4",
+      "percent": 8.88352343684955
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.tls.narrow",
+      "percent": 5.757297793125771
+    }
+  ],
+  "allocation_investigations": [],
+  "target_passes": 23,
+  "target_count": 23,
+  "correctness_accepted": true,
+  "performance_requires_confirmation": true,
+  "accepted_reference": {
+    "schema": 1,
+    "reference": "references/pre-stage1.json",
+    "sha256": "da103068ef554a3bd122419d0fc2cea218a40131501d4230aaa7602c5ecef9b8",
+    "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
+    "note": "Last accepted main before Stage 1; not advanced by failing attempts."
+  },
+  "tested_input_sha256": "835058eb17a5c841fc1e038764a295c70aac439e8ae5bd09ed11dbd79c50cce8"
+}

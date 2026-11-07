@@ -60,27 +60,30 @@ instance Binary Packet where
     {-# INLINE get #-}
 
 isERR :: Packet -> Bool
-isERR p = L.index (pBody p) 0 == 0xFF
+isERR p = not (L.null (pBody p)) && L.head (pBody p) == 0xFF
 {-# INLINE isERR #-}
 
 isOK :: Packet -> Bool
-isOK p  = L.index (pBody p) 0 == 0x00
+isOK p = not (L.null (pBody p)) && L.head (pBody p) == 0x00
 {-# INLINE isOK #-}
 
+-- | Recognize a short legacy EOF. The 0xfe marker also starts an eight-byte
+-- length-encoded row value, so checking its first byte alone would truncate
+-- large rows. Negotiated OK terminators are handled by the connection layer.
 isEOF :: Packet -> Bool
-isEOF p = L.index (pBody p) 0 == 0xFE
+isEOF p = pLen p > 0 && pLen p < 9 && not (L.null (pBody p)) && L.head (pBody p) == 0xFE
 {-# INLINE isEOF #-}
 
 -- | Is this an AuthMoreData packet? (first byte 0x01)
 -- Used during authentication handshake for caching_sha2_password.
 isAuthMoreData :: Packet -> Bool
-isAuthMoreData p = L.index (pBody p) 0 == 0x01
+isAuthMoreData p = not (L.null (pBody p)) && L.head (pBody p) == 0x01
 {-# INLINE isAuthMoreData #-}
 
 -- | Is this an AuthSwitchRequest packet? (first byte 0xFE)
 -- Same marker as EOF but used in authentication context.
 isAuthSwitch :: Packet -> Bool
-isAuthSwitch p = L.index (pBody p) 0 == 0xFE
+isAuthSwitch p = not (L.null (pBody p)) && L.head (pBody p) == 0xFE
 {-# INLINE isAuthSwitch #-}
 
 -- | Is there more packet to be read?
@@ -90,20 +93,24 @@ isThereMore :: OK -> Bool
 isThereMore p  = okStatus p .&. 0x08 /= 0
 {-# INLINE isThereMore #-}
 
--- | Decoding packet inside IO, throw 'DecodePacketException' on fail parsing,
--- here we choose stability over correctness by omit incomplete consumed case:
--- if we successful parse a packet, then we don't care if there're bytes left.
---
+-- | Decode a Binary payload in IO, permitting a separately parsed trailer.
+-- Fixed row/metadata structures should use 'getFromPacketExact' instead.
 decodeFromPacket :: Binary a => Packet -> IO a
 decodeFromPacket = getFromPacket get
 {-# INLINE decodeFromPacket #-}
 
+-- | Decode with a supplied parser, permitting unconsumed bytes and forcing the
+-- result to WHNF. Row readers additionally force their values under ownership;
+-- WHNF alone does not force every element of a returned list.
 getFromPacket :: Get a -> Packet -> IO a
 getFromPacket g (Packet _ _ body) = case parseDetailLazy g body of
     Left  (buf, offset, errmsg) -> throwIO (DecodePacketFailed buf offset errmsg)
-    Right (_,   _,      r     ) -> return r
+    Right (_,   _,      r     ) -> return $! r
 {-# INLINE getFromPacket #-}
 
+-- | A binary parser rejected a packet, with its buffered bytes, consumed offset
+-- and parser message. Live command/stream guards retire an incomplete exchange;
+-- low-level callers decide how to handle independent packet data.
 data DecodePacketException = DecodePacketFailed ByteString ByteOffset String
   deriving (Typeable, Show)
 instance Exception DecodePacketException
@@ -129,25 +136,28 @@ putToPacket seqN payload =
 -- successful operations.
 --
 data OK = OK
-    { okAffectedRows :: !Int      -- ^ affected row number
-    , okLastInsertID :: !Int      -- ^ last insert's ID
+    { okAffectedRows :: !Word64      -- ^ affected row number
+    , okLastInsertID :: !Word64      -- ^ last insert's ID
     , okStatus       :: !Word16
     , okWarningCnt   :: !Word16
     } deriving (Show, Eq)
 
+-- | Decode the fixed OK prefix after its marker has been identified. Optional
+-- info/session-tracking trailers are consumed by the connection layer.
 getOK :: Get OK
 getOK = OK <$ skipN 1
-           <*> getLenEncInt
-           <*> getLenEncInt
+           <*> getLenEncWord64
+           <*> getLenEncWord64
            <*> getWord16le
            <*> getWord16le
 {-# INLINE getOK #-}
 
+-- | Encode the fixed OK prefix; negotiated tracking envelopes are separate.
 putOK :: OK -> Put
 putOK (OK row lid stat wcnt) = do
     putWord8 0x00
-    putLenEncInt row
-    putLenEncInt lid
+    putLenEncWord64 row
+    putLenEncWord64 lid
     putWord16le stat
     putWord16le wcnt
 {-# INLINE putOK #-}
@@ -232,25 +242,49 @@ getLenEncBytes :: Get ByteString
 getLenEncBytes = getLenEncInt >>= getByteString
 {-# INLINE getLenEncBytes #-}
 
--- | length encoded int
--- https://dev.mysql.com/doc/internals/en/integer.html#packet-Protocol::LengthEncodedInteger
-getLenEncInt:: Get Int
-getLenEncInt = getWord8 >>= word2Len
-  where
-    word2Len l
-         | l <  0xFB  = pure (fromIntegral l)
-         | l == 0xFC  = fromIntegral <$> getWord16le
-         | l == 0xFD  = fromIntegral <$> getWord24le
-         | l == 0xFE  = fromIntegral <$> getWord64le
-         | otherwise = fail $ "invalid length val " ++ show l
+-- | Decode a non-NULL unsigned length-encoded value. OK counters and insert IDs
+-- use the full Word64 range even when the host's Int is narrower.
+getLenEncWord64 :: Get Word64
+getLenEncWord64 = do
+    tag <- getWord8
+    case tag of
+        0xfc -> fromIntegral <$> getWord16le
+        0xfd -> fromIntegral <$> getWord24le
+        0xfe -> getWord64le
+        _ | tag < 0xfb -> pure (fromIntegral tag)
+          | otherwise -> fail "NULL or invalid non-null length integer"
+{-# INLINE getLenEncWord64 #-}
+
+-- | Decode a length that will index memory, rejecting values outside host Int.
+getLenEncInt :: Get Int
+getLenEncInt = getWord8 >>= getLenEncIntAfterTag
+
+-- | Length decoder after a row parser has already consumed its NULL/length tag.
+-- Sharing that read avoids a second peek and Get wrapper on every text field.
+getLenEncIntAfterTag :: Word8 -> Get Int
+getLenEncIntAfterTag tag
+    | tag < 0xfb = pure (fromIntegral tag)
+    | tag == 0xfc = fromIntegral <$> getWord16le
+    | tag == 0xfd = fromIntegral <$> getWord24le
+    | tag == 0xfe = do
+        n <- getWord64le
+        if n > fromIntegral (maxBound :: Int) then fail "length exceeds machine Int" else pure (fromIntegral n)
+    | otherwise = fail "NULL or invalid non-null length integer"
+{-# INLINE getLenEncIntAfterTag #-}
 {-# INLINE getLenEncInt #-}
 
-putLenEncInt:: Int -> Put
-putLenEncInt x
-         | x <  251      = putWord8 (fromIntegral x)
-         | x < 65536     = putWord8 0xFC >> putWord16le (fromIntegral x)
-         | x < 16777216  = putWord8 0xFD >> putWord24le (fromIntegral x)
-         | otherwise     = putWord8 0xFE >> putWord64le (fromIntegral x)
+-- | Encode a non-NULL unsigned value using the shortest protocol representation.
+putLenEncWord64 :: Word64 -> Put
+putLenEncWord64 n
+    | n < 251 = putWord8 (fromIntegral n)
+    | n < 65536 = putWord8 0xfc >> putWord16le (fromIntegral n)
+    | n < 16777216 = putWord8 0xfd >> putWord24le (fromIntegral n)
+    | otherwise = putWord8 0xfe >> putWord64le n
+{-# INLINE putLenEncWord64 #-}
+
+putLenEncInt :: Int -> Put
+putLenEncInt n | n < 0 = error "negative protocol length"
+               | otherwise = putLenEncWord64 (fromIntegral n)
 {-# INLINE putLenEncInt #-}
 
 putWord24le :: Word32 -> Put
@@ -309,3 +343,15 @@ getWord56be = do
 {-# INLINE getWord40be #-}
 {-# INLINE getWord48be #-}
 {-# INLINE getWord56be #-}
+
+-- | Decode a fixed row/metadata structure with no trailing bytes. Compare the
+-- consumed offset with the complete logical length: a parser may stop before
+-- requesting a later lazy ByteString chunk, so its returned buffer alone cannot
+-- establish full consumption. OK envelopes use their separate trailer parser.
+getFromPacketExact :: Get a -> Packet -> IO a
+getFromPacketExact parser (Packet lengthBytes _ body) = case parseDetailLazy parser body of
+    Left (buffer,offset,message) -> throwIO (DecodePacketFailed buffer offset message)
+    Right (_,offset,value)
+        | offset == lengthBytes -> pure value
+        | otherwise -> throwIO (DecodePacketFailed B.empty offset "trailing bytes in fixed protocol structure")
+{-# INLINE getFromPacketExact #-}
