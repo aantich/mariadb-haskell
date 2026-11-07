@@ -114,3 +114,9 @@ Increasing streamed rows from 10,000 to 1,000,000 does not produce proportional 
 - Reversed executable-comment rendering needs its own version-profile design and live verification before support is added. Raw pass-through is distinct from parameter-renderer support.
 - The bounded opaque-statement registry still has linear lookup/removal, and the exposed internal connection interface still permits deliberate bypass of public invariants. Neither is refactored without a measured workload or API migration.
 - The existing 33 deferred failures and 13 inventory entries remain visible. This Mac run does not validate Linux, Windows, Nix or 32-bit execution.
+
+## Committed publication, 7 November 2026
+
+After both review passes, Anton authorized committing and pushing Stage 1 and postponed the remaining performance investigations. The fresh full [publication run](../validation/results/references/stage1-publication-1.json) tests committed implementation `0128b7908e8ac594d6dea5110fbc5b1a2a71ad1b`, with the same executable-input fingerprint as the second-review window. It records 357 PASS, 33 FAIL, 11 UNSUPPORTED and two ENVIRONMENT_UNAVAILABLE records; all 357 previous PASS records are preserved. All 24 runnable benchmark profiles complete with seven repetitions. The 51 Python policy tests pass. No allocation signal exceeds 5%; timing investigations remain open and deferred.
+
+The [live report](../validation/RESULTS.md) publishes this committed-input run. The original frozen baseline and pre-Stage-1 accepted reference remain unchanged. The earlier confirmation and supplementary measurements above retain their original timestamps and review provenance.
