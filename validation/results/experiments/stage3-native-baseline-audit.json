@@ -1,0 +1,187 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-11-07T15:01:16.928241+00:00",
+  "policy": "Post-review recalculation only; original native captures and all measured values remain unchanged. Dependency tuple/list mismatch had withheld historical baseline comparisons.",
+  "runs": [
+    {
+      "reference": "validation/results/references/stage3-verified-1-native.json",
+      "sha256": "9a4645e227d60bbc5f5a5e04f4f8ca963a612c01692f29b542f46be3ccbf1b13",
+      "recorded_comparison": {
+        "reference": "validation/baselines/macos-arm64-native-statements/results.json",
+        "sha256": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+        "comparable": false,
+        "timing_investigations": [],
+        "allocation_investigations": [],
+        "profiles": {}
+      },
+      "recalculated_comparison": {
+        "reference": "validation/baselines/macos-arm64-native-statements/results.json",
+        "sha256": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+        "comparable": true,
+        "timing_investigations": [],
+        "allocation_investigations": [],
+        "profiles": {
+          "bulk.native": {
+            "elapsed_ns": -3.72584605530053,
+            "allocated_bytes": -0.034012314897136076
+          },
+          "bulk.units": {
+            "elapsed_ns": -4.238706079196863,
+            "allocated_bytes": -0.04580716727659029
+          },
+          "bulk.prepared": {
+            "elapsed_ns": -4.533515494963303,
+            "allocated_bytes": -0.0012759206745593943
+          },
+          "bulk.text-batch": {
+            "elapsed_ns": -7.1658644276356265,
+            "allocated_bytes": -0.8018854239628448
+          },
+          "prepared.narrow.cached": {
+            "elapsed_ns": -3.546735630970599,
+            "allocated_bytes": 0.032987937193817984
+          },
+          "prepared.narrow.uncached": {
+            "elapsed_ns": -8.778625954198471,
+            "allocated_bytes": -0.0652179011412346
+          },
+          "prepared.wide.cached": {
+            "elapsed_ns": -4.059515719446328,
+            "allocated_bytes": 0.004569894535522145
+          },
+          "prepared.wide.uncached": {
+            "elapsed_ns": -3.1632761742464544,
+            "allocated_bytes": 0.0039047171279893433
+          }
+        }
+      }
+    },
+    {
+      "reference": "validation/results/references/stage3-verified-2-native.json",
+      "sha256": "4f888de67d01ac44fe0d4af374822d7ff55caa30e405a6a8af222acf0aea04b3",
+      "recorded_comparison": {
+        "reference": "validation/baselines/macos-arm64-native-statements/results.json",
+        "sha256": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+        "comparable": false,
+        "timing_investigations": [],
+        "allocation_investigations": [],
+        "profiles": {}
+      },
+      "recalculated_comparison": {
+        "reference": "validation/baselines/macos-arm64-native-statements/results.json",
+        "sha256": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+        "comparable": true,
+        "timing_investigations": [
+          {
+            "id": "bulk.native",
+            "percent": 5.327212554713356
+          },
+          {
+            "id": "bulk.text-batch",
+            "percent": 26.602366906735185
+          },
+          {
+            "id": "prepared.narrow.cached",
+            "percent": 12.7988599778329
+          },
+          {
+            "id": "prepared.wide.cached",
+            "percent": 13.791623448621193
+          },
+          {
+            "id": "prepared.wide.uncached",
+            "percent": 12.788901906486316
+          }
+        ],
+        "allocation_investigations": [],
+        "profiles": {
+          "bulk.native": {
+            "elapsed_ns": 5.327212554713356,
+            "allocated_bytes": 0.0021681156906483423
+          },
+          "bulk.units": {
+            "elapsed_ns": 4.954452500464757,
+            "allocated_bytes": 0.001045203221594626
+          },
+          "bulk.prepared": {
+            "elapsed_ns": 1.018886440824729,
+            "allocated_bytes": 0.020137880080661752
+          },
+          "bulk.text-batch": {
+            "elapsed_ns": 26.602366906735185,
+            "allocated_bytes": -0.6305074670343802
+          },
+          "prepared.narrow.cached": {
+            "elapsed_ns": 12.7988599778329,
+            "allocated_bytes": 0.19490718367114468
+          },
+          "prepared.narrow.uncached": {
+            "elapsed_ns": -4.262086513994912,
+            "allocated_bytes": 0.03747409621810416
+          },
+          "prepared.wide.cached": {
+            "elapsed_ns": 13.791623448621193,
+            "allocated_bytes": 0.10727577245395192
+          },
+          "prepared.wide.uncached": {
+            "elapsed_ns": 12.788901906486316,
+            "allocated_bytes": 0.016634801701331803
+          }
+        }
+      }
+    },
+    {
+      "reference": "validation/results/references/stage3-verified-3-native.json",
+      "sha256": "0d3b5ce640a523dded09cb05637b439d1fba360fe435bccb3daa141dba6aa0a9",
+      "recorded_comparison": {
+        "reference": "validation/baselines/macos-arm64-native-statements/results.json",
+        "sha256": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+        "comparable": false,
+        "timing_investigations": [],
+        "allocation_investigations": [],
+        "profiles": {}
+      },
+      "recalculated_comparison": {
+        "reference": "validation/baselines/macos-arm64-native-statements/results.json",
+        "sha256": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+        "comparable": true,
+        "timing_investigations": [],
+        "allocation_investigations": [],
+        "profiles": {
+          "bulk.native": {
+            "elapsed_ns": 4.184904451798865,
+            "allocated_bytes": -0.03252173535980285
+          },
+          "bulk.units": {
+            "elapsed_ns": 1.728945900725054,
+            "allocated_bytes": -0.0007270978932827354
+          },
+          "bulk.prepared": {
+            "elapsed_ns": -2.0137198495242425,
+            "allocated_bytes": 0.008389780284656645
+          },
+          "bulk.text-batch": {
+            "elapsed_ns": 4.46418877347905,
+            "allocated_bytes": 1.683242971845944
+          },
+          "prepared.narrow.cached": {
+            "elapsed_ns": -2.9081121021797607,
+            "allocated_bytes": 0.015042973154799633
+          },
+          "prepared.narrow.uncached": {
+            "elapsed_ns": -5.553924447054214,
+            "allocated_bytes": -0.010179381662445142
+          },
+          "prepared.wide.cached": {
+            "elapsed_ns": -1.4270896670124156,
+            "allocated_bytes": 0.002301625714951072
+          },
+          "prepared.wide.uncached": {
+            "elapsed_ns": -2.955586324422199,
+            "allocated_bytes": -0.003904717127967139
+          }
+        }
+      }
+    }
+  ]
+}

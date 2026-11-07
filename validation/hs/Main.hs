@@ -17,9 +17,11 @@ import qualified Validation.Benchmark as Benchmark
 import qualified Validation.Supplementary as Supplementary
 import qualified Validation.Stage1 as Stage1
 import qualified Validation.Stage2 as Stage2
+import qualified Validation.Stage3 as Stage3
+import qualified Validation.Stage3Bench as Stage3Bench
 
 allCases :: [Case]
-allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases
+allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases
 
 main :: IO ()
 main=do
@@ -38,6 +40,7 @@ main=do
     run ["case",ident]=case find ((==ident) . caseId) allCases of
         Nothing -> throwIO (userError ("unknown test " ++ ident))
         Just c -> caseRun c >> putStrLn ("PASS\t" ++ ident)
+    run ["stage3-bench",ident,n]=Stage3Bench.run ident (read n)
     run ["stage1-bench",ident,n]=Supplementary.run ident (read n)
     run ["bench",ident,n]=Benchmark.runBenchmark ident (read n)
-    run _=throwIO (userError "usage: mariadb-validation list | list-benchmarks | preflight | case ID | bench ID ITERATIONS | stage1-bench ID ITERATIONS")
+    run _=throwIO (userError "usage: mariadb-validation list | list-benchmarks | preflight | case ID | bench ID ITERATIONS | stage1-bench ID ITERATIONS | stage3-bench ID ITERATIONS")

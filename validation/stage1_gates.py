@@ -28,6 +28,11 @@ NATIVE_TARGETS = [
     'connection.localhost-address-fallback', 'connection.mozilla-ca-store-installed',
 ]
 
+STATEMENT_TARGETS = [
+    'protocol.prepared-out-capability', 'sql.procedure-prepared-out',
+    'capability.binary-bulk', 'capability.metadata-cache', 'capability.extended-metadata',
+]
+
 def results(document):
     """Accept either a portable raw run or the live publication envelope."""
     if "latest_completed_run" in document:
@@ -116,6 +121,11 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
             if new.get(ident, {}).get("status") != "PASS":
                 failures.append("required native target not passing: " + ident)
 
+    if require_targets and previous_stage is not None:
+        for ident in STATEMENT_TARGETS:
+            if new.get(ident, {}).get("status") != "PASS":
+                failures.append("required statement target not passing: " + ident)
+
     for ident, benchmark in candidate.get("benchmarks", {}).items():
         prior_status = original.get("benchmarks", {}).get(ident, {}).get("status")
         if benchmark["status"] not in statuses:
@@ -157,6 +167,8 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
         "target_count": len(TARGETS),
         "native_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in NATIVE_TARGETS),
         "native_target_count": len(NATIVE_TARGETS),
+        "statement_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in STATEMENT_TARGETS),
+        "statement_target_count": len(STATEMENT_TARGETS),
         "correctness_accepted": not failures,
         "performance_requires_confirmation": bool(timing or allocation),
     }

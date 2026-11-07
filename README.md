@@ -35,6 +35,12 @@ The [latest code review report](docs/STAGE1_CODE_REVIEW_2.md) records the subseq
 
 The Cabal package is still named `mysql-haskell`, and public modules still use `Database.MySQL.*`. We are keeping those names while hardening the driver and stabilizing its API. Some protocol identifiers containing `mysql` are also used by MariaDB itself; those names do not imply support for MySQL servers.
 
+The [development roadmap](docs/ROADMAP.md) records the accepted implementation
+order, current stage and remaining work so development can resume between sessions.
+Stage 3's prepared/native APIs are described in the [implementation and migration
+notes](docs/STAGE3_IMPLEMENTATION.md). The live report identifies the committed
+implementation tested for publication; review evidence retains its original fingerprints.
+
 ## A first query
 
 ```haskell

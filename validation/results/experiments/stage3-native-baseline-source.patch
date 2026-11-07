@@ -1,0 +1,2260 @@
+--- a/mysql-haskell.cabal
++++ b/mysql-haskell.cabal
+@@ -97,6 +97,7 @@
+     blaze-textual >=0.2 && <0.3,
+     bytestring >=0.10.2.0 && <0.12 || ^>=0.12.0,
+     bytestring-lexing >=0.5 && <0.6,
++    containers >=0.5 && <0.9,
+     crypton-x509 >=1.5 && <2.0,
+     crypton-x509-store >=1.5 && <2.0,
+     crypton-x509-system >=1.5 && <2.0,
+@@ -291,6 +292,8 @@
+     Validation.Supplementary
+     Validation.Stage1
+     Validation.Stage2
++    Validation.Stage3
++    Validation.Stage3Bench
+     Validation.FaultTransport
+   build-depends:
+     binary, bytestring, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector
+--- a/src/Database/MySQL/Base.hs
++++ b/src/Database/MySQL/Base.hs
+@@ -70,6 +70,21 @@
+     , queryStmtVector
+     , closeStmt
+     , resetStmt
++    , PreparedStatement
++    , StatementException(..)
++    , prepareStatement
++    , withPreparedStatement
++    , preparedMetadata
++    , closePrepared
++    , resetPrepared
++    , queryPrepared
++    , executePrepared
++    , queryStmtMulti
++    , queryPreparedMulti
++    , PreparedResult(..)
++    , executeBulk
++    , executeBulkUnitResults
++    , BulkUnitResult(..)
+       -- * Helpers
+     , withTransaction
+     , QueryParam(..)
+@@ -99,7 +114,9 @@
+ import           Control.Monad
+ import           Data.Binary                        (Get)
+ import Data.Binary.Put (runPut, putWord8)
+-import Data.Word (Word16)
++import Data.Word (Word16, Word64)
++import qualified Data.IntMap.Strict as IM
++import Data.List (transpose, find)
+ import System.Timeout (timeout)
+ import           Data.Bits                          ((.&.))
+ import           Data.IORef                         (newIORef, readIORef, writeIORef, atomicModifyIORef')
+@@ -225,9 +242,9 @@
+             let results=StatementOK ok:earlier
+             if moreResults (okStatus ok) then loop results else finishResponse conn >> pure (reverse results)
+         else do
+-            count <- getFromPacketExact getLenEncInt packet
+-            fields <- readColumns conn count
+-            let decode=if binary then decodeBinaryRow (prepareBinaryRow fields) else decodeTextRow (prepareTextRow fields)
++            columns <- readResultColumns conn packet
++            let fields = cachedFields columns
++                decode=if binary then decodeBinaryRow (cachedBinaryDecoder columns) else decodeTextRow (prepareTextRow fields)
+                 rows acc = do
+                     next <- readConnPacket conn
+                     done <- isResultEnd conn next
+@@ -252,8 +269,7 @@
+         when extra (throwIO ExtraResultSets)
+         pure ok
+     else do
+-        count <- getFromPacketExact getLenEncInt packet
+-        void (readColumns conn count)
++        void (readResultColumns conn packet)
+         let skip = do
+                 next <- readConnPacket conn
+                 done <- isResultEnd conn next
+@@ -263,14 +279,12 @@
+         finishResponse conn
+         throwIO ExtraResultSets
+ 
+-executeCommand :: MySQLConn -> Command -> IO OK
+-executeCommand conn cmd = withCommand conn (executeCore conn cmd)
+-
+ isBinaryCommand :: Command -> Bool
+ isBinaryCommand (COM_STMT_EXECUTE _ _ _) = True
++isBinaryCommand (COM_STMT_BULK_EXECUTE _ _ _ _) = True
+ isBinaryCommand _ = False
+ 
+-data QueryReply = WithoutResultSet | ResultSetColumns Int
++data QueryReply = WithoutResultSet | ResultSetColumns CachedColumns
+ 
+ readQueryReply :: MySQLConn -> IO QueryReply
+ readQueryReply conn = do
+@@ -280,9 +294,7 @@
+         ok <- consumeOK conn packet
+         if moreResults (okStatus ok) then readQueryReply conn else finishResponse conn >> pure WithoutResultSet
+     else do
+-        count <- getFromPacketExact getLenEncInt packet
+-        when (count==0) (throwIO (ProtocolError "zero result column count"))
+-        pure (ResultSetColumns count)
++        ResultSetColumns <$> readResultColumns conn packet
+ 
+ queryCore :: MySQLConn -> Command -> Bool -> IO ([ColumnDef],InputStream [MySQLValue])
+ queryCore conn cmd binary = do
+@@ -290,9 +302,9 @@
+     reply <- readQueryReply conn
+     case reply of
+         WithoutResultSet -> (,) [] <$> Stream.nullInput
+-        ResultSetColumns count -> do
+-            fields <- readColumns conn count
+-            let decode=if binary then decodeBinaryRow (prepareBinaryRow fields) else decodeTextRow (prepareTextRow fields)
++        ResultSetColumns columns -> do
++            let fields = cachedFields columns
++                decode=if binary then decodeBinaryRow (cachedBinaryDecoder columns) else decodeTextRow (prepareTextRow fields)
+             stream <- resultSetRows conn binary decode
+             pure (fields,stream)
+ 
+@@ -302,11 +314,11 @@
+     reply <- readQueryReply conn
+     case reply of
+         WithoutResultSet -> (,) V.empty <$> Stream.nullInput
+-        ResultSetColumns count -> do
+-            fieldList <- readColumns conn count
+-            let fields=V.fromList fieldList
+-                decodeList=if binary then decodeBinaryRow (prepareBinaryRow fieldList) else decodeTextRow (prepareTextRow fieldList)
+-                decode packet = V.fromListN count <$> decodeList packet
++        ResultSetColumns columns -> do
++            let fieldList = cachedFields columns
++                fields=V.fromList fieldList
++                decodeList=if binary then decodeBinaryRow (cachedBinaryDecoder columns) else decodeTextRow (prepareTextRow fieldList)
++                decode packet = V.fromListN (cachedColumnCount columns) <$> decodeList packet
+             stream <- resultSetRows conn binary decode
+             pure (fields,stream)
+ 
+@@ -354,8 +366,7 @@
+         ok <- consumeOK conn packet
+         if moreResults (okStatus ok) then skipFurtherResults conn binary seen else pure seen
+     else do
+-        count <- getFromPacketExact getLenEncInt packet
+-        void (readColumns conn count)
++        void (readResultColumns conn packet)
+         let skip = do
+                 row <- readConnPacket conn
+                 end <- isResultEnd conn row
+@@ -388,6 +399,9 @@
+ -- | Prepare SQL and return parameter metadata followed by result metadata.
+ prepareStmtDetail :: MySQLConn -> Query -> IO (StmtPrepareOK,[ColumnDef],[ColumnDef])
+ prepareStmtDetail conn (Query stmt) = withCommand conn $ do
++    states <- statementMap conn
++    when (IM.size states >= maximumPreparedStatements (connectionOptions conn))
++        (throwIO (ProtocolError "prepared statement registry exceeds client limit"))
+     sendCommand conn (COM_STMT_PREPARE stmt)
+     packet <- readConnPacket conn
+     when (isERR packet) (serverError conn packet)
+@@ -402,13 +416,22 @@
+     -- Preparing alone has not executed the statement's session effects.
+     writeIORef (connectionQueryEffect conn) (Just False)
+     pdefs <- readColumns conn params
+-    cdefs <- readColumns conn columns
+-    pure (info,pdefs,cdefs)
++    metadata <- readColumnBlock conn columns
++    next <- atomicModifyIORef' (connectionStatementSerial conn) $ \n ->
++        if n == maxBound then (n, Nothing) else (n + 1, Just (n + 1))
++    serial <- maybe (throwIO (ProtocolError "statement registration generation exhausted")) pure next
++    inserted <- atomicModifyIORef' (connectionStatements conn) $ \registry -> case registry of
++        Nothing -> (Nothing, False)
++        Just current -> (Just (IM.insert (fromIntegral ident) (StatementState serial params IM.empty) current), True)
++    unless inserted (throwIO (ConnectionUnavailable Closed))
++    retained <- storeStatementColumns conn ident 0 metadata
++    pure (info,pdefs,cachedFields retained)
+ -- | Release a statement. This command has no server reply and cannot run while
+ -- a result is pending. Raw IDs cannot detect reuse by a later server statement.
+ closeStmt :: MySQLConn -> StmtID -> IO ()
+ closeStmt conn ident = withCommand conn $ do
+     sendCommand conn (COM_STMT_CLOSE ident)
++    forgetStatement conn ident
+     atomicModifyIORef' (connectionOpaqueStatements conn) (\ids -> (filter (/=ident) ids,()))
+ -- | Reset a statement and consume its own reply; pending rows must be read first.
+ resetStmt :: MySQLConn -> StmtID -> IO ()
+@@ -416,13 +439,243 @@
+ -- | Execute with binary parameters. Text values require a known client charset;
+ -- numeric/binary values do not require a rendering snapshot.
+ executeStmt :: MySQLConn -> StmtID -> [MySQLValue] -> IO OK
+-executeStmt conn ident values = executeCommand conn (COM_STMT_EXECUTE ident values (makeNullMap values))
++executeStmt conn ident values = withCommand conn $ do
++    validateStmtArity conn ident values
++    executeCore conn (COM_STMT_EXECUTE ident values (makeNullMap values))
+ -- | Stream prepared binary rows under the ownership contract of 'query'.
+ queryStmt :: MySQLConn -> StmtID -> [MySQLValue] -> IO ([ColumnDef],InputStream [MySQLValue])
+-queryStmt conn ident values = withCommand conn (queryCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True)
++queryStmt conn ident values = withCommand conn $ do
++    validateStmtArity conn ident values
++    queryCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True
+ -- | Vector variant of 'queryStmt'.
+ queryStmtVector :: MySQLConn -> StmtID -> [MySQLValue] -> IO (V.Vector ColumnDef,InputStream (V.Vector MySQLValue))
+-queryStmtVector conn ident values = withCommand conn (queryVectorCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True)
++queryStmtVector conn ident values = withCommand conn $ do
++    validateStmtArity conn ident values
++    queryVectorCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True
++
++-- | A statement bound to its creating connection and registration generation.
++-- The constructor is private: a handle cannot accidentally be executed on a
++-- different session, or close a new statement that reused an old numeric ID.
++-- Consume streams before close/reset; terminal connection failure invalidates
++-- every handle. Raw-ID functions remain available for compatibility.
++data PreparedStatement = PreparedStatement !MySQLConn !StmtID !Word64
++
++-- | Local statement misuse. No command is sent for these errors.
++data StatementException = StatementClosed | InvalidBulkBatch String
++    deriving (Show)
++instance Exception StatementException
++
++-- | Prepare a connection-owned handle. Its initial metadata is available through
++-- 'preparedMetadata'; MariaDB may replace that metadata during later execution.
++prepareStatement :: MySQLConn -> Query -> IO PreparedStatement
++prepareStatement conn queryText = mask_ $ do
++    (info, _, _) <- prepareStmtDetail conn queryText
++    states <- statementMap conn
++    case IM.lookup (fromIntegral (stmtId info)) states of
++        Nothing -> throwIO StatementClosed
++        Just state -> pure (PreparedStatement conn (stmtId info) (statementSerial state))
++
++-- | Bracket a server statement. Closing a retired connection's handle is a
++-- local no-op, so cleanup does not replace the query's transport exception.
++withPreparedStatement :: MySQLConn -> Query -> (PreparedStatement -> IO a) -> IO a
++withPreparedStatement conn queryText action = mask $ \restore -> do
++    statement <- prepareStatement conn queryText
++    outcome <- try (restore (action statement))
++    case outcome of
++        Right value -> cleanupPrepared statement >> pure value
++        Left (primary :: SomeException) -> do
++            cleanupPrepared statement `catch` \(secondary :: SomeException) -> do
++                when (isCancellation secondary) (throwIO secondary)
++                atomicModifyIORef' (connectionFailureRef conn)
++                    (\failure -> (fmap (\f -> f {secondaryCleanupFailure=True}) failure, ()))
++            throwIO primary
++
++-- One deadline covers abandoned rows and close. A stalled or malformed drain
++-- retires the transport; a new asynchronous cancellation keeps its identity.
++cleanupPrepared :: PreparedStatement -> IO ()
++cleanupPrepared statement@(PreparedStatement conn _ _) = do
++    result <- try $ timeout (cleanupTimeoutMicros (connectionOptions conn)) $ do
++        pending <- readIORef (connectionDrain conn)
++        maybe (pure ()) id pending
++        closePrepared statement
++    case result of
++        Right (Just ()) -> pure ()
++        Right Nothing -> abortConnection conn False >> throwIO CleanupDeadlineExceeded
++        Left (err :: SomeException) -> abortConnection conn False >> throwIO err
++
++checkedStatement :: PreparedStatement -> IO StatementState
++checkedStatement (PreparedStatement conn ident serial) = do
++    states <- statementMap conn
++    case IM.lookup (fromIntegral ident) states of
++        Just state | statementSerial state == serial -> pure state
++        _ -> throwIO StatementClosed
++
++validateStmtArity :: MySQLConn -> StmtID -> [MySQLValue] -> IO ()
++validateStmtArity conn ident values = do
++    states <- statementMap conn
++    forM_ (IM.lookup (fromIntegral ident) states) $ \state -> validateStatementValues state values
++
++validateStatementValues :: StatementState -> [MySQLValue] -> IO ()
++validateStatementValues state values =
++    unless (length (take (statementArity state + 1) values) == statementArity state)
++        (throwIO WrongParamsCount)
++
++-- | Latest first-result metadata, including unknown MariaDB extension tags.
++-- Reading metadata performs no I/O. A subsequent execution/reprepare can replace
++-- it; the returned immutable snapshot remains valid for the caller.
++preparedMetadata :: PreparedStatement -> IO [ColumnMetadata]
++preparedMetadata statement = do
++    state <- checkedStatement statement
++    pure (maybe [] cachedDetails (IM.lookup 0 (statementResults state)))
++
++-- | Idempotently release this handle only. It never closes a later registration
++-- that happens to reuse the same raw statement ID.
++closePrepared :: PreparedStatement -> IO ()
++closePrepared statement@(PreparedStatement conn ident _) = do
++    state <- try (checkedStatement statement)
++    case state of
++        Left StatementClosed -> pure ()
++        Left err -> throwIO err
++        Right _ -> withCommand conn $ do
++            void (checkedStatement statement)
++            sendCommand conn (COM_STMT_CLOSE ident)
++            forgetStatement conn ident
++            atomicModifyIORef' (connectionOpaqueStatements conn) (\ids -> (filter (/= ident) ids, ()))
++
++-- | Clear parameter/cursor state after consuming pending rows. MariaDB retains
++-- the statement's metadata-omission state on COM_STMT_RESET, so its matching
++-- decoder must also remain cached. Connection reset is a different operation.
++resetPrepared :: PreparedStatement -> IO ()
++resetPrepared statement@(PreparedStatement conn ident _) = withCommand conn $ do
++    void (checkedStatement statement)
++    sendCommand conn (COM_STMT_RESET ident)
++    readConnPacket conn >>= consumeCommandOK conn >> pure ()
++
++-- | Stream the first binary row set; later row sets are drained and reported as
++-- 'ExtraResultSets'. Use 'queryPreparedMulti' to retain procedure OUT/results.
++queryPrepared :: PreparedStatement -> [MySQLValue] -> IO ([ColumnDef], InputStream [MySQLValue])
++queryPrepared statement@(PreparedStatement conn ident _) values = withCommand conn $ do
++    state <- checkedStatement statement
++    validateStatementValues state values
++    queryCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True
++
++-- | Execute a non-row statement. Unexpected row results are completely drained
++-- before 'ExtraResultSets', preserving a synchronized connection.
++executePrepared :: PreparedStatement -> [MySQLValue] -> IO OK
++executePrepared statement@(PreparedStatement conn ident _) values = withCommand conn $ do
++    state <- checkedStatement statement
++    validateStatementValues state values
++    executeCore conn (COM_STMT_EXECUTE ident values (makeNullMap values))
++
++-- | Complete prepared results in wire order. OUT parameters are identified by
++-- SERVER_PS_OUT_PARAMS on their terminator, not guessed from column names.
++-- These APIs materialize rows; use 'queryPrepared' for large individual streams.
++data PreparedResult
++    = PreparedOK !OK
++    | PreparedRows ![ColumnMetadata] ![[MySQLValue]]
++    | PreparedOutParameters ![ColumnMetadata] ![MySQLValue]
++    deriving (Show, Eq)
++
++-- | Raw-ID variant of 'queryPreparedMulti'. Unknown/closed IDs are diagnosed by
++-- MariaDB, preserving the legacy raw API's server-error contract.
++queryStmtMulti :: MySQLConn -> StmtID -> [MySQLValue] -> IO [PreparedResult]
++queryStmtMulti conn ident values = withCommand conn $ do
++    validateStmtArity conn ident values
++    sendCommand conn (COM_STMT_EXECUTE ident values (makeNullMap values))
++    readPreparedResults conn
++
++-- | Collect every prepared result, including OUT parameters and trailing OK.
++queryPreparedMulti :: PreparedStatement -> [MySQLValue] -> IO [PreparedResult]
++queryPreparedMulti statement@(PreparedStatement conn ident _) values = withCommand conn $ do
++    state <- checkedStatement statement
++    validateStatementValues state values
++    sendCommand conn (COM_STMT_EXECUTE ident values (makeNullMap values))
++    readPreparedResults conn
++
++readPreparedResults :: MySQLConn -> IO [PreparedResult]
++readPreparedResults conn = loop []
++  where
++    loop earlier = do
++        packet <- readConnPacket conn
++        if isERR packet then serverError conn packet
++        else if isOK packet then do
++            ok <- consumeOK conn packet
++            next (okStatus ok) (PreparedOK ok : earlier)
++        else do
++            columns <- readResultColumns conn packet
++            let rows acc = do
++                    row <- readConnPacket conn
++                    ending <- isResultEnd conn row
++                    if ending then (,) (reverse acc) <$> consumeEnd conn row
++                    else if isERR row then serverError conn row
++                    else decodeBinaryRow (cachedBinaryDecoder columns) row >>= \value -> rows (value : acc)
++            (values, flags) <- rows []
++            result <- if flags .&. 0x1000 == 0
++                then pure (PreparedRows (cachedDetails columns) values)
++                else case values of
++                    [out] -> pure (PreparedOutParameters (cachedDetails columns) out)
++                    _ -> throwIO (ProtocolError "prepared OUT result must contain exactly one row")
++            next flags (result : earlier)
++    next flags results
++        | moreResults flags = loop results
++        | otherwise = finishResponse conn >> pure (reverse results)
++
++-- | Per-operation bulk feedback returned by MariaDB, in server order. Aggregate
++-- execution instead returns one OK with its total count and first generated ID.
++data BulkUnitResult = BulkUnitResult
++    { bulkInsertId :: !Word64
++    , bulkAffectedRows :: !Word64
++    } deriving (Show, Eq)
++
++-- One type per column is a bulk wire invariant. Reject mixed signedness/types
++-- before sending; do not silently split into independently committed batches.
++bulkCommand :: PreparedStatement -> Word16 -> [[BulkParameter]] -> IO Command
++bulkCommand statement@(PreparedStatement conn ident _) flags rows = do
++    state <- checkedStatement statement
++    let width = statementArity state
++        count = length (take (maximumBulkRows (connectionOptions conn) + 1) rows)
++    unless (width > 0 && count > 0 && count <= maximumBulkRows (connectionOptions conn))
++        (throwIO (InvalidBulkBatch "empty/zero-parameter batch or row limit exceeded"))
++    forM_ rows $ \row -> unless (length (take (width + 1) row) == width)
++        (throwIO WrongParamsCount)
++    let exemplar column = case find present column of
++            Just (BulkValue value) -> value
++            _ -> MySQLNull
++        present (BulkValue MySQLNull) = False
++        present (BulkValue _) = True
++        present _ = False
++        types = map exemplar (transpose rows)
++    pure (COM_STMT_BULK_EXECUTE ident flags types rows)
++
++-- | Execute exactly one bounded native MariaDB binary bulk command. NULL,
++-- DEFAULT and IGNORE use native parameter indicators. Errors are not replayed
++-- and can follow partial server work: use an explicit transaction for atomicity.
++-- Empty batches, mixed column wire types and oversized messages fail locally.
++executeBulk :: PreparedStatement -> [[BulkParameter]] -> IO OK
++executeBulk statement@(PreparedStatement conn _ _) rows = withCommand conn $ do
++    cmd <- bulkCommand statement 128 rows
++    executeCore conn cmd
++
++-- | Request MariaDB's negotiated per-operation generated IDs/counts. This is a
++-- distinct command mode, not fabricated feedback from an aggregate OK.
++executeBulkUnitResults :: PreparedStatement -> [[BulkParameter]] -> IO [BulkUnitResult]
++executeBulkUnitResults statement@(PreparedStatement conn _ _) rows = withCommand conn $ do
++    cmd <- bulkCommand statement 192 rows
++    sendCommand conn cmd
++    results <- readPreparedResults conn
++    case [values | PreparedRows _ values <- results] of
++        [values] | all ordinary results -> mapM unit values
++        _ -> throwIO (ProtocolError "unexpected bulk unit-result shape")
++  where
++    ordinary (PreparedOK _) = True
++    ordinary (PreparedRows columns _) = length columns == 2
++    ordinary _ = False
++    unit [ident, affected] = BulkUnitResult <$> unsigned ident <*> unsigned affected
++    unit _ = throwIO (ProtocolError "invalid bulk unit-result row")
++    -- The server describes these as BIGINT and stores their unsigned bit pattern.
++    unsigned (MySQLInt64U value) = pure value
++    unsigned (MySQLInt64 value) = pure (fromIntegral value)
++    unsigned _ = throwIO (ProtocolError "invalid bulk unit-result integer")
+ 
+ -- No exception thrown by cleanup replaces an ordinary application failure.
+ cleanupTransaction :: MySQLConn -> IO ()
+--- a/src/Database/MySQL/Connection.hs
++++ b/src/Database/MySQL/Connection.hs
+@@ -64,9 +64,11 @@
+ import qualified Data.Binary.Parser as P
+ import qualified Data.ByteString.Char8 as BC
+ import qualified Data.Text.Encoding as TE
++import qualified Data.Text as T
+ import qualified Data.Vector as V
+ import Data.Int (Int64)
+ import Data.Maybe (isJust)
++import qualified Data.IntMap.Strict as IM
+ import Database.MySQL.Protocol.ColumnDef
+ import Database.MySQL.Protocol.MySQLValue
+ import Database.MySQL.Query
+@@ -81,6 +83,10 @@
+     , connectTimeoutMicros :: !Int -- ^ Whole establishment deadline, including DNS/TLS/auth/setup.
+     , maximumAuthIterations :: !Int -- ^ Maximum server-requested PARSEC PBKDF2 work.
+     , enableSessionTracking :: !Bool -- ^ Negotiate tracking and OK terminators together.
++    , enableMetadataCaching :: !Bool -- ^ Negotiate MariaDB prepared metadata omission.
++    , enableExtendedMetadata :: !Bool -- ^ Retain native type/format attributes.
++    , maximumPreparedStatements :: !Int -- ^ Maximum registered server statements.
++    , maximumBulkRows :: !Int -- ^ Rows per bulk command; batches are never silently split.
+     } deriving (Eq, Show)
+ 
+ -- | 64 MiB messages, 16 MiB metadata, 65,535 columns, one-second cleanup,
+@@ -94,6 +100,10 @@
+     , connectTimeoutMicros = 10000000
+     , maximumAuthIterations = 1048576
+     , enableSessionTracking = True
++    , enableMetadataCaching = True
++    , enableExtendedMetadata = True
++    , maximumPreparedStatements = 1024
++    , maximumBulkRows = 10000
+     }
+ 
+ -- A cached fact must not pin a large result buffer or grow without bound.
+@@ -107,7 +117,8 @@
+       && maximumMessageBytes options <= fromIntegral (maxBound :: Int)
+       && maximumMetadataBytes options > 0 && maximumColumns options > 0 && cleanupTimeoutMicros options > 0
+       && connectTimeoutMicros options > 0 && maximumAuthIterations options >= 1024
+-      && maximumAuthIterations options <= 1073741824)
++      && maximumAuthIterations options <= 1073741824
++      && maximumPreparedStatements options > 0 && maximumBulkRows options > 0)
+     (throwIO (ProtocolError "invalid connection resource options"))
+ 
+ -- | Observable lifecycle. Only 'Ready' admits a new command. 'Broken' and
+@@ -158,6 +169,29 @@
+     , connectionServerPacketLimit :: !(IORef Word64)
+     , connectionQueryEffect :: !(IORef (Maybe Bool))
+     , connectionOpaqueStatements :: !(IORef [Word32])
++    , connectionStatements :: !(IORef (Maybe (IM.IntMap StatementState)))
++    , connectionStatementSerial :: !(IORef Word64)
++    , connectionActiveStatement :: !(IORef (Maybe StmtID))
++    , connectionResultIndex :: !(IORef Int)
++    }
++
++-- A decoder is compiled per metadata shape, not per row/execution. Metadata
++-- cannot be evicted independently: MariaDB may omit it in the next response.
++-- The aggregate byte charge shares the connection's metadata resource budget.
++data CachedColumns = CachedColumns
++    { cachedDetails :: ![ColumnMetadata]
++    , cachedFields :: ![ColumnDef]
++    , cachedColumnCount :: !Int
++    -- Intentionally lazy: ordinary text results must not construct binary
++    -- field parsers. The first binary read forces and shares this decoder.
++    , cachedBinaryDecoder :: Binary.Get [MySQLValue]
++    , cachedMetadataBytes :: !Word64
++    }
++
++data StatementState = StatementState
++    { statementSerial :: !Word64
++    , statementArity :: !Int
++    , statementResults :: !(IM.IntMap CachedColumns)
+     }
+ 
+ -- | Read lifecycle diagnostics without claiming a command or performing I/O.
+@@ -197,6 +231,10 @@
+     serverLimit <- newIORef (maximumMessageBytes options)
+     effect <- newIORef Nothing
+     opaque <- newIORef []
++    statements <- newIORef (Just IM.empty)
++    serial <- newIORef 0
++    active <- newIORef Nothing
++    resultIndex <- newIORef 0
+     input <- makeReader framing
+     let checkedOutput packet = advanceFraming (maximumMessageBytes options) framing (pLen packet) (pSeqN packet) >> output packet
+     pure MySQLConn
+@@ -216,6 +254,10 @@
+         , connectionServerPacketLimit = serverLimit
+         , connectionQueryEffect = effect
+         , connectionOpaqueStatements = opaque
++        , connectionStatements = statements
++        , connectionStatementSerial = serial
++        , connectionActiveStatement = active
++        , connectionResultIndex = resultIndex
+         }
+ 
+ data FramingState = FramingState {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word64
+@@ -251,6 +293,7 @@
+ 
+ abortConnection :: MySQLConn -> Bool -> IO ()
+ abortConnection conn uncertain = mask_ $ do
++    clearStatements conn
+     phase <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
+         (rt { runtimeStatus=if runtimeStatus rt == Closed then Closed else Broken, runtimeOwner=Nothing },runtimeStatus rt)
+     atomicModifyIORef' (connectionFailureRef conn) $ \prior ->
+@@ -439,8 +482,12 @@
+ negotiatedCapabilities :: ConnectionOptions -> Greeting -> Word64
+ -- Advertise tracking and EOF deprecation only as a pair: both OK-envelope and
+ -- result-terminator parsing must be available before either is used on the wire.
+-negotiatedCapabilities options greeting = (clientCap .&. greetingCaps greeting) .|.
++negotiatedCapabilities options greeting = (implemented .&. greetingCaps greeting) .|.
+     (if enableSessionTracking options && greetingCaps greeting .&. 0x01800000 == 0x01800000 then 0x01800000 else 0)
++  where
++    implemented = clientCap .|. bit 34 .|. bit 37
++        .|. (if enableMetadataCaching options then bit 36 else 0)
++        .|. (if enableExtendedMetadata options then bit 35 else 0)
+ 
+ mkAuthWithOptions :: ConnectionOptions -> Word64 -> ConnectInfo -> Greeting -> Auth
+ mkAuthWithOptions options caps ci greeting =
+@@ -740,6 +787,9 @@
+         COM_STMT_EXECUTE ident _ _ -> do
+             opaque <- readIORef (connectionOpaqueStatements conn)
+             writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
++        COM_STMT_BULK_EXECUTE ident _ _ _ -> do
++            opaque <- readIORef (connectionOpaqueStatements conn)
++            writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
+         _ -> pure ()
+     encoder <- case cmd of
+         COM_STMT_EXECUTE ident values nullMap -> do
+@@ -759,18 +809,93 @@
+                     Binary.putWord8 1
+                     mapM_ putParamMySQLType values
+                     sequence_ encoded
++        COM_STMT_BULK_EXECUTE ident flags types rows -> do
++            caps <- readIORef (connectionCapabilities conn)
++            unless (testBit caps 34 && (flags .&. 64 == 0 || testBit caps 37))
++                (throwIO (ProtocolError "server did not negotiate requested bulk capability"))
++            unless (flags .&. 0xff3f == 0 && flags .&. 128 /= 0)
++                (throwIO (ProtocolError "invalid bulk flags"))
++            let width = length (take (maximumColumns (connectionOptions conn) + 1) types)
++                rowCount = length (take (maximumBulkRows (connectionOptions conn) + 1) rows)
++            unless (width > 0 && width <= maximumColumns (connectionOptions conn)
++                    && rowCount > 0 && rowCount <= maximumBulkRows (connectionOptions conn))
++                (throwIO (ProtocolError "bulk dimensions exceed client limits or are empty"))
++            forM_ rows $ \row -> do
++                unless (length (take (width + 1) row) == width)
++                    (throwIO (ProtocolError "bulk parameter count mismatch"))
++                forM_ (zip types row) $ \(typ, cell) -> case cell of
++                    BulkValue value | value /= MySQLNull -> do
++                        unless (parameterTypeSignature typ == parameterTypeSignature value)
++                            (throwIO (ProtocolError "bulk column has inconsistent wire types"))
++                        either (throwIO . UnencodableParameter) pure (validateValue value)
++                    _ -> pure ()
++            let hasText = any (any (\cell -> case cell of BulkValue (MySQLText _) -> True; _ -> False)) rows
++            charset <- if hasText then renderClientCharset <$> getRenderContext conn else pure "utf8mb4"
++            serverLimit <- readIORef (connectionServerPacketLimit conn)
++            let limit = min serverLimit (maximumMessageBytes (connectionOptions conn))
++                header = 7 + 2 * fromIntegral width
++            when (header > limit) (throwIO (ProtocolError "bulk header exceeds message limit"))
++            remaining <- newIORef (limit - header)
++            let normalize cell = do
++                    left <- readIORef remaining
++                    when (left == 0) (throwIO (ProtocolError "bulk exceeds message limit"))
++                    normalized <- case cell of
++                        BulkValue (MySQLText value) -> do
++                            when (fromIntegral (T.length value) > left)
++                                (throwIO (ProtocolError "bulk text exceeds message limit"))
++                            either (throwIO . UnencodableParameter) (pure . BulkValue . MySQLBytes)
++                                (encodeCharsetText charset value)
++                        _ -> pure cell
++                    let bytes = 1 + case normalized of
++                            BulkValue value -> bulkValueSize value
++                            _ -> 0
++                    when (bytes > left) (throwIO (ProtocolError "bulk exceeds message limit"))
++                    writeIORef remaining (left - bytes)
++                    pure normalized
++            encodedRows <- mapM (mapM normalize) rows
++            pure (putCommand (COM_STMT_BULK_EXECUTE ident flags types encodedRows))
+         _ -> pure (putCommand cmd)
+     let body=Binary.runPut encoder
+     serverLimit <- readIORef (connectionServerPacketLimit conn)
+     size <- encodedLength (min serverLimit (maximumMessageBytes (connectionOptions conn))) body
++    writeIORef (connectionActiveStatement conn) $ case cmd of
++        COM_STMT_EXECUTE ident _ _ -> Just ident
++        COM_STMT_BULK_EXECUTE ident _ _ _ -> Just ident
++        _ -> Nothing
++    writeIORef (connectionResultIndex conn) 0
+     setExchangeSequence conn 0
+     writeIORef (connectionExchangeProgress conn) WireInFlight
+     writeEncoded size body (mysqlWrite conn)
++
++-- Byte accounting happens while normalizing cells, before retaining another
++-- batch worth of transcoded text. Fixed scalars avoid per-cell builders; only
++-- bounded decimal/temporal values need their small existing encoder for sizing.
++bulkValueSize :: MySQLValue -> Word64
++bulkValueSize value = case value of
++    MySQLNull -> 0
++    MySQLBytes bytes -> stringSize bytes
++    MySQLGeometry bytes -> stringSize bytes
++    _ -> case parameterTypeSignature value .&. 255 of
++        1 -> 1
++        2 -> 2
++        3 -> 4
++        4 -> 4
++        5 -> 8
++        8 -> 8
++        _ -> fromIntegral (L.length (Binary.runPut (putBinaryField value)))
++  where
++    stringSize bytes = let size = fromIntegral (B.length bytes)
++                           prefix | size < 251 = 1
++                                  | size < 65536 = 3
++                                  | size < 16777216 = 4
++                                  | otherwise = 9
++                       in size + prefix
+ 
+ -- | Idempotently close the transport. Ready connections attempt bounded COM_QUIT;
+ -- active ones are interrupted immediately without trying to drain their reply.
+ close :: MySQLConn -> IO ()
+ close conn = mask_ $ do
++    clearStatements conn
+     prior <- atomicModifyIORef' (connectionRuntime conn) (\rt -> (rt {runtimeStatus=Closed,runtimeOwner=Nothing},runtimeStatus rt))
+     unless (prior == Closed) $ do
+         when (prior `elem` [Executing,Streaming,Replicating]) $
+@@ -927,22 +1052,116 @@
+         unless (isEOF packet) (throwIO (UnexpectedPacket packet))
+         void (consumeEnd conn packet)
+ 
+-readColumns :: MySQLConn -> Int -> IO [ColumnDef]
+-readColumns conn count = do
+-    unless (count>=0 && count<=maximumColumns (connectionOptions conn)) (throwIO (ProtocolError "column count exceeds client limit"))
+-    let loop 0 _ = pure []
++-- Read a complete metadata block before publishing it into a cache. A partial
++-- replacement never destroys the last fully validated decoder.
++readColumnBlock :: MySQLConn -> Int -> IO CachedColumns
++readColumnBlock conn count = do
++    unless (count >= 0 && count <= maximumColumns (connectionOptions conn))
++        (throwIO (ProtocolError "column count exceeds client limit"))
++    caps <- readIORef (connectionCapabilities conn)
++    let loop 0 total = pure ([], total)
+         loop n total = do
+             packet <- readConnPacket conn
+             when (isERR packet) (serverError conn packet)
+-            let budget=maximumMetadataBytes (connectionOptions conn)
+-                size=fromIntegral (pLen packet)
+-            when (total>budget || size>budget-total) (throwIO (ProtocolError "metadata exceeds client limit"))
+-            let total'=total+size
+-            field <- getFromPacketExact getField packet
+-            (field:) <$> loop (n-1) total'
+-    fields <- loop count 0
+-    when (count>0) (readMetadataEnd conn)
+-    pure fields
++            let budget = maximumMetadataBytes (connectionOptions conn)
++                size = fromIntegral (pLen packet)
++            when (total > budget || size > budget - total)
++                (throwIO (ProtocolError "metadata exceeds client limit"))
++            field <- getFromPacketExact (getColumnMetadata (testBit caps 35)) packet
++            (rest, bytes) <- loop (n - 1) (total + size)
++            pure (field : rest, bytes)
++    (details, bytes) <- loop count 0
++    when (count > 0) (readMetadataEnd conn)
++    let fields = map metadataColumn details
++    pure (CachedColumns details fields count (prepareBinaryRow fields) bytes)
++
++readColumns :: MySQLConn -> Int -> IO [ColumnDef]
++readColumns conn count = cachedFields <$> readColumnBlock conn count
++
++-- A header marker is present on text results too when caching is negotiated.
++-- Omission is legal only for the exact registered statement/result ordinal.
++-- Legacy metadata EOF still follows an omitted block when EOF deprecation is off.
++readResultColumns :: MySQLConn -> Packet -> IO CachedColumns
++readResultColumns conn packet = do
++    caps <- readIORef (connectionCapabilities conn)
++    (count, follows) <- getFromPacketExact (do
++        n <- getLenEncInt
++        flag <- if testBit caps 36 then P.getWord8 else pure 1
++        unless (flag <= 1) (fail "invalid metadata-follows flag")
++        pure (n, flag == 1)) packet
++    unless (count > 0 && count <= maximumColumns (connectionOptions conn))
++        (throwIO (ProtocolError "invalid result column count"))
++    active <- readIORef (connectionActiveStatement conn)
++    index <- atomicModifyIORef' (connectionResultIndex conn) (\n -> (n + 1, n))
++    if follows then do
++        columns <- readColumnBlock conn count
++        case active of
++            Just ident -> storeStatementColumns conn ident index columns
++            Nothing -> pure columns
++    else do
++        states <- statementMap conn
++        let found = active >>= (\ident -> IM.lookup (fromIntegral ident) states)
++                           >>= IM.lookup index . statementResults
++        case found of
++            Just columns | cachedColumnCount columns == count -> do
++                readMetadataEnd conn
++                pure columns
++            _ -> throwIO (ProtocolError "omitted metadata has no matching statement/result cache")
++
++-- The registry and its terminal marker share one atomic reference. A close
++-- racing with metadata publication can never resurrect a handle or its buffers.
++statementMap :: MySQLConn -> IO (IM.IntMap StatementState)
++statementMap conn = maybe IM.empty id <$> readIORef (connectionStatements conn)
++
++-- Cached names must own their bytes. A tiny column name decoded from a shared
++-- receive chunk must not pin that chunk (and neighbouring row data) indefinitely.
++-- Copy only retained statement metadata; ordinary text results keep their path.
++ownColumnBlock :: CachedColumns -> IO CachedColumns
++ownColumnBlock columns = do
++    details <- forM (cachedDetails columns) $ \metadata -> do
++        let field = metadataColumn metadata
++        owned <- evaluate field
++            { columnDB = B.copy (columnDB field)
++            , columnTable = B.copy (columnTable field)
++            , columnOrigTable = B.copy (columnOrigTable field)
++            , columnName = B.copy (columnName field)
++            , columnOrigName = B.copy (columnOrigName field)
++            }
++        attributes <- forM (metadataAttributes metadata) $ \(tag, bytes) -> do
++            value <- evaluate (B.copy bytes)
++            pure (tag, value)
++        pure metadata {metadataColumn = owned, metadataAttributes = attributes}
++    let fields = map metadataColumn details
++    pure columns {cachedDetails = details, cachedFields = fields,
++                  cachedBinaryDecoder = prepareBinaryRow fields}
++
++storeStatementColumns :: MySQLConn -> StmtID -> Int -> CachedColumns -> IO CachedColumns
++storeStatementColumns conn ident index columns = do
++    owned <- ownColumnBlock columns
++    outcome <- atomicModifyIORef' (connectionStatements conn) $ \registry -> case registry of
++        Nothing -> (Nothing, Left (ConnectionUnavailable Closed))
++        Just states -> case IM.lookup (fromIntegral ident) states of
++            Nothing -> (registry, Right ())
++            Just state ->
++                let old = maybe 0 cachedMetadataBytes (IM.lookup index (statementResults state))
++                    used = sum [cachedMetadataBytes c | st <- IM.elems states, c <- IM.elems (statementResults st)]
++                    remaining = used - old
++                    replacement = cachedMetadataBytes columns
++                    budget = maximumMetadataBytes (connectionOptions conn)
++                    state' = state {statementResults = IM.insert index owned (statementResults state)}
++                in if remaining > budget || replacement > budget - remaining
++                   then (registry, Left (ProtocolError "aggregate statement metadata exceeds client limit"))
++                   else (Just (IM.insert (fromIntegral ident) state' states), Right ())
++    either throwIO (const (pure owned)) outcome
++
++forgetStatement :: MySQLConn -> StmtID -> IO ()
++forgetStatement conn ident = atomicModifyIORef' (connectionStatements conn) $ \registry ->
++    (fmap (IM.delete (fromIntegral ident)) registry, ())
++
++clearStatements :: MySQLConn -> IO ()
++clearStatements conn = do
++    writeIORef (connectionStatements conn) Nothing
++    writeIORef (connectionOpaqueStatements conn) []
+ 
+ -- | Return known session facts without issuing SQL. A snapshot can become stale
+ -- after another operation; connected APIs obtain it under their command claim.
+@@ -964,9 +1183,10 @@
+         sendCommand conn (COM_QUERY "SELECT @@sql_mode,@@character_set_client,@@character_set_connection,@@collation_connection,VERSION(),CAST(@@max_allowed_packet AS CHAR)")
+         first <- readConnPacket conn
+         when (isERR first) (serverError conn first)
+-        count <- getFromPacketExact getLenEncInt first
++        metadata <- readResultColumns conn first
++        let fields = cachedFields metadata
++            count = length fields
+         unless (count == 6) (throwIO (ProtocolError "invalid session snapshot column count"))
+-        fields <- readColumns conn count
+         rowPacket <- readConnPacket conn
+         when (fromIntegral (pLen rowPacket) > maximumMetadataBytes (connectionOptions conn))
+             (throwIO (ProtocolError "session snapshot exceeds metadata budget"))
+--- a/src/Database/MySQL/Protocol/Auth.hs
++++ b/src/Database/MySQL/Protocol/Auth.hs
+@@ -217,6 +217,7 @@
+                 .|. CLIENT_TRANSACTIONS
+                 .|. CLIENT_MULTI_STATEMENTS
+                 .|. CLIENT_MULTI_RESULTS
++                .|. CLIENT_PS_MULTI_RESULTS
+                 .|. CLIENT_SECURE_CONNECTION
+                 .|. CLIENT_PLUGIN_AUTH
+ 
+--- a/src/Database/MySQL/Protocol/ColumnDef.hs
++++ b/src/Database/MySQL/Protocol/ColumnDef.hs
+@@ -17,11 +17,13 @@
+ module Database.MySQL.Protocol.ColumnDef where
+ 
+ import           Data.Binary
++import           Control.Monad (unless)
+ import           Data.Binary.Get
+ import           Data.Binary.Parser
+ import           Data.Binary.Put
+ import           Data.Bits                      ((.&.))
+ import           Data.ByteString                (ByteString)
++import qualified Data.ByteString.Lazy           as L
+ import           Database.MySQL.Protocol.Packet
+ 
+ --------------------------------------------------------------------------------
+@@ -45,21 +47,47 @@
+ -- | Decode protocol-4.1 column metadata, requiring its twelve-byte fixed
+ -- section. Variable-length schema/table/column names remain exact bytes.
+ getField :: Get ColumnDef
+-getField = ColumnDef
+-        <$> (skipN 4                 -- const "def"
+-         *> getLenEncBytes)         -- db
+-        <*> getLenEncBytes          -- table
+-        <*> getLenEncBytes          -- origTable
+-        <*> getLenEncBytes          -- name
+-        <*> getLenEncBytes          -- origName
+-        <*  (getWord8 >>= \n -> if n == 12 then pure () else fail "invalid column fixed length")
+-        <*> getWord16le             -- charset
+-        <*> getWord32le             -- length
+-        <*> getFieldType            -- type
+-        <*> getWord16le             -- flags
+-        <*> getWord8                -- decimals
+-        <* skipN 2                   -- const 0x00 0x00
++getField = metadataColumn <$> getColumnMetadata False
+ {-# INLINE getField #-}
++
++-- | MariaDB's optional type/format attributes, preserved as exact bytes.
++-- Unknown attribute tags are retained for forward compatibility. Tag 0 is the
++-- native type name and tag 1 the format name. Core 'ColumnDef' stays source
++-- compatible with applications that construct it positionally.
++data ColumnMetadata = ColumnMetadata
++    { metadataColumn :: !ColumnDef
++    , metadataAttributes :: ![(Word64, ByteString)]
++    } deriving (Show, Eq)
++
++-- | Decode the negotiated metadata layout. The extension precedes the fixed
++-- twelve-byte section; accepting it as trailing bytes would shift every type.
++getColumnMetadata :: Bool -> Get ColumnMetadata
++getColumnMetadata extended = do
++    db <- skipN 4 *> getLenEncBytes
++    table <- getLenEncBytes
++    originalTable <- getLenEncBytes
++    name <- getLenEncBytes
++    originalName <- getLenEncBytes
++    extra <- if extended then getLenEncBytes >>= parseAttributes else pure []
++    fixed <- getWord8
++    unless (fixed == 12) (fail "invalid column fixed length")
++    column <- ColumnDef db table originalTable name originalName
++        <$> getWord16le <*> getWord32le <*> getFieldType
++        <*> getWord16le <*> getWord8 <* skipN 2
++    pure (ColumnMetadata column extra)
++  where
++    parseAttributes bytes = case parseDetailLazy (attributes 0 []) (L.fromStrict bytes) of
++        Left (_, _, message) -> fail message
++        Right (_, _, value) -> pure value
++    attributes :: Int -> [(Word64, ByteString)] -> Get [(Word64, ByteString)]
++    attributes count accumulated = do
++        empty <- isEmpty
++        if empty then pure (reverse accumulated) else do
++            unless (count < 65535) (fail "too many extended metadata attributes")
++            tag <- fromIntegral <$> getLenEncInt
++            value <- getLenEncBytes
++            attributes (count + 1) ((tag, value) : accumulated)
++{-# INLINE getColumnMetadata #-}
+ 
+ -- | Encode column metadata, including the 0x0c fixed-section length between
+ -- names and charset/type information. Statement and result metadata share it.
+--- a/src/Database/MySQL/Protocol/Command.hs
++++ b/src/Database/MySQL/Protocol/Command.hs
+@@ -30,6 +30,12 @@
+ 
+ type StmtID = Word32
+ 
++-- | One cell in a MariaDB binary bulk batch. NULL is 'BulkValue MySQLNull'.
++-- DEFAULT and IGNORE are wire indicators, not SQL text; IGNORE means a default
++-- on INSERT and leaves that column unchanged on UPDATE.
++data BulkParameter = BulkValue !MySQLValue | BulkDefault | BulkIgnore
++    deriving (Show, Eq)
++
+ -- | All support MySQL commands.
+ --
+ data Command
+@@ -45,6 +51,8 @@
+     | COM_STMT_EXECUTE   !StmtID ![MySQLValue] !BitMap -- ^ 0x17 stmtId, params
+     | COM_STMT_CLOSE     !StmtID                  -- ^ 0x19 stmtId
+     | COM_STMT_RESET     !StmtID                  -- ^ 0x1A stmtId
++    | COM_STMT_BULK_EXECUTE !StmtID !Word16 ![MySQLValue] ![[BulkParameter]]
++      -- ^ 0xFA: statement, flags, one type exemplar per column, batch rows.
+     | COM_UNSUPPORTED
+    deriving (Show, Eq)
+ 
+@@ -82,6 +90,16 @@
+ 
+ putCommand (COM_STMT_CLOSE stid) = putWord8 0x19 >> putWord32le stid
+ putCommand (COM_STMT_RESET stid) = putWord8 0x1A >> putWord32le stid
++putCommand (COM_STMT_BULK_EXECUTE ident flags types rows) = do
++    putWord8 0xfa
++    putWord32le ident
++    putWord16le flags
++    mapM_ putParamMySQLType types
++    forM_ rows $ mapM_ $ \cell -> case cell of
++        BulkValue MySQLNull -> putWord8 1
++        BulkValue value -> putWord8 0 >> putBinaryField value
++        BulkDefault -> putWord8 2
++        BulkIgnore -> putWord8 3
+ putCommand _                     = error "unsupported command"
+ 
+ --------------------------------------------------------------------------------
+--- a/src/Database/MySQL/Protocol/MySQLValue.hs
++++ b/src/Database/MySQL/Protocol/MySQLValue.hs
+@@ -21,6 +21,7 @@
+   , decodeColumnText
+   , encodeCharsetText
+   , validateValue
++  , parameterTypeSignature
+   , putParamMySQLType
+   , getTextField
+   , putTextField
+@@ -122,31 +123,41 @@
+ 
+ -- | Put 'FieldType' and usigned bit(0x80/0x00) for 'MySQLValue's.
+ --
++-- | The two-byte prepared parameter type: low byte is the wire type, high
++-- byte carries unsignedness. Bulk validation compares this scalar without
++-- allocating a temporary encoded ByteString for every cell.
++parameterTypeSignature :: MySQLValue -> Word16
++parameterTypeSignature value = case value of
++    MySQLDecimal _ -> 0x00
++    MySQLInt8U _ -> 0x8001
++    MySQLInt8 _ -> 0x01
++    MySQLInt16U _ -> 0x8002
++    MySQLInt16 _ -> 0x02
++    MySQLInt32U _ -> 0x8003
++    MySQLInt32 _ -> 0x03
++    MySQLInt64U _ -> 0x8008
++    MySQLInt64 _ -> 0x08
++    MySQLFloat _ -> 0x04
++    MySQLDouble _ -> 0x05
++    MySQLYear _ -> 0x8002
++    MySQLDateTime _ -> 0x0c
++    MySQLTimeStamp _ -> 0x07
++    MySQLDate _ -> 0x0a
++    MySQLTime _ _ -> 0x0b
++    MySQLBytes _ -> 0xfc
++    MySQLGeometry _ -> 0xff
++    MySQLBit _ -> 0x8008
++    MySQLText _ -> 0xfe
++    MySQLDateRaw _ -> 0x0a
++    MySQLDateTimeRaw _ _ -> 0x0c
++    MySQLTimeStampRaw _ _ -> 0x07
++    MySQLNull -> 0x06
++{-# INLINE parameterTypeSignature #-}
++
++-- | Encode exactly the same signature used to validate bulk column homogeneity.
+ putParamMySQLType :: MySQLValue -> Put
+-putParamMySQLType (MySQLDecimal      _)  = putFieldType mySQLTypeDecimal  >> putWord8 0x00
+-putParamMySQLType (MySQLInt8U        _)  = putFieldType mySQLTypeTiny     >> putWord8 0x80
+-putParamMySQLType (MySQLInt8         _)  = putFieldType mySQLTypeTiny     >> putWord8 0x00
+-putParamMySQLType (MySQLInt16U       _)  = putFieldType mySQLTypeShort    >> putWord8 0x80
+-putParamMySQLType (MySQLInt16        _)  = putFieldType mySQLTypeShort    >> putWord8 0x00
+-putParamMySQLType (MySQLInt32U       _)  = putFieldType mySQLTypeLong     >> putWord8 0x80
+-putParamMySQLType (MySQLInt32        _)  = putFieldType mySQLTypeLong     >> putWord8 0x00
+-putParamMySQLType (MySQLInt64U       _)  = putFieldType mySQLTypeLongLong >> putWord8 0x80
+-putParamMySQLType (MySQLInt64        _)  = putFieldType mySQLTypeLongLong >> putWord8 0x00
+-putParamMySQLType (MySQLFloat        _)  = putFieldType mySQLTypeFloat    >> putWord8 0x00
+-putParamMySQLType (MySQLDouble       _)  = putFieldType mySQLTypeDouble   >> putWord8 0x00
+-putParamMySQLType (MySQLYear         _)  = putFieldType mySQLTypeShort    >> putWord8 0x80
+-putParamMySQLType (MySQLDateTime     _)  = putFieldType mySQLTypeDateTime >> putWord8 0x00
+-putParamMySQLType (MySQLTimeStamp    _)  = putFieldType mySQLTypeTimestamp>> putWord8 0x00
+-putParamMySQLType (MySQLDate         _)  = putFieldType mySQLTypeDate     >> putWord8 0x00
+-putParamMySQLType (MySQLTime       _ _)  = putFieldType mySQLTypeTime     >> putWord8 0x00
+-putParamMySQLType (MySQLBytes        _)  = putFieldType mySQLTypeBlob     >> putWord8 0x00
+-putParamMySQLType (MySQLGeometry     _)  = putFieldType mySQLTypeGeometry >> putWord8 0x00
+-putParamMySQLType (MySQLBit          _)  = putFieldType mySQLTypeLongLong >> putWord8 0x80
+-putParamMySQLType (MySQLText         _)  = putFieldType mySQLTypeString   >> putWord8 0x00
+-putParamMySQLType (MySQLDateRaw _) = putFieldType mySQLTypeDate >> putWord8 0
+-putParamMySQLType (MySQLDateTimeRaw _ _) = putFieldType mySQLTypeDateTime >> putWord8 0
+-putParamMySQLType (MySQLTimeStampRaw _ _) = putFieldType mySQLTypeTimestamp >> putWord8 0
+-putParamMySQLType MySQLNull              = putFieldType mySQLTypeNull     >> putWord8 0x00
++putParamMySQLType = putWord16le . parameterTypeSignature
++{-# INLINE putParamMySQLType #-}
+ 
+ --------------------------------------------------------------------------------
+ -- | Text protocol decoder
+--- a/validation/check.py
++++ b/validation/check.py
+@@ -32,10 +32,22 @@
+                           cwd=run.ROOT).returncode
+ 
+ 
++def native_benchmarks(output, repetitions, config):
++    """Keep additive native measurements in every complete validation run."""
++    destination = output / "native"
++    status = subprocess.call([sys.executable, str(run.HERE / "stage3_benchmarks.py"),
++                              "--config", str(config), "--output", str(destination),
++                              "--repetitions", str(repetitions)], cwd=run.ROOT)
++    if status:
++        raise RuntimeError("native benchmark recorder failed; its partial evidence is retained")
++    data = json.loads((destination / "results.json").read_text())
++    return data
++
++
+ def main():
+     if "--help" in sys.argv or "-h" in sys.argv:
+         status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
+-        print("\nFull runs also update validation/RESULTS.md, results/overview.svg and results/current.json; the original baseline is compared by default. Partial runs do not replace the live report.")
++        print("\nFull runs also execute the native-feature benchmarks and update validation/RESULTS.md, results/overview.svg and results/current.json; the original baseline is compared by default. Partial runs do not replace the live report.")
+         return status
+     parser=argparse.ArgumentParser(add_help=False)
+     parser.add_argument("--config",type=Path,default=run.HERE/".local/environment.json")
+@@ -83,7 +95,29 @@
+                     attempt.update(state="FAILED", stage="acceptance evidence",
+                                    reason="Acceptance evidence could not be verified: " + str(error))
+                     data, gate, status = None, None, status or 1
+-            attempt['exit_code'] = status
++            if data is not None and gate and gate['correctness_accepted'] and gate['evidence_accepted']:
++                try:
++                    native = native_benchmarks(output, args.repetitions, args.config)
++                    from stage3_benchmarks import verify_evidence
++                    verify_evidence(native, inputs)
++                    attempt['native_features'] = native
++                    comparison = native.get('baseline_comparison', {})
++                    native_timing = comparison.get('timing_investigations', [])
++                    native_allocation = comparison.get('allocation_investigations', [])
++                    gate['native_timing_investigations'] = native_timing
++                    gate['native_allocation_investigations'] = native_allocation
++                    gate['performance_requires_confirmation'] = gate.get('performance_requires_confirmation', False) or bool(native_timing or native_allocation)
++                    (run.HERE / 'results/stage1-gates.json').write_text(json.dumps(gate, indent=2) + '\n')
++                    if any(item['percent'] > 20 for item in native_timing):
++                        status = status or 1
++                except (OSError, ValueError, KeyError, RuntimeError) as error:
++                    attempt.update(state="FAILED", stage="native benchmarks",
++                                   reason="Native benchmark evidence failed: " + str(error))
++                    data, gate, status = None, None, status or 1
++                except KeyboardInterrupt:
++                    attempt.update(state="FAILED", stage="native benchmarks", reason="Native benchmarks interrupted.")
++                    data, gate, status = None, None, 130
++            attempt.update(exit_code=status, finished_at=live.now())
+             live.publish(attempt,data,gate=gate)
+             print("Live results updated:",live.REPORT,flush=True)
+         else:
+--- a/validation/hs/Main.hs
++++ b/validation/hs/Main.hs
+@@ -17,9 +17,11 @@
+ import qualified Validation.Supplementary as Supplementary
+ import qualified Validation.Stage1 as Stage1
+ import qualified Validation.Stage2 as Stage2
++import qualified Validation.Stage3 as Stage3
++import qualified Validation.Stage3Bench as Stage3Bench
+ 
+ allCases :: [Case]
+-allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases
++allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases
+ 
+ main :: IO ()
+ main=do
+@@ -38,6 +40,7 @@
+     run ["case",ident]=case find ((==ident) . caseId) allCases of
+         Nothing -> throwIO (userError ("unknown test " ++ ident))
+         Just c -> caseRun c >> putStrLn ("PASS\t" ++ ident)
++    run ["stage3-bench",ident,n]=Stage3Bench.run ident (read n)
+     run ["stage1-bench",ident,n]=Supplementary.run ident (read n)
+     run ["bench",ident,n]=Benchmark.runBenchmark ident (read n)
+-    run _=throwIO (userError "usage: mariadb-validation list | list-benchmarks | preflight | case ID | bench ID ITERATIONS | stage1-bench ID ITERATIONS")
++    run _=throwIO (userError "usage: mariadb-validation list | list-benchmarks | preflight | case ID | bench ID ITERATIONS | stage1-bench ID ITERATIONS | stage3-bench ID ITERATIONS")
+--- a/validation/hs/Validation/FaultTransport.hs
++++ b/validation/hs/Validation/FaultTransport.hs
+@@ -80,7 +80,7 @@
+                     let queryBody=if not (B.null body) && B.head body==3 then BC.map toUpperASCII (B.tail body) else ""
+                         isCommit=queryBody=="COMMIT"
+                         target="MB_STAGE1_FAULT" `B.isInfixOf` queryBody
+-                    when (not (B.null body) && B.head body `elem` [3,14,22,23,25,26])
++                    when (not (B.null body) && B.head body `elem` [3,14,22,23,25,26,250])
+                         (updateStats stats (\x -> x {proxyCommands=proxyCommands x+1}))
+                     when isCommit (updateStats stats (\x -> x {proxyCommits=proxyCommits x+1}))
+                     case mode of
+--- a/validation/hs/Validation/Reliability.hs
++++ b/validation/hs/Validation/Reliability.hs
+@@ -10,6 +10,7 @@
+ import qualified System.IO.Streams as S
+ import System.Timeout
+ import Validation.Common
++import qualified Validation.Stage3 as Stage3
+ 
+ cases :: [Case]
+ cases =
+@@ -141,9 +142,9 @@
+     , Case "types.non-utf8-results" "types" $ withConn $ \c -> do
+         exec c "SET character_set_results=latin1"
+         equal "latin1 result" "é" . textOf =<< scalar c "SELECT CONVERT(0xE9 USING latin1)"
+-    , Case "capability.binary-bulk" "capabilities" $ throwIO (Unsupported "no COM_STMT_BULK_EXECUTE command/API in this driver")
+-    , Case "capability.metadata-cache" "capabilities" $ throwIO (Unsupported "no MARIADB_CLIENT_CACHE_METADATA negotiation or statement metadata cache")
+-    , Case "capability.extended-metadata" "capabilities" $ throwIO (Unsupported "ColumnDef has no MariaDB extended metadata attributes")
++    , Case "capability.binary-bulk" "capabilities" $ Stage3.bulkFeature
++    , Case "capability.metadata-cache" "capabilities" $ Stage3.cacheFeature
++    , Case "capability.extended-metadata" "capabilities" $ Stage3.extendedFeature
+     , Case "capability.session-tracking" "capabilities" $ throwIO (Unsupported "OK/session-state payloads are not exposed")
+     , Case "capability.reset-connection" "capabilities" $ throwIO (Unsupported "no COM_RESET_CONNECTION API")
+     , Case "capability.progress-reporting" "capabilities" $ throwIO (Unsupported "no negotiated MariaDB progress callback")
+--- /dev/null
++++ b/validation/hs/Validation/Stage3.hs
+@@ -0,0 +1,479 @@
++{-# LANGUAGE ScopedTypeVariables #-}
++-- | Independent wire fixtures and real-server regressions for native statements.
++-- Synthetic packets deliberately use literal protocol bytes where the encoder
++-- itself is under test; live cases verify stateful behavior against MariaDB.
++module Validation.Stage3 (cases, bulkFeature, cacheFeature, extendedFeature) where
++
++import Control.Concurrent
++import Control.Exception hiding (assert)
++import Control.Monad
++import Data.Binary.Put
++import Data.Bits
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Internal as BI
++import qualified Data.ByteString.Lazy as L
++import Data.IORef
++import Data.List (isInfixOf)
++import Data.Time
++import Data.Scientific (scientific)
++import qualified Data.Text as T
++import Data.Word
++import Database.MySQL.Base
++import qualified Database.MySQL.Connection as C
++import qualified System.IO.Streams as S
++import System.Timeout
++import Validation.Common
++import Validation.FaultTransport (scripted, withFaultProxy, ProxyMode(..), ProxyStats(..))
++
++case3 :: String -> IO () -> Case
++case3 name = Case ("stage3." ++ name) "stage3"
++
++field :: ColumnDef
++field = ColumnDef "" "" "" "n" "" 63 20 mySQLTypeLongLong 0 0
++
++preparePackets :: Word32 -> [Packet]
++preparePackets ident = [putToPacket 1 (putWord8 0 >> putWord32le ident >>
++    putWord16le 1 >> putWord16le 0 >> putWord8 0 >> putWord16le 0), encodeToPacket 2 field]
++
++end :: Word8 -> Word16 -> Packet
++end sequenceNumber flags = putToPacket sequenceNumber $ do
++    putWord8 254; putWord8 0; putWord8 0; putWord16le flags; putWord16le 0
++
++cachedRows :: Integer -> [Packet]
++cachedRows value = [putToPacket 1 (putWord8 1 >> putWord8 0),
++    putToPacket 2 (putWord8 0 >> putWord8 0 >> putWord64le (fromIntegral value)), end 3 2]
++
++cachedFixture :: [Packet] -> IO (MySQLConn, IO [Packet], IO Int)
++cachedFixture packets = do
++    result@(conn, _, _) <- scripted defaultConnectionOptions packets
++    writeIORef (C.connectionCapabilities conn) (bit 24 .|. bit 36)
++    pure result
++
++allPreparedRows :: [PreparedResult] -> [[MySQLValue]]
++allPreparedRows results = concat [values | PreparedRows _ values <- results]
++
++bulkFeature :: IO ()
++bulkFeature = withConn $ \conn -> do
++    exec conn "CREATE TEMPORARY TABLE mb_stage3_bulk(n BIGINT, v VARCHAR(100))"
++    withPreparedStatement conn "INSERT INTO mb_stage3_bulk VALUES(?,?)" $ \stmt -> do
++        ok <- executeBulk stmt [[BulkValue (MySQLInt64 n), BulkValue (MySQLText "native")] | n <- [1..3]]
++        equal "aggregate affected rows" 3 (okAffectedRows ok)
++    equal "bulk content" [[3,6]] . map (map number) =<< rows conn "SELECT COUNT(*),SUM(n) FROM mb_stage3_bulk"
++    healthy conn
++
++cacheFeature :: IO ()
++cacheFeature = withConn $ \conn -> withPreparedStatement conn "SELECT CAST(? AS SIGNED) AS n" $ \stmt -> do
++    caps <- readIORef (C.connectionCapabilities conn)
++    assert (testBit caps 36) "metadata caching was not negotiated"
++    forM_ [7,8,9] $ \value -> do
++        (_, stream) <- queryPrepared stmt [MySQLInt64 value]
++        equal "repeated cached result" [[fromIntegral value]] . map (map number) =<< S.toList stream
++    healthy conn
++
++extendedFeature :: IO ()
++extendedFeature = withConn $ \conn -> do
++    exec conn "CREATE TEMPORARY TABLE mb_stage3_native(u UUID,j JSON,ip INET6,v VECTOR(3))"
++    withPreparedStatement conn "SELECT u,j,ip,v FROM mb_stage3_native" $ \stmt -> do
++        metadata <- preparedMetadata stmt
++        equal "native column names" ["u","j","ip","v"] (map (columnName . metadataColumn) metadata)
++        let attributes = concatMap metadataAttributes metadata
++        assert (any ((=="uuid") . snd) attributes) "UUID native metadata missing"
++        assert (any ((=="json") . snd) attributes) "JSON format metadata missing"
++        (_, stream) <- queryPrepared stmt []
++        equal "empty native result" [] =<< S.toList stream
++
++cases :: [Case]
++cases =
++    [ case3 "prepared.out-and-multiple-results" $ withConn $ \conn -> do
++        exec conn "DROP PROCEDURE IF EXISTS mb_stage3_out"
++        exec conn "CREATE PROCEDURE mb_stage3_out(IN a INT,INOUT b INT,OUT c INT) BEGIN SELECT a; SELECT a+1; SET b=b+2; SET c=a+b; END"
++        withPreparedStatement conn "CALL mb_stage3_out(?,?,?)" $ \stmt -> do
++            result <- queryPreparedMulti stmt [MySQLInt32 7,MySQLInt32 10,MySQLNull]
++            equal "ordinary result sets" [[7],[8]] (map (map number) (allPreparedRows result))
++            equal "OUT values distinct from ordinary rows" [[12,19]]
++                [map number values | PreparedOutParameters _ values <- result]
++            assert (any isOKResult result) "trailing procedure OK missing"
++        healthy conn
++        exec conn "DROP PROCEDURE mb_stage3_out"
++    , case3 "prepared.raw-multiple-results" $ withConn $ \conn -> do
++        exec conn "DROP PROCEDURE IF EXISTS mb_stage3_multi"
++        exec conn "CREATE PROCEDURE mb_stage3_multi() BEGIN SELECT 7; SELECT 8; END"
++        bracket (prepareStmt conn "CALL mb_stage3_multi()") (closeStmt conn) $ \ident -> do
++            result <- queryStmtMulti conn ident []
++            equal "raw binary multiple results" [[7],[8]] (map (map number) (allPreparedRows result))
++        healthy conn
++        exec conn "DROP PROCEDURE mb_stage3_multi"
++    , case3 "prepared.single-result-drains-extras" $ withConn $ \conn -> do
++        exec conn "DROP PROCEDURE IF EXISTS mb_stage3_extra"
++        exec conn "CREATE PROCEDURE mb_stage3_extra() BEGIN SELECT 7; SELECT 8; END"
++        withPreparedStatement conn "CALL mb_stage3_extra()" $ \stmt -> do
++            result <- try (queryPrepared stmt [] >>= S.toList . snd)
++            case result of Left ExtraResultSets -> pure (); _ -> fail "extra rows were silently lost"
++        healthy conn
++        exec conn "DROP PROCEDURE mb_stage3_extra"
++    , case3 "prepared.local-arity" $ do
++        (conn, sent, _) <- cachedFixture (preparePackets 7)
++        stmt <- prepareStatement conn "SELECT 7"
++        before <- length <$> sent
++        expectRejection (queryPrepared stmt [MySQLInt32 1])
++        equal "arity rejection sends nothing" before . length =<< sent
++        equal "arity preserves readiness" Ready =<< connectionStatus conn
++    , case3 "prepared.close-idempotent" $ do
++        (conn, sent, _) <- cachedFixture (preparePackets 7)
++        stmt <- prepareStatement conn "SELECT 7"
++        closePrepared stmt
++        before <- length <$> sent
++        closePrepared stmt
++        expectRejection (queryPrepared stmt [])
++        equal "closed handle sends nothing" before . length =<< sent
++    , case3 "prepared.raw-id-reuse" $ do
++        (conn, sent, _) <- cachedFixture (preparePackets 7 ++ preparePackets 7 ++ cachedRows 8)
++        old <- prepareStatement conn "SELECT 7"
++        closeStmt conn 7
++        new <- prepareStatement conn "SELECT 8"
++        before <- length <$> sent
++        closePrepared old
++        expectRejection (queryPrepared old [])
++        equal "old generation cannot close replacement" before . length =<< sent
++        equal "replacement still executes" [[8]] . map (map number) =<< (queryPrepared new [] >>= S.toList . snd)
++        closePrepared new
++    , case3 "prepared.registry-bound" $ do
++        ci <- config
++        withConnect (connectWithOptions defaultConnectionOptions {maximumPreparedStatements=1} ci) $ \conn -> do
++            stmt <- prepareStatement conn "SELECT 7"
++            expectRejection (prepareStatement conn "SELECT 8")
++            healthy conn
++            closePrepared stmt
++            withPreparedStatement conn "SELECT 9" $ \next ->
++                equal "released registry slot" [[9]] . map (map number) =<< (queryPrepared next [] >>= S.toList . snd)
++    , case3 "prepared.pending-close-rejected" $ withConn $ \conn -> do
++        stmt <- prepareStatement conn "SELECT seq FROM seq_1_to_10"
++        (_, stream) <- queryPrepared stmt []
++        void (S.read stream)
++        expectRejection (closePrepared stmt)
++        S.skipToEof stream
++        closePrepared stmt
++        healthy conn
++    , case3 "prepared.bracket-preserves-primary" $ withConn $ \conn -> do
++        outcome <- try $ withPreparedStatement conn "SELECT seq FROM seq_1_to_10" $ \stmt -> do
++            (_, stream) <- queryPrepared stmt []
++            void (S.read stream)
++            throwIO (userError "stage3-primary-marker")
++        case outcome of
++            Left (err :: SomeException) -> assert ("stage3-primary-marker" `isInfixOf` displayException err) "cleanup replaced primary exception"
++            Right () -> fail "body exception was lost"
++        healthy conn
++    , case3 "prepared.reset-retains-cache" $ withConn $ \conn -> withPreparedStatement conn "SELECT ?" $ \stmt -> do
++        equal "initial execution" [[7]] . map (map number) =<< (queryPrepared stmt [MySQLInt32 7] >>= S.toList . snd)
++        resetPrepared stmt
++        equal "execution after statement reset" [[8]] . map (map number) =<< (queryPrepared stmt [MySQLInt32 8] >>= S.toList . snd)
++    , case3 "prepared.connection-close-invalidates" $ withConn $ \conn -> do
++        stmt <- prepareStatement conn "SELECT 7"
++        close conn
++        closePrepared stmt
++        expectRejection (preparedMetadata stmt)
++        expectRejection (queryPrepared stmt [])
++    , case3 "timeout.safe-retirement-default" $ withConn $ \conn -> do
++        result <- timeout 20000 (rows conn "SELECT SLEEP(0.2)")
++        equal "deadline propagated" Nothing result
++        equal "unsafe session retired" Broken =<< connectionStatus conn
++        expectRejection (ping conn)
++        withConn healthy
++    , case3 "cache.omitted-first-execution" $ do
++        (conn, _, _) <- cachedFixture (preparePackets 7 ++ cachedRows 42)
++        stmt <- prepareStatement conn "SELECT 42"
++        equal "prepare metadata decodes omitted execute metadata" [[42]] . map (map number) =<< (queryPrepared stmt [] >>= S.toList . snd)
++    , case3 "cache.missing-entry-retires" $ do
++        (conn, _, released) <- cachedFixture (cachedRows 42)
++        expectRejection (queryStmt conn 7 [])
++        equal "missing cache is terminal" Broken =<< connectionStatus conn
++        equal "transport released" 1 =<< released
++    , case3 "cache.invalid-marker" $ do
++        (conn, _, _) <- cachedFixture (preparePackets 7 ++ [putToPacket 1 (putWord8 1 >> putWord8 2)])
++        stmt <- prepareStatement conn "SELECT 7"
++        expectRejection (queryPrepared stmt [])
++        equal "invalid marker retires" Broken =<< connectionStatus conn
++    , case3 "cache.count-mismatch" $ do
++        (conn, _, _) <- cachedFixture (preparePackets 7 ++ [putToPacket 1 (putWord8 2 >> putWord8 0)])
++        stmt <- prepareStatement conn "SELECT 7"
++        expectRejection (queryPrepared stmt [])
++        equal "omitted changed shape rejected" Broken =<< connectionStatus conn
++    , case3 "cache.ddl-reprepare" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_ddl(n INT)"
++        exec conn "INSERT INTO mb_stage3_ddl VALUES(7)"
++        withPreparedStatement conn "SELECT * FROM mb_stage3_ddl" $ \stmt -> do
++            equal "initial schema" [[7]] . map (map number) =<< (queryPrepared stmt [] >>= S.toList . snd)
++            exec conn "ALTER TABLE mb_stage3_ddl ADD v VARCHAR(20) DEFAULT 'changed'"
++            (columns, stream) <- queryPrepared stmt []
++            equal "changed result shape" ["n","v"] (map columnName columns)
++            values <- S.toList stream
++            equal "updated decoder" [[MySQLInt32 7, MySQLText "changed"]] values
++            equal "replacement cached" values =<< (queryPrepared stmt [] >>= S.toList . snd)
++    , case3 "cache.parameter-type-refresh" $ withConn $ \conn -> withPreparedStatement conn "SELECT ? AS n" $ \stmt -> do
++        forM_ [MySQLInt32 7,MySQLText "changed",MySQLInt64U maxBound,MySQLNull] $ \value -> do
++            result <- queryPrepared stmt [value] >>= S.toList . snd
++            case value of
++                MySQLNull -> equal "NULL type change" [[MySQLNull]] result
++                MySQLText text -> equal "text type change" [[MySQLText text]] result
++                _ -> equal "numeric type change" [[number value]] (map (map number) result)
++    , case3 "cache.explicit-opt-out" $ do
++        ci <- config
++        withConnect (connectWithOptions defaultConnectionOptions {enableMetadataCaching=False,enableExtendedMetadata=False} ci) $ \conn -> do
++            caps <- readIORef (C.connectionCapabilities conn)
++            assert (not (testBit caps 36 || testBit caps 35)) "opted-out flags advertised"
++            withPreparedStatement conn "SELECT ?" $ \stmt -> forM_ [7,8] $ \value ->
++                equal "uncached binary result" [[fromIntegral value]] . map (map number) =<< (queryPrepared stmt [MySQLInt32 value] >>= S.toList . snd)
++    , case3 "cache.legacy-eof" $ do
++        ci <- config
++        withConnect (connectWithOptions defaultConnectionOptions {enableSessionTracking=False} ci) $ \conn ->
++            withPreparedStatement conn "SELECT 7" $ \stmt -> replicateM_ 3 $
++                equal "legacy EOF with omission" [[7]] . map (map number) =<< (queryPrepared stmt [] >>= S.toList . snd)
++    , case3 "cache.aggregate-budget" $ do
++        let bytes = fromIntegral (pLen (encodeToPacket 2 field))
++        (conn, _, released) <- scripted defaultConnectionOptions {maximumMetadataBytes=bytes+1}
++            (preparePackets 7 ++ preparePackets 8)
++        writeIORef (C.connectionCapabilities conn) (bit 24 .|. bit 36)
++        first <- prepareStatement conn "SELECT 7"
++        expectRejection (prepareStatement conn "SELECT 8")
++        equal "aggregate cache budget retires safely" Broken =<< connectionStatus conn
++        equal "budget failure releases transport" 1 =<< released
++        expectRejection (preparedMetadata first)
++    , case3 "metadata.unknown-attribute" $ do
++        let packet = putToPacket 0 $ do
++                mapM_ putLenEncBytes ["def","","","","n",""]
++                putLenEncBytes (B.pack [42,3,97,0,98])
++                putWord8 12; putWord16le 63; putWord32le 20
++                putWord8 8; putWord16le 0; putWord8 0; putWord16le 0
++        actual <- getFromPacketExact (getColumnMetadata True) packet
++        equal "unknown tag and embedded NUL retained" [(42,B.pack [97,0,98])] (metadataAttributes actual)
++        equal "core metadata not shifted" field (metadataColumn actual)
++    , case3 "metadata.truncated-attribute" $ do
++        let packet = putToPacket 0 $ do
++                mapM_ putLenEncBytes ["def","","","","n",""]
++                putLenEncBytes (B.pack [0,5,97])
++                putWord8 12; putWord16le 63; putWord32le 20
++                putWord8 8; putWord16le 0; putWord8 0; putWord16le 0
++        expectRejection (getFromPacketExact (getColumnMetadata True) packet)
++    , case3 "bulk.independent-wire-vector" $ do
++        let cmd = COM_STMT_BULK_EXECUTE 0x01020304 128 [MySQLInt32 7,MySQLText "a"]
++                [[BulkValue (MySQLInt32 7),BulkValue (MySQLText "a")], [BulkValue MySQLNull,BulkDefault]]
++        equal "literal bulk wire bytes" [250,4,3,2,1,128,0,3,0,254,0,0,7,0,0,0,0,1,97,1,2]
++            (L.unpack (runPut (putCommand cmd)))
++    , case3 "bulk.per-unit-results" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_units(id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,n INT)"
++        withPreparedStatement conn "INSERT INTO mb_stage3_units(n) VALUES(?)" $ \stmt -> do
++            result <- executeBulkUnitResults stmt [[BulkValue (MySQLInt32 n)] | n <- [7,8,9]]
++            equal "individual IDs and counts" [BulkUnitResult 1 1,BulkUnitResult 2 1,BulkUnitResult 3 1] result
++        healthy conn
++    , case3 "bulk.null-default-ignore" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_indicators(n INT DEFAULT 7,v VARCHAR(20) DEFAULT 'default')"
++        withPreparedStatement conn "INSERT INTO mb_stage3_indicators VALUES(?,?)" $ \stmt -> do
++            void (executeBulk stmt [[BulkDefault,BulkDefault],[BulkIgnore,BulkValue MySQLNull],
++                [BulkValue (MySQLInt32 9),BulkValue (MySQLText "value")]])
++        equal "native indicators" [[MySQLInt32 7,MySQLNull],[MySQLInt32 7,MySQLText "default"],[MySQLInt32 9,MySQLText "value"]]
++            =<< rows conn "SELECT n,v FROM mb_stage3_indicators ORDER BY n,v"
++    , case3 "bulk.update-ignore" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_update(id INT PRIMARY KEY,n INT DEFAULT 7)"
++        exec conn "INSERT INTO mb_stage3_update VALUES(1,10),(2,20)"
++        withPreparedStatement conn "UPDATE mb_stage3_update SET n=? WHERE id=?" $ \stmt ->
++            void (executeBulk stmt [[BulkIgnore,BulkValue (MySQLInt32 1)],[BulkDefault,BulkValue (MySQLInt32 2)]])
++        equal "UPDATE indicators" [[1,10],[2,7]] . map (map number) =<< rows conn "SELECT id,n FROM mb_stage3_update ORDER BY id"
++    , case3 "bulk.transaction-rollback-no-replay" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_atomic(n INT PRIMARY KEY) ENGINE=InnoDB"
++        withPreparedStatement conn "INSERT INTO mb_stage3_atomic VALUES(?)" $ \stmt -> do
++            expectERR [1062] $ withTransaction conn $ void $ executeBulk stmt
++                [[BulkValue (MySQLInt32 1)],[BulkValue (MySQLInt32 1)],[BulkValue (MySQLInt32 2)]]
++        equal "explicit transaction rolled back" 0 =<< scalarInt conn "SELECT COUNT(*) FROM mb_stage3_atomic"
++        healthy conn
++    , case3 "bulk.mixed-types-rejected" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_types(n BIGINT)"
++        withPreparedStatement conn "INSERT INTO mb_stage3_types VALUES(?)" $ \stmt -> do
++            expectRejection (executeBulk stmt [[BulkValue (MySQLInt32 1)],[BulkValue (MySQLInt64 2)]])
++            expectRejection (executeBulk stmt [[BulkValue (MySQLInt32 1)],[BulkValue (MySQLInt32U 2)]])
++        equal "type rejection sends no INSERT" 0 =<< scalarInt conn "SELECT COUNT(*) FROM mb_stage3_types"
++        healthy conn
++    , case3 "bulk.empty-and-arity-rejected" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_arity(n INT)"
++        withPreparedStatement conn "INSERT INTO mb_stage3_arity VALUES(?)" $ \stmt -> do
++            expectRejection (executeBulk stmt [])
++            expectRejection (executeBulk stmt [[]])
++            expectRejection (executeBulk stmt [[BulkValue (MySQLInt32 1),BulkDefault]])
++        equal "invalid dimensions send no INSERT" 0 =<< scalarInt conn "SELECT COUNT(*) FROM mb_stage3_arity"
++        healthy conn
++    , case3 "bulk.row-limit" $ do
++        ci <- config
++        withConnect (connectWithOptions defaultConnectionOptions {maximumBulkRows=2} ci) $ \conn -> do
++            exec conn "CREATE TEMPORARY TABLE mb_stage3_limit(n INT)"
++            withPreparedStatement conn "INSERT INTO mb_stage3_limit VALUES(?)" $ \stmt ->
++                expectRejection (executeBulk stmt [[BulkValue (MySQLInt32 n)] | n <- [1..3]])
++            equal "oversized batch not split" 0 =<< scalarInt conn "SELECT COUNT(*) FROM mb_stage3_limit"
++            healthy conn
++    , case3 "bulk.message-limit" $ do
++        ci <- config
++        withConnect (connectWithOptions defaultConnectionOptions {maximumMessageBytes=2048} ci) $ \conn -> do
++            exec conn "CREATE TEMPORARY TABLE mb_stage3_message(v BLOB)"
++            withPreparedStatement conn "INSERT INTO mb_stage3_message VALUES(?)" $ \stmt ->
++                expectRejection (executeBulk stmt [[BulkValue (MySQLBytes (B.replicate 4096 65))]])
++            equal "oversized message sends no INSERT" 0 =<< scalarInt conn "SELECT COUNT(*) FROM mb_stage3_message"
++            healthy conn
++    , case3 "bulk.charset-and-unencodable" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_charset(v VARCHAR(100) CHARACTER SET utf8mb4)"
++        exec conn "SET NAMES latin1"
++        refreshSessionState conn
++        withPreparedStatement conn "INSERT INTO mb_stage3_charset VALUES(?)" $ \stmt -> do
++            void (executeBulk stmt [[BulkValue (MySQLText "caf\233")]])
++            expectRejection (executeBulk stmt [[BulkValue (MySQLText "\x4f60")]])
++        exec conn "SET NAMES utf8mb4"
++        equal "bulk honors active client encoding" [[MySQLText "caf\233"]] =<< rows conn "SELECT v FROM mb_stage3_charset"
++    , case3 "bulk.sql-looking-values" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_safe(v TEXT)"
++        let value = "\NUL'\\; DROP TABLE mb_stage3_safe; -- \x1f642"
++        withPreparedStatement conn "INSERT INTO mb_stage3_safe VALUES(?)" $ \stmt ->
++            void (executeBulk stmt [[BulkValue (MySQLText value)]])
++        equal "bulk data never parsed as SQL" [[MySQLText value]] =<< rows conn "SELECT v FROM mb_stage3_safe"
++    , case3 "bulk.zero-parameter-rejected" $ do
++        (conn, sent, _) <- cachedFixture (preparePackets 7)
++        stmt <- prepareStatement conn "SELECT 7"
++        before <- length <$> sent
++        expectRejection (executeBulk stmt [[BulkValue (MySQLInt32 1)]])
++        equal "zero-parameter bulk sends nothing" before . length =<< sent
++    , case3 "bulk.scalar-null-parity" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_scalars(id INT,i8 TINYINT,u8 TINYINT UNSIGNED,i16 SMALLINT,u16 SMALLINT UNSIGNED,i32 INT,u32 INT UNSIGNED,i64 BIGINT,u64 BIGINT UNSIGNED,d DECIMAL(30,6),f FLOAT,g DOUBLE,b BIT(64),dt DATETIME(6),da DATE,tm TIME(6),yr YEAR,t TEXT,raw BLOB)"
++        let day = fromGregorian 2024 2 29
++            values = [MySQLInt8 minBound,MySQLInt8U maxBound,MySQLInt16 minBound,MySQLInt16U maxBound,
++                MySQLInt32 minBound,MySQLInt32U maxBound,MySQLInt64 minBound,MySQLInt64U maxBound,
++                MySQLDecimal (scientific 12345678901234567890123456 (-6)),MySQLFloat 0.125,MySQLDouble 0.125,
++                MySQLBit maxBound,MySQLDateTime (LocalTime day (TimeOfDay 23 59 59.123456)),MySQLDate day,
++                MySQLTime 1 (TimeOfDay 838 59 59.123456),MySQLYear 2024,
++                MySQLText "\NULunicode \x1f642",MySQLBytes (B.pack [0..255])]
++        withPreparedStatement conn "INSERT INTO mb_stage3_scalars VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)" $ \stmt ->
++            void (executeBulk stmt [BulkValue (MySQLInt32 1):map BulkValue values,
++                BulkValue (MySQLInt32 2):replicate 18 (BulkValue MySQLNull)])
++        bracket (prepareStmt conn "SELECT i8,u8,i16,u16,i32,u32,i64,u64,d,f,g,b,dt,da,tm,yr,t,raw FROM mb_stage3_scalars ORDER BY id") (closeStmt conn) $ \ident ->
++            equal "bulk/prepared scalar parity including NULL bitmap" [values,replicate 18 MySQLNull]
++                =<< (queryStmt conn ident [] >>= S.toList . snd)
++    , case3 "bulk.all-null-and-default-column" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_null(n INT DEFAULT 7)"
++        withPreparedStatement conn "INSERT INTO mb_stage3_null VALUES(?)" $ \stmt -> do
++            void (executeBulk stmt [[BulkValue MySQLNull],[BulkValue MySQLNull]])
++            void (executeBulk stmt [[BulkDefault],[BulkDefault]])
++        equal "all-NULL/default type selection" [[4,2,14]] . map (map number)
++            =<< rows conn "SELECT COUNT(*),COUNT(n),SUM(n) FROM mb_stage3_null"
++    , case3 "bulk.unit-result-unsigned-id" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_unsigned(id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,n INT) AUTO_INCREMENT=9223372036854775808"
++        withPreparedStatement conn "INSERT INTO mb_stage3_unsigned(n) VALUES(?)" $ \stmt -> do
++            result <- executeBulkUnitResults stmt [[BulkValue (MySQLInt32 7)],[BulkValue (MySQLInt32 8)]]
++            equal "full Word64 generated IDs" [BulkUnitResult 9223372036854775808 1,BulkUnitResult 9223372036854775809 1] result
++    , case3 "bulk.physical-boundary" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_large(v LONGBLOB)"
++        let payload = B.replicate 16777216 65
++        withPreparedStatement conn "INSERT INTO mb_stage3_large VALUES(?)" $ \stmt ->
++            void (executeBulk stmt [[BulkValue (MySQLBytes payload)],[BulkValue (MySQLBytes "small")]])
++        equal "bulk continuation content" [[2,16777221]] . map (map number)
++            =<< rows conn "SELECT COUNT(*),SUM(OCTET_LENGTH(v)) FROM mb_stage3_large"
++        equal "large payload content" [[65,65]] . map (map number)
++            =<< rows conn "SELECT ASCII(LEFT(v,1)),ASCII(RIGHT(v,1)) FROM mb_stage3_large WHERE OCTET_LENGTH(v)>100"
++        healthy conn
++    , case3 "bulk.non-finite-rejected" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_nan(n DOUBLE)"
++        withPreparedStatement conn "INSERT INTO mb_stage3_nan VALUES(?)" $ \stmt -> do
++            expectRejection (executeBulk stmt [[BulkValue (MySQLDouble (0/0))]])
++            expectRejection (executeBulk stmt [[BulkValue (MySQLDouble (1/0))]])
++        equal "invalid values send no INSERT" 0 =<< scalarInt conn "SELECT COUNT(*) FROM mb_stage3_nan"
++        healthy conn
++    , case3 "bulk.one-wire-command" $ do
++        ci <- config
++        withFaultProxy ci (FragmentTraffic 65536) $ \proxyCi statistics -> withConnect (connect proxyCi) $ \conn -> do
++            exec conn "CREATE TEMPORARY TABLE mb_stage3_wire(n INT)"
++            withPreparedStatement conn "INSERT INTO mb_stage3_wire VALUES(?)" $ \stmt -> do
++                before <- proxyCommands <$> statistics
++                void (executeBulk stmt [[BulkValue (MySQLInt32 n)] | n <- [1..100]])
++                after <- proxyCommands <$> statistics
++                equal "one native batch command, no hidden helper query" 1 (after-before)
++    , case3 "bulk.capability-rejection-before-send" $ do
++        (conn, sent, _) <- cachedFixture []
++        let cmd = COM_STMT_BULK_EXECUTE 7 128 [MySQLInt32 1] [[BulkValue (MySQLInt32 1)]]
++        expectRejection (C.withCommand conn (C.sendCommand conn cmd))
++        equal "unsupported bulk flag sends nothing" [] =<< sent
++        writeIORef (C.connectionCapabilities conn) (bit 34)
++        expectRejection (C.withCommand conn (C.sendCommand conn (COM_STMT_BULK_EXECUTE 7 192 [MySQLInt32 1] [[BulkValue (MySQLInt32 1)]])))
++        equal "unsupported unit results send nothing" [] =<< sent
++    , case3 "prepared.cleanup-deadline" $ do
++        packets <- newIORef (preparePackets 7 ++ [putToPacket 1 (putWord8 1 >> putWord8 0)])
++        stalled <- newEmptyMVar
++        input <- S.makeInputStream $ do
++            next <- atomicModifyIORef' packets (\xs -> case xs of [] -> ([],Nothing); x:rest -> (rest,Just x))
++            maybe (takeMVar stalled) (pure . Just) next
++        conn <- C.newConnection defaultConnectionOptions {cleanupTimeoutMicros=20000} input (const (pure ())) (pure ())
++        writeIORef (C.connectionCapabilities conn) (bit 24 .|. bit 36)
++        outcome <- timeout 1000000 $ try $ withPreparedStatement conn "SELECT 7" $ \stmt -> do
++            void (queryPrepared stmt [])
++            throwIO (userError "stage3-bounded-primary")
++        case outcome of
++            Just (Left (err :: SomeException)) -> assert ("stage3-bounded-primary" `isInfixOf` displayException err) "cleanup did not preserve primary"
++            _ -> fail "statement cleanup exceeded deadline"
++        equal "stalled cleanup retires" Broken =<< connectionStatus conn
++    , case3 "cache.close-race-does-not-resurrect" $ do
++        (conn, _, _) <- cachedFixture (preparePackets 7)
++        stmt <- prepareStatement conn "SELECT 7"
++        close conn
++        empty <- C.statementMap conn
++        equal "terminal registry empty" 0 (length empty)
++        expectRejection (C.storeStatementColumns conn 7 0 (C.CachedColumns [] [] 0 (pure []) 0))
++        expectRejection (preparedMetadata stmt)
++    , case3 "cache.server-confirms-omission" $ withConn $ \conn -> do
++        let skipped = do
++                status <- rows conn "SHOW SESSION STATUS LIKE 'Resultset_metadata_skipped'"
++                case status of
++                    [[_,MySQLText value]] -> pure (read (T.unpack value) :: Integer)
++                    _ -> fail "MariaDB metadata omission counter unavailable"
++        withPreparedStatement conn "SELECT 7" $ \stmt -> do
++            before <- skipped
++            replicateM_ 3 (queryPrepared stmt [] >>= S.skipToEof . snd)
++            after <- skipped
++            equal "server actually omitted all three metadata blocks" 3 (after-before)
++    , case3 "cache.metadata-owns-buffer" $ do
++        let packets = preparePackets 7
++        sourceColumn <- decodeFromPacket (packets !! 1)
++        (conn, _, _) <- cachedFixture packets
++        stmt <- prepareStatement conn "SELECT 7"
++        retained <- preparedMetadata stmt
++        case retained of
++            [metadata] -> do
++                let (original, _, _) = BI.toForeignPtr (columnName sourceColumn)
++                    (owned, _, _) = BI.toForeignPtr (columnName (metadataColumn metadata))
++                assert (original /= owned) "cached metadata pins its receive buffer"
++            _ -> fail "expected one retained column"
++    , case3 "prepared.bracket-drains-on-success" $ withConn $ \conn -> do
++        result <- withPreparedStatement conn "SELECT seq FROM seq_1_to_10" $ \stmt -> do
++            (_, stream) <- queryPrepared stmt []
++            void (S.read stream)
++            pure (7 :: Int)
++        equal "callback result preserved" 7 result
++        healthy conn
++        equal "statement released after drain" 0 . length =<< C.statementMap conn
++    , case3 "prepared.cleanup-new-cancellation" $ do
++        packets <- newIORef (preparePackets 7 ++ [putToPacket 1 (putWord8 1 >> putWord8 0)])
++        input <- S.makeInputStream $ do
++            next <- atomicModifyIORef' packets (\xs -> case xs of [] -> ([],Nothing); x:rest -> (rest,Just x))
++            maybe (throwIO ThreadKilled) (pure . Just) next
++        conn <- C.newConnection defaultConnectionOptions input (const (pure ())) (pure ())
++        writeIORef (C.connectionCapabilities conn) (bit 24 .|. bit 36)
++        result <- try $ withPreparedStatement conn "SELECT 7" $ \stmt -> do
++            void (queryPrepared stmt [])
++            throwIO (userError "earlier-primary")
++        case result of
++            Left ThreadKilled -> pure ()
++            _ -> fail "new cleanup cancellation was replaced"
++        equal "cancelled cleanup retires" Broken =<< connectionStatus conn
++    , case3 "metadata.attribute-count-bound" $ do
++        let packet = putToPacket 0 $ do
++                mapM_ putLenEncBytes ["def","","","","n",""]
++                putLenEncBytes (B.replicate 131072 0)
++                putWord8 12; putWord16le 63; putWord32le 20
++                putWord8 8; putWord16le 0; putWord8 0; putWord16le 0
++        expectRejection (getFromPacketExact (getColumnMetadata True) packet)
++    ]
++  where
++    isOKResult (PreparedOK _) = True
++    isOKResult _ = False
+--- /dev/null
++++ b/validation/hs/Validation/Stage3Bench.hs
+@@ -0,0 +1,82 @@
++-- | Additive native-feature benchmarks. Frozen workloads remain unchanged.
++-- Each profile performs two complete warm-ups before the measured region and
++-- consumes/checks all values. Connections and statement preparation are outside
++-- timing; batch transaction/truncate/verification work is identical in each mode.
++module Validation.Stage3Bench (run) where
++
++import Control.Exception (evaluate)
++import Control.Monad
++import Data.List (intercalate, isPrefixOf, isSuffixOf)
++import qualified Data.Text as T
++import Database.MySQL.Base
++import GHC.Clock
++import GHC.Stats
++import System.Mem
++import Validation.Common
++import qualified System.IO.Streams as S
++
++run :: String -> Int -> IO ()
++run ident iterations
++    | iterations <= 0 = fail "positive native benchmark count required"
++    | "bulk." `isPrefixOf` ident = withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage3_bench(n BIGINT NOT NULL,v VARCHAR(128) NOT NULL) ENGINE=InnoDB"
++        withPreparedStatement conn "INSERT INTO mb_stage3_bench VALUES(?,?)" $ \stmt -> do
++            let values = [[MySQLInt64 n,MySQLText (T.replicate 128 "x")] | n <- [1..1000]]
++                batch = map (map BulkValue) values
++                operation = do
++                    exec conn "TRUNCATE mb_stage3_bench"
++                    withTransaction conn $ case ident of
++                        "bulk.native" -> do
++                            ok <- executeBulk stmt batch
++                            equal "bulk count" 1000 (okAffectedRows ok)
++                        "bulk.units" -> do
++                            result <- executeBulkUnitResults stmt batch
++                            equal "unit count" 1000 (sum (map bulkAffectedRows result))
++                        "bulk.prepared" -> forM_ values $ \row -> do
++                            ok <- executePrepared stmt row
++                            equal "prepared count" 1 (okAffectedRows ok)
++                        "bulk.text-batch" -> do
++                            result <- executeMany conn "INSERT INTO mb_stage3_bench VALUES(?,?)" values
++                            equal "text-batch count" 1000 (sum (map okAffectedRows result))
++                        _ -> fail "unknown bulk benchmark profile"
++                    actual <- rows conn "SELECT COUNT(*),SUM(n),SUM(OCTET_LENGTH(v)) FROM mb_stage3_bench"
++                    equal "stored rows and every payload" [[1000,500500,128000]] (map (map number) actual)
++                    pure 629500
++            measure ident (toInteger iterations * 1000) (toInteger iterations * 629500)
++                (sum <$> replicateM iterations operation)
++    | "prepared." `isPrefixOf` ident = do
++        ci <- config
++        let cached = ".cached" `isSuffixOf` ident
++            wide = "prepared.wide." `isPrefixOf` ident
++            queryText = if wide then sql ("SELECT 7 AS n," ++ intercalate ","
++                ["REPEAT('x',128) AS v" ++ show n | n <- [1..30 :: Int]]) else "SELECT 7 AS n"
++            expected = if wide then 3847 else 7
++        withConnect (connectWithOptions defaultConnectionOptions {enableMetadataCaching=cached} ci) $ \conn ->
++            withPreparedStatement conn queryText $ \stmt -> do
++                let operation = do
++                        (_, stream) <- queryPrepared stmt []
++                        checksum <- S.fold (\total row -> total + sum (map value row)) 0 stream
++                        equal "all prepared fields consumed" expected checksum
++                        pure checksum
++                measure ident (toInteger iterations) (toInteger iterations * expected)
++                    (sum <$> replicateM iterations operation)
++    | otherwise = fail "unknown native benchmark profile"
++  where
++    value (MySQLText text) = toInteger (T.length text)
++    value other = number other
++
++measure :: String -> Integer -> Integer -> IO Integer -> IO ()
++measure ident units expected operation = do
++    void operation
++    void operation
++    performGC
++    before <- getRTSStats
++    start <- getMonotonicTimeNSec
++    checksum <- operation >>= evaluate
++    end <- getMonotonicTimeNSec
++    performGC
++    after <- getRTSStats
++    equal "measured checksum" expected checksum
++    putStrLn (intercalate "\t" ["STAGE3",ident,show units,show (end-start),
++        show (allocated_bytes after-allocated_bytes before),
++        show (cpu_ns after-cpu_ns before),show (gc_cpu_ns after-gc_cpu_ns before),show checksum])
+--- a/validation/linux/verify.py
++++ b/validation/linux/verify.py
+@@ -116,17 +116,26 @@
+                  '--no-benchmarks', '--compare', 'validation/baselines/macos-arm64-mariadb-12.3.3/results.json',
+                  '--correctness-only-comparison'])
+         data = json.loads((run_dir/'results.json').read_text())
+-        previous = json.loads((ROOT/'validation/results/references/stage1-publication-1.json').read_text())
++        manifest = json.loads((ROOT/'validation/results/previous-stage.json').read_text())
++        previous = json.loads((ROOT/'validation/results'/manifest['reference']).read_text())
+         current = {case['id']:case['status'] for case in data['correctness']}
+         lost = [case['id'] for case in previous['correctness']
+                 if case['status']=='PASS' and current.get(case['id'])!='PASS']
+         added_failures = [case['id'] for case in data['correctness']
+-                          if case['id'].startswith('stage2.') and case['status']!='PASS']
++                          if case['id'].startswith(('stage2.', 'stage3.')) and case['status']!='PASS']
+         sys.path.insert(0, str(ROOT/'validation'))
+         import stage1_gates
+-        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS if current.get(ident) != 'PASS']
++        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS if current.get(ident) != 'PASS']
+         if lost or added_failures or native_failures:
+             raise RuntimeError('Linux correctness regressions: '+repr(lost+added_failures+native_failures))
++        # Smoke all native benchmark paths on this compiler/server too. These
++        # one-iteration checks are not compared with macOS timing baselines.
++        binary = subprocess.check_output(['cabal', 'list-bin', 'exe:mariadb-validation', '-O2'], cwd=ROOT, text=True).strip()
++        native_env = {**os.environ, **json.loads(config.read_text()), 'TZ': 'UTC'}
++        for profile in ['bulk.native', 'bulk.units', 'bulk.prepared', 'bulk.text-batch',
++                        'prepared.narrow.cached', 'prepared.narrow.uncached',
++                        'prepared.wide.cached', 'prepared.wide.uncached']:
++            command([binary, 'stage3-bench', profile, '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
+         print('Linux correctness profile passed; frozen timings were not compared.', flush=True)
+     finally:
+         process.terminate()
+--- a/validation/publish_results.py
++++ b/validation/publish_results.py
+@@ -179,8 +179,10 @@
+                   f"Timing investigations above 5%: **{len(gate['timing_investigations'])}**; allocation investigations above 5%: **{len(gate['allocation_investigations'])}**. These are investigation signals, not automatically accepted costs.", "",
+                   "The frozen baseline retains its original meaning in all comparison tables. The last-accepted reference separately prevents an improvement being lost. [Acceptance evidence](results/stage1-gates.json) · [Confirmation history](results/stage1-confirmation.json) · [Supplementary evidence](results/references/stage1-after-final.json) · [Review notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).", "",
+                   "Confirmation and supplementary files identify their own input fingerprints. Evidence with a different fingerprint is historical and does not confirm the current source.", ""]
++        if gate.get('statement_target_count'):
++            lines += [f"Stage 3 prepared/native targets passing: **{gate['statement_target_passes']} / {gate['statement_target_count']}**. [Roadmap and continuation](../docs/ROADMAP.md) · [Stage 3 implementation and validation](../docs/STAGE3_IMPLEMENTATION.md).", ""]
+         if gate.get('previous_stage_reference'):
+-            lines += [f"Stage 2 native-connection targets passing: **{gate['native_target_passes']} / {gate['native_target_count']}**. Published Stage 1 correctness is separately protected. [Stage 2 implementation and validation](../docs/STAGE2_IMPLEMENTATION.md).", ""]
++            lines += [f"Stage 2 native-connection targets passing: **{gate['native_target_passes']} / {gate['native_target_count']}**. Every PASS from the previous published stage is separately protected. [Stage 2 implementation and validation](../docs/STAGE2_IMPLEMENTATION.md).", ""]
+         if gate['performance_requires_confirmation']:
+             lines += ["> [!WARNING]","> **Performance acceptance remains open.** Timing/allocation signals require investigation across the entire confirmation window; they have not been waived or accepted automatically.",""]
+         if gate.get('evidence_failures'):
+@@ -251,10 +253,27 @@
+               "**Lower time is faster.** Both timing columns show median **ns/unit**; p95 describes complete operations in the Current run. [Coverage](COVERAGE.md) defines each workload's unit.", "",
+               "**Change = 100 × (Current − Baseline) / Baseline**, using unrounded medians. 🟢 Negative = faster · 🟡 Positive = slower · 🔴 More than 20% slower = investigate. ⚪ Zero at displayed precision = unchanged.", "",
+               "> [!NOTE]", "> A benchmark marked PASS completed its workload. Its timing can still trigger a slowdown alert.", ""]
++    if gate and gate.get('statement_target_passes') == 5:
++        lines += ["> [!NOTE]", "> Native bulk execution and metadata caching are implemented. The two original native benchmark inventory slots remain frozen historical placeholders; current feature measurements and same-build comparisons are recorded in the [Stage 3 evidence](../docs/STAGE3_IMPLEMENTATION.md).", ""]
+     if not speed_comparable:
+         lines += ["> [!WARNING]", "> Performance profiles differ or comparability was not established; speed deltas are withheld.", ""]
+     else:
+         lines += ["Environment, compiler, dependencies and benchmark workloads match the original baseline.", ""]
++    native = attempt.get('native_features')
++    if native and native.get('complete') and native.get('inputs', {}).get('sha256') == attempt['inputs']['sha256']:
++        lines += ["### Native MariaDB features", "",
++                  "Same-build alternatives below use identical data, transactions and checksums. These new feature comparisons are separate from the original frozen baseline. Lower time/allocation is better; changes are `(current / baseline - 1) × 100`.", "",
++                  "| Comparison | Baseline ns/unit | Current ns/unit | Change vs baseline | Allocation change |",
++                  "| --- | ---: | ---: | ---: | ---: |"]
++        for name, comparison in native['comparisons'].items():
++            old = native['profiles'][comparison['baseline']]['median_elapsed_ns_per_unit']
++            new = native['profiles'][comparison['current']]['median_elapsed_ns_per_unit']
++            changes = comparison['change_percent']
++            lines.append(f"| `{name}` | {old:,.1f} | {new:,.1f} | {changes['elapsed_ns']:+.1f}% | {changes['allocated_bytes']:+.1f}% |")
++        lines += ["", "Native timing units are rows for bulk inserts and complete queries for cached/uncached reads. Seven or more independent processes per profile each perform two warm-ups; all samples, CPU/GC counters and checksums are embedded in [current.json](results/current.json).", ""]
++        comparison = native.get('baseline_comparison')
++        if comparison:
++            lines += [f"Native feature baseline comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [Immutable native baseline](baselines/macos-arm64-native-statements/results.json).", ""]
+     engines = sorted({ident.partition("/")[0] for ident in data["benchmarks"]}, key=lambda engine: (engine != "haskell", engine))
+     for engine in engines:
+         title = {"haskell": "Haskell driver", "connector-c": "MariaDB Connector/C control"}.get(engine, engine)
+@@ -326,6 +345,9 @@
+         raise ValueError("live results are stale; run python3 validation/check.py on the current code")
+     if attempt["inputs"]["sha256"] != snapshot["sha256"]:
+         raise ValueError("recorded input fingerprint does not match the current input snapshot")
++    if document.get('stage1_acceptance', {}).get('statement_target_count'):
++        from stage3_benchmarks import verify_evidence
++        verify_evidence(attempt.get('native_features', {}), attempt['inputs'])
+     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
+         raise ValueError("recorder and report disagree about the tested commit")
+ 
+--- a/validation/results/previous-stage.json
++++ b/validation/results/previous-stage.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": 1,
+-  "reference": "references/stage1-publication-1.json",
+-  "sha256": "e9ecaff3279e69ed2658771a669b57dd4aa35f9b0b084c7e5f8d21d1a58af1ac",
+-  "tested_commit": "0128b7908e8ac594d6dea5110fbc5b1a2a71ad1b",
+-  "purpose": "Preserve all published Stage 1 passes and report incremental costs; the older accepted performance reference remains unchanged."
++  "reference": "references/stage2-publication-1.json",
++  "sha256": "04ce6d4f5630079798bcd0fe3090aeb2951ddb0d623c2dee947be2377f34fead",
++  "tested_commit": "d5c71bd59902e7350b773a306d93f1947626b1b0",
++  "purpose": "Preserve every published Stage 2 PASS, including all prior Stage 1 improvements, and report incremental costs. The older accepted performance reference remains unchanged."
+ }
+--- a/validation/stage1_gates.py
++++ b/validation/stage1_gates.py
+@@ -26,6 +26,11 @@
+       for transport in ['tcp', 'tls', 'socket']],
+     'auth.sha2.tcp', 'auth.sha2.socket', 'auth.mutual-tls-helper-client',
+     'connection.localhost-address-fallback', 'connection.mozilla-ca-store-installed',
++]
++
++STATEMENT_TARGETS = [
++    'protocol.prepared-out-capability', 'sql.procedure-prepared-out',
++    'capability.binary-bulk', 'capability.metadata-cache', 'capability.extended-metadata',
+ ]
+ 
+ def results(document):
+@@ -116,6 +121,11 @@
+             if new.get(ident, {}).get("status") != "PASS":
+                 failures.append("required native target not passing: " + ident)
+ 
++    if require_targets and previous_stage is not None:
++        for ident in STATEMENT_TARGETS:
++            if new.get(ident, {}).get("status") != "PASS":
++                failures.append("required statement target not passing: " + ident)
++
+     for ident, benchmark in candidate.get("benchmarks", {}).items():
+         prior_status = original.get("benchmarks", {}).get(ident, {}).get("status")
+         if benchmark["status"] not in statuses:
+@@ -157,6 +167,8 @@
+         "target_count": len(TARGETS),
+         "native_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in NATIVE_TARGETS),
+         "native_target_count": len(NATIVE_TARGETS),
++        "statement_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in STATEMENT_TARGETS),
++        "statement_target_count": len(STATEMENT_TARGETS),
+         "correctness_accepted": not failures,
+         "performance_requires_confirmation": bool(timing or allocation),
+     }
+--- /dev/null
++++ b/validation/stage3_benchmarks.py
+@@ -0,0 +1,182 @@
++#!/usr/bin/env python3
++"""Measure additive native features against alternatives on the same build.
++
++This never replaces or edits the frozen benchmark enumeration or its results.
++A new output directory is required; every process log and sample is retained.
++"""
++import argparse
++import json
++import hashlib
++import os
++import platform
++from pathlib import Path
++import random
++import statistics
++
++import publish_results as live
++import run
++
++PROFILES = {
++    'bulk.native': 5, 'bulk.units': 5, 'bulk.prepared': 5, 'bulk.text-batch': 5,
++    'prepared.narrow.cached': 500, 'prepared.narrow.uncached': 500,
++    'prepared.wide.cached': 500, 'prepared.wide.uncached': 500,
++}
++PAIRS = {
++    'native_vs_sequential': ('bulk.native', 'bulk.prepared'),
++    'native_vs_text_batch': ('bulk.native', 'bulk.text-batch'),
++    'unit_vs_aggregate': ('bulk.units', 'bulk.native'),
++    'cached_vs_uncached_narrow': ('prepared.narrow.cached', 'prepared.narrow.uncached'),
++    'cached_vs_uncached_wide': ('prepared.wide.cached', 'prepared.wide.uncached'),
++}
++
++
++def sample(output, ident):
++    """Require one complete record, positive work and the independent checksum."""
++    lines = [line for line in output.splitlines() if line.startswith('STAGE3\t')]
++    if len(lines) != 1:
++        raise ValueError('expected exactly one native benchmark record')
++    marker, name, *values = lines[0].split('\t')
++    if marker != 'STAGE3' or name != ident or len(values) != 6:
++        raise ValueError('native benchmark record shape/identity mismatch')
++    result = dict(zip(('units', 'elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns', 'checksum'), map(int, values)))
++    if result['units'] <= 0 or result['elapsed_ns'] <= 0 or any(value < 0 for value in result.values()):
++        raise ValueError('invalid native benchmark counters')
++    iterations = PROFILES[ident]
++    expected = iterations * (629500 if ident.startswith('bulk.') else 3847 if '.wide.' in ident else 7)
++    if result['checksum'] != expected:
++        raise ValueError('native benchmark checksum mismatch')
++    expected_units = iterations * (1000 if ident.startswith('bulk.') else 1)
++    if result['units'] != expected_units:
++        raise ValueError('native benchmark unit count mismatch')
++    return result
++
++
++def verify_evidence(data, inputs):
++    """Reject missing/stale/partial native evidence before live publication."""
++    if (not data.get('complete') or data.get('repetitions', 0) < 7
++            or data.get('inputs', {}).get('sha256') != inputs['sha256']):
++        raise ValueError('native benchmark evidence is incomplete or stale')
++    if set(data.get('profiles', {})) != set(PROFILES):
++        raise ValueError('native benchmark profiles are incomplete')
++    keys = ('units', 'elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns', 'checksum')
++    for ident, profile in data['profiles'].items():
++        if len(profile.get('samples', [])) != data['repetitions']:
++            raise ValueError('native benchmark repetitions are incomplete')
++        for entry in profile['samples']:
++            sample('STAGE3\t' + ident + '\t' + '\t'.join(str(entry[k]) for k in keys), ident)
++        for key in keys[1:-1]:
++            expected = statistics.median(s[key] / s['units'] for s in profile['samples'])
++            if profile.get('median_' + key + '_per_unit') != expected:
++                raise ValueError('native benchmark summary disagrees with samples')
++
++    if set(data.get('comparisons', {})) != set(PAIRS):
++        raise ValueError('native comparison profiles are incomplete')
++    for name, (candidate, reference) in PAIRS.items():
++        pair = data['comparisons'][name]
++        if pair.get('current') != candidate or pair.get('baseline') != reference:
++            raise ValueError('native comparison identity mismatch')
++        for key in ('elapsed_ns', 'allocated_bytes'):
++            expected = 100 * (data['profiles'][candidate]['median_' + key + '_per_unit'] /
++                              data['profiles'][reference]['median_' + key + '_per_unit'] - 1)
++            if pair.get('change_percent', {}).get(key) != expected:
++                raise ValueError('native comparison disagrees with samples')
++
++
++def compare_native_baseline(data):
++    """Use the first immutable native-feature capture only on a matching profile."""
++    baseline_path = run.HERE / 'baselines/macos-arm64-native-statements/results.json'
++    if not baseline_path.exists():
++        return
++    raw = baseline_path.read_bytes()
++    expected_hash = (baseline_path.parent / 'SHA256SUMS').read_text().split()[0]
++    if hashlib.sha256(raw).hexdigest() != expected_hash:
++        raise ValueError('native baseline checksum mismatch')
++    baseline = json.loads(raw)
++    workload_paths = ['validation/hs/Validation/Stage3Bench.hs', 'validation/hs/Validation/Common.hs', 'validation/stage3_benchmarks.py']
++    same = (all(data[key] == baseline[key] for key in ('server', 'machine', 'dependencies', 'haskell_benchmark_rts'))
++            and all(data['build'][key] == baseline['build'][key] for key in ('ghc', 'cabal'))
++            and all(data['inputs']['files'][key] == baseline['inputs']['files'][key] for key in workload_paths))
++    comparison = {'reference': live.relative(baseline_path), 'sha256': expected_hash, 'comparable': same,
++                  'timing_investigations': [], 'allocation_investigations': [], 'profiles': {}}
++    if same:
++        for ident, profile in data['profiles'].items():
++            old = baseline['profiles'][ident]
++            changes = {key: 100 * (profile['median_' + key + '_per_unit'] / old['median_' + key + '_per_unit'] - 1)
++                       for key in ('elapsed_ns', 'allocated_bytes')}
++            comparison['profiles'][ident] = changes
++            for metric, category in [('elapsed_ns', 'timing_investigations'), ('allocated_bytes', 'allocation_investigations')]:
++                if changes[metric] > 5:
++                    comparison[category].append({'id': ident, 'percent': changes[metric]})
++    data['baseline_comparison'] = comparison
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--output', type=Path, required=True)
++    parser.add_argument('--config', type=Path, default=run.HERE / '.local/environment.json')
++    parser.add_argument('--repetitions', type=int, default=7)
++    args = parser.parse_args()
++    if args.repetitions < 7:
++        parser.error('native confirmation requires at least seven process repetitions')
++    if args.output.exists():
++        parser.error('output directory exists; previous evidence must be retained')
++    env = os.environ.copy()
++    env.update(json.loads(args.config.read_text()))
++    env['TZ'] = 'UTC'
++    version = run.sql_client(env, 'SELECT VERSION()')
++    if 'MariaDB' not in version:
++        raise RuntimeError('expected MariaDB before build')
++    inputs = live.input_snapshot()
++    run.command(['cabal', 'build', 'exe:mariadb-validation', '-O2', '--enable-tests'], timeout=300)
++    if any(live.input_snapshot()[key] != inputs[key] for key in ('files', 'commit')):
++        raise RuntimeError('inputs changed during native benchmark build')
++    binary = run.executable('exe:mariadb-validation')
++    args.output.mkdir(parents=True)
++    plan = json.loads((run.ROOT / 'dist-newstyle/cache/plan.json').read_text())
++    dependencies = sorted({(p['pkg-name'], p['pkg-version']) for p in plan['install-plan'] if p['pkg-name'] != 'mysql-haskell'})
++    data = {'schema': 1, 'recorded_at': live.now(), 'inputs': inputs,
++            'server': run.server_metadata(env), 'repetitions': args.repetitions,
++            'build': run.snapshot(), 'haskell_benchmark_rts': ['-N4', '-T'],
++            'dependencies': dependencies,
++            'dependency_plan_sha256': hashlib.sha256(json.dumps(dependencies).encode()).hexdigest(),
++            'machine': {'system': platform.system(), 'release': platform.release(),
++                        'machine': platform.machine(), 'processor': platform.processor(), 'cpu_count': os.cpu_count()},
++            'policy': 'two in-process warmups; shuffled independent processes; same-build alternatives; all samples retained',
++            'profiles': {ident: {'samples': []} for ident in PROFILES}, 'complete': False}
++    destination = args.output / 'results.json'
++    try:
++        for repetition in range(args.repetitions):
++            order = list(PROFILES)
++            random.Random(20261107 + repetition).shuffle(order)
++            for ident in order:
++                output = run.command([binary, 'stage3-bench', ident, str(PROFILES[ident]),
++                                      '+RTS', '-N4', '-T', '-RTS'], env=env, timeout=180, check=False)
++                (args.output / f'{ident}.{repetition}.log').write_text(output.stdout + output.stderr)
++                if output.returncode:
++                    raise RuntimeError('native benchmark process failed: ' + ident)
++                data['profiles'][ident]['samples'].append(sample(output.stdout, ident))
++                print('NATIVE', repetition + 1, ident, flush=True)
++        for profile in data['profiles'].values():
++            for key in ('elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns'):
++                profile['median_' + key + '_per_unit'] = statistics.median(s[key] / s['units'] for s in profile['samples'])
++        data['comparisons'] = {}
++        for name, (candidate, reference) in PAIRS.items():
++            data['comparisons'][name] = {'current': candidate, 'baseline': reference,
++                'change_percent': {key: 100 * (data['profiles'][candidate]['median_' + key + '_per_unit'] /
++                    data['profiles'][reference]['median_' + key + '_per_unit'] - 1)
++                    for key in ('elapsed_ns', 'allocated_bytes')}}
++        if any(live.input_snapshot()[key] != inputs[key] for key in ('files', 'commit')):
++            raise RuntimeError('inputs changed during native benchmark measurement')
++        data['complete'] = True
++        verify_evidence(data, inputs)
++        compare_native_baseline(data)
++    except Exception as error:
++        data['complete'] = False
++        data['error'] = str(error)
++        raise
++    finally:
++        destination.write_text(json.dumps(data, indent=2) + '\n')
++
++
++if __name__ == '__main__':
++    main()
+--- a/validation/test_check.py
++++ b/validation/test_check.py
+@@ -130,5 +130,69 @@
+             self.assertTrue((output / "results.json").exists())
+ 
+ 
++class NativeWrapperTests(unittest.TestCase):
++    def test_native_failure_is_published(self):
++        self.check_native(RuntimeError('native failed'), 1)
++
++    def test_native_interruption_is_published(self):
++        self.check_native(KeyboardInterrupt(), 130)
++
++    def test_native_success_is_attached_to_completed_run(self):
++        self.check_native(None, 0)
++
++    def test_native_original_alarm_retains_complete_results(self):
++        self.check_native(None, 1, native_timing=[{'id': 'bulk.native', 'percent': 21}])
++
++    def test_native_investigation_is_not_automatically_accepted(self):
++        self.check_native(None, 0, native_timing=[{'id': 'bulk.native', 'percent': 6}])
++
++    def check_native(self, failure, status, native_timing=None):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            (root / 'results').mkdir()
++            output = root / 'run'
++            config = Path(folder) / 'config.json'
++            config.write_text('{}')
++            inputs = {'sha256': 'candidate', 'files': {}, 'commit': 'parent'}
++            candidate = {'complete_suite': True}
++            gate = {'correctness_accepted': True, 'evidence_accepted': True}
++            native_data = {'complete': True, 'inputs': inputs}
++            if native_timing:
++                native_data['baseline_comparison'] = {'timing_investigations': native_timing}
++
++            def recorder(*args, **kwargs):
++                output.mkdir()
++                (output / 'results.json').write_text(json.dumps(candidate))
++                return 0
++
++            with (patch('sys.argv', ['check.py', '--working-tree', '--config', str(config), '--output', str(output)]),
++                  patch.object(check.live, 'input_snapshot', return_value=inputs),
++                  patch.object(check.run, 'HERE', root),
++                  patch.object(check.run, 'sql_client', return_value='12.3.3-MariaDB'),
++                  patch.object(check.subprocess, 'run') as build,
++                  patch.object(check.subprocess, 'call', side_effect=recorder),
++                  patch.object(check, 'install_runtime_data', return_value=0),
++                  patch.object(check.stage1_gates, 'reference', return_value=({}, {})),
++                  patch.object(check.stage1_gates, 'compare', return_value=gate),
++                  patch.object(check, 'native_benchmarks', return_value=native_data, side_effect=failure) as native,
++                  patch('stage3_benchmarks.verify_evidence'),
++                  patch.object(check.live, 'publish') as publish):
++                build.return_value.returncode = 0
++                self.assertEqual(status, check.main())
++            native.assert_called_once_with(output.resolve(), 7, config)
++            attempt, data = publish.call_args.args
++            if failure is None:
++                self.assertEqual('COMPLETED', attempt['state'])
++                self.assertEqual(native_data, attempt['native_features'])
++                self.assertEqual(candidate, data)
++                if native_timing:
++                    self.assertTrue(gate['performance_requires_confirmation'])
++            else:
++                self.assertEqual('FAILED', attempt['state'])
++                self.assertEqual('native benchmarks', attempt['stage'])
++                self.assertIsNone(data)
++                self.assertTrue((output / 'results.json').exists())
++
++
+ if __name__ == "__main__":
+     unittest.main()
+--- a/validation/test_publication.py
++++ b/validation/test_publication.py
+@@ -30,6 +30,12 @@
+         live.publish(attempt or self.attempt, self.data if data is None else data,
+                      current=self.current, report=self.report)
+         return json.loads(self.current.read_text())
++
++    def test_native_stage_cannot_publish_without_native_measurements(self):
++        document = self.publish()
++        document['stage1_acceptance'] = {'statement_target_count': 5}
++        with self.assertRaisesRegex(ValueError, 'native benchmark'):
++            live.verify(document, self.inputs)
+ 
+     def test_complete_run_includes_failures_and_performance_deltas(self):
+         document = self.publish()
+--- a/validation/test_stage1_gates.py
++++ b/validation/test_stage1_gates.py
+@@ -23,6 +23,11 @@
+         report = compare(data('FAIL'), data('FAIL'), data('FAIL'), require_targets=False,
+                          previous_stage=data('PASS'))
+         self.assertFalse(report['correctness_accepted'])
++
++    def test_statement_targets_are_required_with_previous_stage(self):
++        report = compare(data(), data(), data(), previous_stage=data())
++        self.assertFalse(report['correctness_accepted'])
++        self.assertTrue(any('required statement target' in item for item in report['correctness_failures']))
+ 
+     def test_native_targets_are_required_with_previous_stage(self):
+         report = compare(data(), data(), data(), previous_stage=data())
+--- /dev/null
++++ b/validation/test_stage3_benchmarks.py
+@@ -0,0 +1,157 @@
++"""Guard native-feature evidence units and identity, independently of Haskell."""
++import unittest
++import copy
++import statistics
++import json
++import hashlib
++from pathlib import Path
++import tempfile
++from unittest.mock import patch
++import stage3_benchmarks as native
++from stage3_benchmarks import sample, verify_evidence, PROFILES, PAIRS
++
++
++class NativeSampleTests(unittest.TestCase):
++    def record(self, ident='bulk.native', units=5000, checksum=3147500):
++        return f'STAGE3\t{ident}\t{units}\t100\t200\t100\t10\t{checksum}\n'
++
++    def test_valid_bulk_record(self):
++        self.assertEqual(sample(self.record(), 'bulk.native')['units'], 5000)
++
++    def test_missing_record(self):
++        with self.assertRaises(ValueError):
++            sample('', 'bulk.native')
++
++    def test_duplicate_record(self):
++        with self.assertRaises(ValueError):
++            sample(self.record() * 2, 'bulk.native')
++
++    def test_identity_mismatch(self):
++        with self.assertRaises(ValueError):
++            sample(self.record(), 'bulk.units')
++
++    def test_checksum_mismatch(self):
++        with self.assertRaises(ValueError):
++            sample(self.record(checksum=1), 'bulk.native')
++
++    def test_unit_mismatch(self):
++        with self.assertRaises(ValueError):
++            sample(self.record(units=1000), 'bulk.native')
++
++    def test_zero_work(self):
++        with self.assertRaises(ValueError):
++            sample(self.record(units=0), 'bulk.native')
++
++    def test_negative_counter(self):
++        with self.assertRaises(ValueError):
++            sample(self.record().replace('\t200\t', '\t-200\t'), 'bulk.native')
++
++    def test_wide_query_checksum_and_units(self):
++        result = sample(self.record('prepared.wide.cached', 500, 1923500), 'prepared.wide.cached')
++        self.assertEqual(result['checksum'], 1923500)
++
++
++class NativeEvidenceTests(unittest.TestCase):
++    def setUp(self):
++        self.inputs = {'sha256': 'current', 'files': {name: 'digest' for name in ['validation/hs/Validation/Stage3Bench.hs', 'validation/hs/Validation/Common.hs', 'validation/stage3_benchmarks.py']}}
++        self.data = {'complete': True, 'repetitions': 7, 'inputs': self.inputs,
++                     'profiles': {}, 'comparisons': {}}
++        self.data.update(server={}, machine={}, dependencies=[], haskell_benchmark_rts=['-N4', '-T'], build={'ghc': 'compiler', 'cabal': 'tool'})
++        for ident, iterations in PROFILES.items():
++            units = iterations * (1000 if ident.startswith('bulk.') else 1)
++            checksum = iterations * (629500 if ident.startswith('bulk.') else 3847 if '.wide.' in ident else 7)
++            entry = {'units': units, 'elapsed_ns': 100, 'allocated_bytes': 200,
++                     'cpu_ns': 80, 'gc_cpu_ns': 10, 'checksum': checksum}
++            profile = {'samples': [copy.deepcopy(entry) for _ in range(7)]}
++            for key in ('elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns'):
++                profile['median_' + key + '_per_unit'] = statistics.median([entry[key] / units] * 7)
++            self.data['profiles'][ident] = profile
++        for name, (candidate, reference) in PAIRS.items():
++            self.data['comparisons'][name] = {'current': candidate, 'baseline': reference,
++                'change_percent': {key: 100 * (self.data['profiles'][candidate]['median_' + key + '_per_unit'] /
++                    self.data['profiles'][reference]['median_' + key + '_per_unit'] - 1)
++                    for key in ('elapsed_ns', 'allocated_bytes')}}
++
++    def test_complete_evidence(self):
++        verify_evidence(self.data, self.inputs)
++
++    def test_stale_evidence(self):
++        with self.assertRaisesRegex(ValueError, 'stale'):
++            verify_evidence(self.data, {'sha256': 'new'})
++
++    def test_partial_evidence(self):
++        self.data['complete'] = False
++        with self.assertRaises(ValueError):
++            verify_evidence(self.data, self.inputs)
++
++    def test_missing_profile(self):
++        del self.data['profiles']['bulk.units']
++        with self.assertRaises(ValueError):
++            verify_evidence(self.data, self.inputs)
++
++    def test_missing_repetition(self):
++        self.data['profiles']['bulk.native']['samples'].pop()
++        with self.assertRaises(ValueError):
++            verify_evidence(self.data, self.inputs)
++
++    def test_changed_median(self):
++        self.data['profiles']['bulk.native']['median_elapsed_ns_per_unit'] = 1
++        with self.assertRaisesRegex(ValueError, 'summary'):
++            verify_evidence(self.data, self.inputs)
++
++    def test_changed_checksum(self):
++        self.data['profiles']['bulk.native']['samples'][0]['checksum'] = 1
++        with self.assertRaisesRegex(ValueError, 'checksum'):
++            verify_evidence(self.data, self.inputs)
++
++    def test_changed_comparison_reference(self):
++        self.data['comparisons']['native_vs_sequential']['baseline'] = 'bulk.units'
++        with self.assertRaisesRegex(ValueError, 'identity'):
++            verify_evidence(self.data, self.inputs)
++
++    def test_changed_comparison_percentage(self):
++        self.data['comparisons']['native_vs_sequential']['change_percent']['elapsed_ns'] = 99
++        with self.assertRaisesRegex(ValueError, 'comparison'):
++            verify_evidence(self.data, self.inputs)
++
++
++class NativeBaselineTests(unittest.TestCase):
++    setUp = NativeEvidenceTests.setUp
++    def compare(self, mutation=None, bad_hash=False):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            directory = root / 'baselines/macos-arm64-native-statements'
++            directory.mkdir(parents=True)
++            raw = (json.dumps(self.data) + '\n').encode()
++            (directory / 'results.json').write_bytes(raw)
++            digest = 'bad' if bad_hash else hashlib.sha256(raw).hexdigest()
++            (directory / 'SHA256SUMS').write_text(digest + '  results.json\n')
++            if mutation:
++                mutation()
++            with patch.object(native.run, 'HERE', root):
++                native.compare_native_baseline(self.data)
++        return self.data['baseline_comparison']
++
++    def test_same_profile_uses_immutable_capture(self):
++        comparison = self.compare()
++        self.assertTrue(comparison['comparable'])
++        self.assertEqual([], comparison['timing_investigations'])
++
++    def test_changed_server_withholds_deltas(self):
++        comparison = self.compare(lambda: self.data.update(server={'changed': True}))
++        self.assertFalse(comparison['comparable'])
++        self.assertEqual({}, comparison['profiles'])
++
++    def test_timing_alarm_is_retained(self):
++        def slow():
++            self.data['profiles']['bulk.native']['median_elapsed_ns_per_unit'] *= 1.25
++        comparison = self.compare(slow)
++        self.assertAlmostEqual(25, comparison['timing_investigations'][0]['percent'])
++
++    def test_baseline_tampering_is_rejected(self):
++        with self.assertRaisesRegex(ValueError, 'checksum'):
++            self.compare(bad_hash=True)
++
++
++if __name__ == '__main__':
++    unittest.main()

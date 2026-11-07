@@ -80,7 +80,7 @@ withFaultProxy ci mode action = N.withSocketsDo $ bracket listener N.close $ \se
                     let queryBody=if not (B.null body) && B.head body==3 then BC.map toUpperASCII (B.tail body) else ""
                         isCommit=queryBody=="COMMIT"
                         target="MB_STAGE1_FAULT" `B.isInfixOf` queryBody
-                    when (not (B.null body) && B.head body `elem` [3,14,22,23,25,26])
+                    when (not (B.null body) && B.head body `elem` [3,14,22,23,25,26,250])
                         (updateStats stats (\x -> x {proxyCommands=proxyCommands x+1}))
                     when isCommit (updateStats stats (\x -> x {proxyCommits=proxyCommits x+1}))
                     case mode of

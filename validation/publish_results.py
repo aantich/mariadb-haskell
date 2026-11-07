@@ -36,7 +36,10 @@ def is_input(path):
             or (path.startswith("validation/") and p.suffix == ".py")
             or p.name.startswith("cabal.project") or path == "mozillaCAStore.pem"
             or path in {".dockerignore", "validation/linux/Dockerfile",
-                        "validation/results/accepted.json", "validation/results/previous-stage.json"}
+                        "validation/results/accepted.json", "validation/results/previous-stage.json",
+                        "validation/baselines/macos-arm64-native-statements/results.json",
+                        "validation/baselines/macos-arm64-native-statements/SUMMARY.md",
+                        "validation/baselines/macos-arm64-native-statements/SHA256SUMS"}
             or path.startswith(".github/workflows/"))
 
 
@@ -179,8 +182,10 @@ def render(document, baseline):
                   f"Timing investigations above 5%: **{len(gate['timing_investigations'])}**; allocation investigations above 5%: **{len(gate['allocation_investigations'])}**. These are investigation signals, not automatically accepted costs.", "",
                   "The frozen baseline retains its original meaning in all comparison tables. The last-accepted reference separately prevents an improvement being lost. [Acceptance evidence](results/stage1-gates.json) · [Confirmation history](results/stage1-confirmation.json) · [Supplementary evidence](results/references/stage1-after-final.json) · [Review notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).", "",
                   "Confirmation and supplementary files identify their own input fingerprints. Evidence with a different fingerprint is historical and does not confirm the current source.", ""]
+        if gate.get('statement_target_count'):
+            lines += [f"Stage 3 prepared/native targets passing: **{gate['statement_target_passes']} / {gate['statement_target_count']}**. [Roadmap and continuation](../docs/ROADMAP.md) · [Stage 3 implementation and validation](../docs/STAGE3_IMPLEMENTATION.md).", ""]
         if gate.get('previous_stage_reference'):
-            lines += [f"Stage 2 native-connection targets passing: **{gate['native_target_passes']} / {gate['native_target_count']}**. Published Stage 1 correctness is separately protected. [Stage 2 implementation and validation](../docs/STAGE2_IMPLEMENTATION.md).", ""]
+            lines += [f"Stage 2 native-connection targets passing: **{gate['native_target_passes']} / {gate['native_target_count']}**. Every PASS from the previous published stage is separately protected. [Stage 2 implementation and validation](../docs/STAGE2_IMPLEMENTATION.md).", ""]
         if gate['performance_requires_confirmation']:
             lines += ["> [!WARNING]","> **Performance acceptance remains open.** Timing/allocation signals require investigation across the entire confirmation window; they have not been waived or accepted automatically.",""]
         if gate.get('evidence_failures'):
@@ -251,10 +256,27 @@ def render(document, baseline):
               "**Lower time is faster.** Both timing columns show median **ns/unit**; p95 describes complete operations in the Current run. [Coverage](COVERAGE.md) defines each workload's unit.", "",
               "**Change = 100 × (Current − Baseline) / Baseline**, using unrounded medians. 🟢 Negative = faster · 🟡 Positive = slower · 🔴 More than 20% slower = investigate. ⚪ Zero at displayed precision = unchanged.", "",
               "> [!NOTE]", "> A benchmark marked PASS completed its workload. Its timing can still trigger a slowdown alert.", ""]
+    if gate and gate.get('statement_target_passes') == 5:
+        lines += ["> [!NOTE]", "> Native bulk execution and metadata caching are implemented. The two original native benchmark inventory slots remain frozen historical placeholders; current feature measurements and same-build comparisons are recorded in the [Stage 3 evidence](../docs/STAGE3_IMPLEMENTATION.md).", ""]
     if not speed_comparable:
         lines += ["> [!WARNING]", "> Performance profiles differ or comparability was not established; speed deltas are withheld.", ""]
     else:
         lines += ["Environment, compiler, dependencies and benchmark workloads match the original baseline.", ""]
+    native = attempt.get('native_features')
+    if native and native.get('complete') and native.get('inputs', {}).get('sha256') == attempt['inputs']['sha256']:
+        lines += ["### Native MariaDB features", "",
+                  "Same-build alternatives below use identical data, transactions and checksums. These new feature comparisons are separate from the original frozen baseline. Lower time/allocation is better; changes are `(current / baseline - 1) × 100`.", "",
+                  "| Comparison | Baseline ns/unit | Current ns/unit | Change vs baseline | Allocation change |",
+                  "| --- | ---: | ---: | ---: | ---: |"]
+        for name, comparison in native['comparisons'].items():
+            old = native['profiles'][comparison['baseline']]['median_elapsed_ns_per_unit']
+            new = native['profiles'][comparison['current']]['median_elapsed_ns_per_unit']
+            changes = comparison['change_percent']
+            lines.append(f"| `{name}` | {old:,.1f} | {new:,.1f} | {changes['elapsed_ns']:+.1f}% | {changes['allocated_bytes']:+.1f}% |")
+        lines += ["", "Native timing units are rows for bulk inserts and complete queries for cached/uncached reads. Seven or more independent processes per profile each perform two warm-ups; all samples, CPU/GC counters and checksums are embedded in [current.json](results/current.json).", ""]
+        comparison = native.get('baseline_comparison')
+        if comparison:
+            lines += [f"Native feature baseline comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [Immutable native baseline](baselines/macos-arm64-native-statements/results.json).", ""]
     engines = sorted({ident.partition("/")[0] for ident in data["benchmarks"]}, key=lambda engine: (engine != "haskell", engine))
     for engine in engines:
         title = {"haskell": "Haskell driver", "connector-c": "MariaDB Connector/C control"}.get(engine, engine)
@@ -326,6 +348,9 @@ def verify(document, snapshot, *, allow_working_tree=False):
         raise ValueError("live results are stale; run python3 validation/check.py on the current code")
     if attempt["inputs"]["sha256"] != snapshot["sha256"]:
         raise ValueError("recorded input fingerprint does not match the current input snapshot")
+    if document.get('stage1_acceptance', {}).get('statement_target_count'):
+        from stage3_benchmarks import verify_evidence
+        verify_evidence(attempt.get('native_features', {}), attempt['inputs'])
     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
         raise ValueError("recorder and report disagree about the tested commit")
 

@@ -217,6 +217,7 @@ clientCap =  CLIENT_LONG_FLAG
                 .|. CLIENT_TRANSACTIONS
                 .|. CLIENT_MULTI_STATEMENTS
                 .|. CLIENT_MULTI_RESULTS
+                .|. CLIENT_PS_MULTI_RESULTS
                 .|. CLIENT_SECURE_CONNECTION
                 .|. CLIENT_PLUGIN_AUTH
 

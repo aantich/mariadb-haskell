@@ -97,6 +97,7 @@ library
     blaze-textual >=0.2 && <0.3,
     bytestring >=0.10.2.0 && <0.12 || ^>=0.12.0,
     bytestring-lexing >=0.5 && <0.6,
+    containers >=0.5 && <0.9,
     crypton-x509 >=1.5 && <2.0,
     crypton-x509-store >=1.5 && <2.0,
     crypton-x509-system >=1.5 && <2.0,
@@ -291,7 +292,9 @@ executable mariadb-validation
     Validation.Supplementary
     Validation.Stage1
     Validation.Stage2
+    Validation.Stage3
+    Validation.Stage3Bench
     Validation.FaultTransport
   build-depends:
-    binary, bytestring, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector
+    binary, bytestring, containers, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-T

@@ -30,6 +30,12 @@ import           Database.MySQL.Protocol.Packet
 
 type StmtID = Word32
 
+-- | One cell in a MariaDB binary bulk batch. NULL is 'BulkValue MySQLNull'.
+-- DEFAULT and IGNORE are wire indicators, not SQL text; IGNORE means a default
+-- on INSERT and leaves that column unchanged on UPDATE.
+data BulkParameter = BulkValue !MySQLValue | BulkDefault | BulkIgnore
+    deriving (Show, Eq)
+
 -- | All support MySQL commands.
 --
 data Command
@@ -45,6 +51,8 @@ data Command
     | COM_STMT_EXECUTE   !StmtID ![MySQLValue] !BitMap -- ^ 0x17 stmtId, params
     | COM_STMT_CLOSE     !StmtID                  -- ^ 0x19 stmtId
     | COM_STMT_RESET     !StmtID                  -- ^ 0x1A stmtId
+    | COM_STMT_BULK_EXECUTE !StmtID !Word16 ![MySQLValue] ![[BulkParameter]]
+      -- ^ 0xFA: statement, flags, one type exemplar per column, batch rows.
     | COM_UNSUPPORTED
    deriving (Show, Eq)
 
@@ -82,6 +90,16 @@ putCommand (COM_STMT_EXECUTE stid params nullmap) = do
 
 putCommand (COM_STMT_CLOSE stid) = putWord8 0x19 >> putWord32le stid
 putCommand (COM_STMT_RESET stid) = putWord8 0x1A >> putWord32le stid
+putCommand (COM_STMT_BULK_EXECUTE ident flags types rows) = do
+    putWord8 0xfa
+    putWord32le ident
+    putWord16le flags
+    mapM_ putParamMySQLType types
+    forM_ rows $ mapM_ $ \cell -> case cell of
+        BulkValue MySQLNull -> putWord8 1
+        BulkValue value -> putWord8 0 >> putBinaryField value
+        BulkDefault -> putWord8 2
+        BulkIgnore -> putWord8 3
 putCommand _                     = error "unsupported command"
 
 --------------------------------------------------------------------------------

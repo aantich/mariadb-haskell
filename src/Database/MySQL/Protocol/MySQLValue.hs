@@ -21,6 +21,7 @@ module Database.MySQL.Protocol.MySQLValue
   , decodeColumnText
   , encodeCharsetText
   , validateValue
+  , parameterTypeSignature
   , putParamMySQLType
   , getTextField
   , putTextField
@@ -122,31 +123,41 @@ data MySQLValue
 
 -- | Put 'FieldType' and usigned bit(0x80/0x00) for 'MySQLValue's.
 --
+-- | The two-byte prepared parameter type: low byte is the wire type, high
+-- byte carries unsignedness. Bulk validation compares this scalar without
+-- allocating a temporary encoded ByteString for every cell.
+parameterTypeSignature :: MySQLValue -> Word16
+parameterTypeSignature value = case value of
+    MySQLDecimal _ -> 0x00
+    MySQLInt8U _ -> 0x8001
+    MySQLInt8 _ -> 0x01
+    MySQLInt16U _ -> 0x8002
+    MySQLInt16 _ -> 0x02
+    MySQLInt32U _ -> 0x8003
+    MySQLInt32 _ -> 0x03
+    MySQLInt64U _ -> 0x8008
+    MySQLInt64 _ -> 0x08
+    MySQLFloat _ -> 0x04
+    MySQLDouble _ -> 0x05
+    MySQLYear _ -> 0x8002
+    MySQLDateTime _ -> 0x0c
+    MySQLTimeStamp _ -> 0x07
+    MySQLDate _ -> 0x0a
+    MySQLTime _ _ -> 0x0b
+    MySQLBytes _ -> 0xfc
+    MySQLGeometry _ -> 0xff
+    MySQLBit _ -> 0x8008
+    MySQLText _ -> 0xfe
+    MySQLDateRaw _ -> 0x0a
+    MySQLDateTimeRaw _ _ -> 0x0c
+    MySQLTimeStampRaw _ _ -> 0x07
+    MySQLNull -> 0x06
+{-# INLINE parameterTypeSignature #-}
+
+-- | Encode exactly the same signature used to validate bulk column homogeneity.
 putParamMySQLType :: MySQLValue -> Put
-putParamMySQLType (MySQLDecimal      _)  = putFieldType mySQLTypeDecimal  >> putWord8 0x00
-putParamMySQLType (MySQLInt8U        _)  = putFieldType mySQLTypeTiny     >> putWord8 0x80
-putParamMySQLType (MySQLInt8         _)  = putFieldType mySQLTypeTiny     >> putWord8 0x00
-putParamMySQLType (MySQLInt16U       _)  = putFieldType mySQLTypeShort    >> putWord8 0x80
-putParamMySQLType (MySQLInt16        _)  = putFieldType mySQLTypeShort    >> putWord8 0x00
-putParamMySQLType (MySQLInt32U       _)  = putFieldType mySQLTypeLong     >> putWord8 0x80
-putParamMySQLType (MySQLInt32        _)  = putFieldType mySQLTypeLong     >> putWord8 0x00
-putParamMySQLType (MySQLInt64U       _)  = putFieldType mySQLTypeLongLong >> putWord8 0x80
-putParamMySQLType (MySQLInt64        _)  = putFieldType mySQLTypeLongLong >> putWord8 0x00
-putParamMySQLType (MySQLFloat        _)  = putFieldType mySQLTypeFloat    >> putWord8 0x00
-putParamMySQLType (MySQLDouble       _)  = putFieldType mySQLTypeDouble   >> putWord8 0x00
-putParamMySQLType (MySQLYear         _)  = putFieldType mySQLTypeShort    >> putWord8 0x80
-putParamMySQLType (MySQLDateTime     _)  = putFieldType mySQLTypeDateTime >> putWord8 0x00
-putParamMySQLType (MySQLTimeStamp    _)  = putFieldType mySQLTypeTimestamp>> putWord8 0x00
-putParamMySQLType (MySQLDate         _)  = putFieldType mySQLTypeDate     >> putWord8 0x00
-putParamMySQLType (MySQLTime       _ _)  = putFieldType mySQLTypeTime     >> putWord8 0x00
-putParamMySQLType (MySQLBytes        _)  = putFieldType mySQLTypeBlob     >> putWord8 0x00
-putParamMySQLType (MySQLGeometry     _)  = putFieldType mySQLTypeGeometry >> putWord8 0x00
-putParamMySQLType (MySQLBit          _)  = putFieldType mySQLTypeLongLong >> putWord8 0x80
-putParamMySQLType (MySQLText         _)  = putFieldType mySQLTypeString   >> putWord8 0x00
-putParamMySQLType (MySQLDateRaw _) = putFieldType mySQLTypeDate >> putWord8 0
-putParamMySQLType (MySQLDateTimeRaw _ _) = putFieldType mySQLTypeDateTime >> putWord8 0
-putParamMySQLType (MySQLTimeStampRaw _ _) = putFieldType mySQLTypeTimestamp >> putWord8 0
-putParamMySQLType MySQLNull              = putFieldType mySQLTypeNull     >> putWord8 0x00
+putParamMySQLType = putWord16le . parameterTypeSignature
+{-# INLINE putParamMySQLType #-}
 
 --------------------------------------------------------------------------------
 -- | Text protocol decoder

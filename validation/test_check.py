@@ -130,5 +130,69 @@ class CheckFailureTests(unittest.TestCase):
             self.assertTrue((output / "results.json").exists())
 
 
+class NativeWrapperTests(unittest.TestCase):
+    def test_native_failure_is_published(self):
+        self.check_native(RuntimeError('native failed'), 1)
+
+    def test_native_interruption_is_published(self):
+        self.check_native(KeyboardInterrupt(), 130)
+
+    def test_native_success_is_attached_to_completed_run(self):
+        self.check_native(None, 0)
+
+    def test_native_original_alarm_retains_complete_results(self):
+        self.check_native(None, 1, native_timing=[{'id': 'bulk.native', 'percent': 21}])
+
+    def test_native_investigation_is_not_automatically_accepted(self):
+        self.check_native(None, 0, native_timing=[{'id': 'bulk.native', 'percent': 6}])
+
+    def check_native(self, failure, status, native_timing=None):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'results').mkdir()
+            output = root / 'run'
+            config = Path(folder) / 'config.json'
+            config.write_text('{}')
+            inputs = {'sha256': 'candidate', 'files': {}, 'commit': 'parent'}
+            candidate = {'complete_suite': True}
+            gate = {'correctness_accepted': True, 'evidence_accepted': True}
+            native_data = {'complete': True, 'inputs': inputs}
+            if native_timing:
+                native_data['baseline_comparison'] = {'timing_investigations': native_timing}
+
+            def recorder(*args, **kwargs):
+                output.mkdir()
+                (output / 'results.json').write_text(json.dumps(candidate))
+                return 0
+
+            with (patch('sys.argv', ['check.py', '--working-tree', '--config', str(config), '--output', str(output)]),
+                  patch.object(check.live, 'input_snapshot', return_value=inputs),
+                  patch.object(check.run, 'HERE', root),
+                  patch.object(check.run, 'sql_client', return_value='12.3.3-MariaDB'),
+                  patch.object(check.subprocess, 'run') as build,
+                  patch.object(check.subprocess, 'call', side_effect=recorder),
+                  patch.object(check, 'install_runtime_data', return_value=0),
+                  patch.object(check.stage1_gates, 'reference', return_value=({}, {})),
+                  patch.object(check.stage1_gates, 'compare', return_value=gate),
+                  patch.object(check, 'native_benchmarks', return_value=native_data, side_effect=failure) as native,
+                  patch('stage3_benchmarks.verify_evidence'),
+                  patch.object(check.live, 'publish') as publish):
+                build.return_value.returncode = 0
+                self.assertEqual(status, check.main())
+            native.assert_called_once_with(output.resolve(), 7, config)
+            attempt, data = publish.call_args.args
+            if failure is None:
+                self.assertEqual('COMPLETED', attempt['state'])
+                self.assertEqual(native_data, attempt['native_features'])
+                self.assertEqual(candidate, data)
+                if native_timing:
+                    self.assertTrue(gate['performance_requires_confirmation'])
+            else:
+                self.assertEqual('FAILED', attempt['state'])
+                self.assertEqual('native benchmarks', attempt['stage'])
+                self.assertIsNone(data)
+                self.assertTrue((output / 'results.json').exists())
+
+
 if __name__ == "__main__":
     unittest.main()

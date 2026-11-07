@@ -17,11 +17,13 @@ Column definition(aka. field type).
 module Database.MySQL.Protocol.ColumnDef where
 
 import           Data.Binary
+import           Control.Monad (unless)
 import           Data.Binary.Get
 import           Data.Binary.Parser
 import           Data.Binary.Put
 import           Data.Bits                      ((.&.))
 import           Data.ByteString                (ByteString)
+import qualified Data.ByteString.Lazy           as L
 import           Database.MySQL.Protocol.Packet
 
 --------------------------------------------------------------------------------
@@ -45,21 +47,47 @@ data ColumnDef = ColumnDef
 -- | Decode protocol-4.1 column metadata, requiring its twelve-byte fixed
 -- section. Variable-length schema/table/column names remain exact bytes.
 getField :: Get ColumnDef
-getField = ColumnDef
-        <$> (skipN 4                 -- const "def"
-         *> getLenEncBytes)         -- db
-        <*> getLenEncBytes          -- table
-        <*> getLenEncBytes          -- origTable
-        <*> getLenEncBytes          -- name
-        <*> getLenEncBytes          -- origName
-        <*  (getWord8 >>= \n -> if n == 12 then pure () else fail "invalid column fixed length")
-        <*> getWord16le             -- charset
-        <*> getWord32le             -- length
-        <*> getFieldType            -- type
-        <*> getWord16le             -- flags
-        <*> getWord8                -- decimals
-        <* skipN 2                   -- const 0x00 0x00
+getField = metadataColumn <$> getColumnMetadata False
 {-# INLINE getField #-}
+
+-- | MariaDB's optional type/format attributes, preserved as exact bytes.
+-- Unknown attribute tags are retained for forward compatibility. Tag 0 is the
+-- native type name and tag 1 the format name. Core 'ColumnDef' stays source
+-- compatible with applications that construct it positionally.
+data ColumnMetadata = ColumnMetadata
+    { metadataColumn :: !ColumnDef
+    , metadataAttributes :: ![(Word64, ByteString)]
+    } deriving (Show, Eq)
+
+-- | Decode the negotiated metadata layout. The extension precedes the fixed
+-- twelve-byte section; accepting it as trailing bytes would shift every type.
+getColumnMetadata :: Bool -> Get ColumnMetadata
+getColumnMetadata extended = do
+    db <- skipN 4 *> getLenEncBytes
+    table <- getLenEncBytes
+    originalTable <- getLenEncBytes
+    name <- getLenEncBytes
+    originalName <- getLenEncBytes
+    extra <- if extended then getLenEncBytes >>= parseAttributes else pure []
+    fixed <- getWord8
+    unless (fixed == 12) (fail "invalid column fixed length")
+    column <- ColumnDef db table originalTable name originalName
+        <$> getWord16le <*> getWord32le <*> getFieldType
+        <*> getWord16le <*> getWord8 <* skipN 2
+    pure (ColumnMetadata column extra)
+  where
+    parseAttributes bytes = case parseDetailLazy (attributes 0 []) (L.fromStrict bytes) of
+        Left (_, _, message) -> fail message
+        Right (_, _, value) -> pure value
+    attributes :: Int -> [(Word64, ByteString)] -> Get [(Word64, ByteString)]
+    attributes count accumulated = do
+        empty <- isEmpty
+        if empty then pure (reverse accumulated) else do
+            unless (count < 65535) (fail "too many extended metadata attributes")
+            tag <- fromIntegral <$> getLenEncInt
+            value <- getLenEncBytes
+            attributes (count + 1) ((tag, value) : accumulated)
+{-# INLINE getColumnMetadata #-}
 
 -- | Encode column metadata, including the 0x0c fixed-section length between
 -- names and charset/type information. Statement and result metadata share it.

@@ -31,6 +31,12 @@ class PublicationTests(unittest.TestCase):
                      current=self.current, report=self.report)
         return json.loads(self.current.read_text())
 
+    def test_native_stage_cannot_publish_without_native_measurements(self):
+        document = self.publish()
+        document['stage1_acceptance'] = {'statement_target_count': 5}
+        with self.assertRaisesRegex(ValueError, 'native benchmark'):
+            live.verify(document, self.inputs)
+
     def test_complete_run_includes_failures_and_performance_deltas(self):
         document = self.publish()
         live.verify(document, self.inputs)
@@ -163,5 +169,8 @@ if __name__ == "__main__":
 class AdditionalBuildInputTests(unittest.TestCase):
     def test_linux_and_ci_configuration_are_fingerprinted(self):
         for path in ['.dockerignore', 'validation/linux/Dockerfile', '.github/workflows/mariadb-linux.yml',
-                     'validation/results/accepted.json', 'validation/results/previous-stage.json']:
+                     'validation/results/accepted.json', 'validation/results/previous-stage.json',
+                     'validation/baselines/macos-arm64-native-statements/results.json',
+                     'validation/baselines/macos-arm64-native-statements/SUMMARY.md',
+                     'validation/baselines/macos-arm64-native-statements/SHA256SUMS']:
             self.assertTrue(live.is_input(path), path)

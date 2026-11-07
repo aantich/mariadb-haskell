@@ -10,6 +10,7 @@ import qualified Database.MySQL.TLS as TLS
 import qualified System.IO.Streams as S
 import System.Timeout
 import Validation.Common
+import qualified Validation.Stage3 as Stage3
 
 cases :: [Case]
 cases =
@@ -141,9 +142,9 @@ cases =
     , Case "types.non-utf8-results" "types" $ withConn $ \c -> do
         exec c "SET character_set_results=latin1"
         equal "latin1 result" "é" . textOf =<< scalar c "SELECT CONVERT(0xE9 USING latin1)"
-    , Case "capability.binary-bulk" "capabilities" $ throwIO (Unsupported "no COM_STMT_BULK_EXECUTE command/API in this driver")
-    , Case "capability.metadata-cache" "capabilities" $ throwIO (Unsupported "no MARIADB_CLIENT_CACHE_METADATA negotiation or statement metadata cache")
-    , Case "capability.extended-metadata" "capabilities" $ throwIO (Unsupported "ColumnDef has no MariaDB extended metadata attributes")
+    , Case "capability.binary-bulk" "capabilities" $ Stage3.bulkFeature
+    , Case "capability.metadata-cache" "capabilities" $ Stage3.cacheFeature
+    , Case "capability.extended-metadata" "capabilities" $ Stage3.extendedFeature
     , Case "capability.session-tracking" "capabilities" $ throwIO (Unsupported "OK/session-state payloads are not exposed")
     , Case "capability.reset-connection" "capabilities" $ throwIO (Unsupported "no COM_RESET_CONNECTION API")
     , Case "capability.progress-reporting" "capabilities" $ throwIO (Unsupported "no negotiated MariaDB progress callback")

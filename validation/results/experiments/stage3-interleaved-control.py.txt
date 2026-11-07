@@ -1,0 +1,85 @@
+"""Diagnostic only: compare exact frozen workloads in nearby shuffled processes."""
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import random
+import statistics
+import sys
+
+repo = Path('/Users/aantich/dev/mariadbnew/projects/mariadb-haskell')
+sys.path.insert(0, str(repo / 'validation'))
+import publish_results as live
+import run
+
+control = Path('/private/tmp/mariadb-haskell-stage3/stage2-control')
+spec = importlib.util.spec_from_file_location('stage2_control_recorder', control / 'validation/run.py')
+old_run = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(old_run)
+current_inputs = live.input_snapshot()
+old_snapshot = old_run.snapshot()
+new_snapshot = run.snapshot()
+published = json.loads((repo / 'validation/results/references/stage2-publication-1.json').read_text())
+assert old_snapshot['driver_source_files'] == published['build']['driver_source_files']
+for name in ['validation/hs/Validation/Benchmark.hs', 'validation/hs/Validation/Common.hs', 'validation/connector_c.c', 'validation/run.py']:
+    assert hashlib.sha256((repo / name).read_bytes()).digest() == hashlib.sha256((control / name).read_bytes()).digest()
+for key in ['ghc', 'cabal']:
+    assert old_snapshot[key] == new_snapshot[key]
+
+def dependencies(root):
+    plan = json.loads((root / 'dist-newstyle/cache/plan.json').read_text())
+    return sorted({(p['pkg-name'], p['pkg-version']) for p in plan['install-plan'] if p['pkg-name'] != 'mysql-haskell'})
+
+assert dependencies(repo) == dependencies(control)
+settings = os.environ.copy()
+settings.update(json.loads((run.HERE / '.local/environment.json').read_text()))
+settings['TZ'] = 'UTC'
+print('Server:', run.sql_client(settings, 'SELECT VERSION()'), flush=True)
+old_binary = old_run.executable('exe:mariadb-validation')
+new_binary = run.executable('exe:mariadb-validation')
+c_binary = str(run.HERE / '.local/connector-c')
+profiles = {'micro.text-row': 100000, 'micro.binary-row': 100000,
+    'latency.text': 500, 'latency.prepared': 500, 'read.text.narrow': 5,
+    'read.text.wide': 3, 'write.text': 1000, 'write.execute-many': 1000,
+    'control.read.text.narrow': 5, 'control.write.execute-many': 1000}
+folder = repo / 'validation/results/runs/stage3-interleaved-control'
+assert not folder.exists()
+folder.mkdir(parents=True)
+data = {'schema': 1, 'recorded_at': live.now(), 'current_inputs': current_inputs,
+    'stage2_source': old_snapshot, 'stage3_source': new_snapshot,
+    'dependencies': dependencies(repo), 'server': run.server_metadata(settings), 'repetitions': 7,
+    'policy': 'diagnostic only; exact frozen workloads; same host/compiler/dependencies; shuffled adjacent version pairs; identical C executable is a noise control; all samples retained',
+    'profiles': {name: {'stage2': [], 'stage3': []} for name in profiles}, 'complete': False}
+try:
+    for repetition in range(7):
+        order = list(profiles)
+        random.Random(20261108 + repetition).shuffle(order)
+        for name in order:
+            versions = ['stage2', 'stage3']
+            random.Random(name + str(repetition)).shuffle(versions)
+            for version in versions:
+                is_control = name.startswith('control.')
+                ident = name.removeprefix('control.')
+                binary = c_binary if is_control else old_binary if version == 'stage2' else new_binary
+                entry = run.benchmark_sample(binary, ident, profiles[name], settings,
+                    folder / f'{name}.{version}.{repetition}.log')
+                if entry['status'] != 'PASS':
+                    raise RuntimeError('control experiment workload failed: ' + name)
+                data['profiles'][name][version].append(entry)
+        print('PAIRED', repetition + 1, flush=True)
+    for name, profile in data['profiles'].items():
+        old = statistics.median(s['ns_per_unit'] for s in profile['stage2'])
+        new = statistics.median(s['ns_per_unit'] for s in profile['stage3'])
+        profile.update(stage2_median_ns_per_unit=old, stage3_median_ns_per_unit=new,
+                       change_percent=100 * (new / old - 1),
+                       median_paired_change_percent=statistics.median(100 * (b['ns_per_unit'] / a['ns_per_unit'] - 1)
+                           for a, b in zip(profile['stage2'], profile['stage3'])))
+        print(name, round(profile['change_percent'], 1), 'paired', round(profile['median_paired_change_percent'], 1), flush=True)
+    assert live.input_snapshot()['files'] == current_inputs['files']
+    assert old_run.snapshot()['driver_source_files'] == old_snapshot['driver_source_files']
+    data['complete'] = True
+finally:
+    destination = repo / 'validation/results/experiments/stage3-interleaved-control.json'
+    assert not destination.exists()
+    destination.write_text(json.dumps(data, indent=2) + '\n')

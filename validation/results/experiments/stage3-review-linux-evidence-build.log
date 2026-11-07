@@ -1,0 +1,58 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.evidence
+#1 transferring dockerfile: 1.70kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 140B done
+#4 DONE 0.0s
+
+#5 [tooling 1/1] FROM docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#5 resolve docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32 done
+#5 DONE 0.0s
+
+#6 [verification 1/9] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#6 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 0.0s done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 380.12kB 0.1s done
+#7 DONE 0.1s
+
+#8 [verification 3/9] COPY --from=tooling /usr/local/bin/cabal /usr/local/bin/cabal
+#8 CACHED
+
+#9 [verification 6/9] RUN cabal user-config init && sed -i 's|url: http://hackage.haskell.org/|url: https://hackage.haskell.org/|' /root/.cabal/config && cabal update
+#9 CACHED
+
+#10 [verification 5/9] COPY mysql-haskell.cabal ./
+#10 CACHED
+
+#11 [verification 4/9] WORKDIR /workspace
+#11 CACHED
+
+#12 [verification 2/9] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     ghc cabal-install build-essential libgmp-dev zlib1g-dev libffi-dev pkg-config     libmariadb-dev openssl python3 git ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#12 CACHED
+
+#13 [verification 7/9] RUN cabal build all --only-dependencies --enable-tests -O2
+#13 CACHED
+
+#14 [verification 8/9] COPY . .
+#14 DONE 0.1s
+
+#15 [verification 9/9] RUN python3 - <<'PYRUN'
+#15 DONE 1.9s
+
+#16 [evidence 1/1] COPY --from=verification /tmp/stage3-review-evidence/ /
+#16 DONE 0.0s
+
+#17 exporting to client directory
+#17 copying files 2.52kB done
+#17 DONE 0.0s

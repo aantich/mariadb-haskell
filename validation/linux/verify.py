@@ -116,17 +116,26 @@ def main():
                  '--no-benchmarks', '--compare', 'validation/baselines/macos-arm64-mariadb-12.3.3/results.json',
                  '--correctness-only-comparison'])
         data = json.loads((run_dir/'results.json').read_text())
-        previous = json.loads((ROOT/'validation/results/references/stage1-publication-1.json').read_text())
+        manifest = json.loads((ROOT/'validation/results/previous-stage.json').read_text())
+        previous = json.loads((ROOT/'validation/results'/manifest['reference']).read_text())
         current = {case['id']:case['status'] for case in data['correctness']}
         lost = [case['id'] for case in previous['correctness']
                 if case['status']=='PASS' and current.get(case['id'])!='PASS']
         added_failures = [case['id'] for case in data['correctness']
-                          if case['id'].startswith('stage2.') and case['status']!='PASS']
+                          if case['id'].startswith(('stage2.', 'stage3.')) and case['status']!='PASS']
         sys.path.insert(0, str(ROOT/'validation'))
         import stage1_gates
-        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS if current.get(ident) != 'PASS']
+        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS if current.get(ident) != 'PASS']
         if lost or added_failures or native_failures:
             raise RuntimeError('Linux correctness regressions: '+repr(lost+added_failures+native_failures))
+        # Smoke all native benchmark paths on this compiler/server too. These
+        # one-iteration checks are not compared with macOS timing baselines.
+        binary = subprocess.check_output(['cabal', 'list-bin', 'exe:mariadb-validation', '-O2'], cwd=ROOT, text=True).strip()
+        native_env = {**os.environ, **json.loads(config.read_text()), 'TZ': 'UTC'}
+        for profile in ['bulk.native', 'bulk.units', 'bulk.prepared', 'bulk.text-batch',
+                        'prepared.narrow.cached', 'prepared.narrow.uncached',
+                        'prepared.wide.cached', 'prepared.wide.uncached']:
+            command([binary, 'stage3-bench', profile, '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
         print('Linux correctness profile passed; frozen timings were not compared.', flush=True)
     finally:
         process.terminate()

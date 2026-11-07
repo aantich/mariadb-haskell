@@ -1,6 +1,6 @@
 # MariaDB validation coverage
 
-The initial baseline targets the installed MariaDB **12.3.3 LTS** server and GHC **9.10.3** on macOS arm64, using unchanged driver source from upstream commit `92a94012bc553a672c73d409dad1d17e9db1e53f`. Current Stage 1 results describe the fingerprinted implementation separately. The suite checks the driver surfaces below; assertions describe correct behavior rather than adapting expected values to current defects.
+The initial baseline targets the installed MariaDB **12.3.3 LTS** server and GHC **9.10.3** on macOS arm64, using unchanged driver source from upstream commit `92a94012bc553a672c73d409dad1d17e9db1e53f`. Current implementation results describe the fingerprinted source separately. The suite checks the driver surfaces below; assertions describe correct behavior rather than adapting expected values to current defects.
 
 ## Correctness coverage
 
@@ -24,7 +24,7 @@ The initial harness has **313 entries**: 300 executable checks, 11 explicit miss
 
 Inventory entries are not counted as passing tests. At this baseline, native bulk execution, prepared metadata caching, extended metadata/session tracking, connection reset, progress callbacks, cursor fetch, long-data upload, transport compression, GTID resume and durable CDC acknowledgement controls have no public implementation to invoke. Their absence is retained as `UNSUPPORTED`, including in the benchmark inventory where applicable.
 
-Stage 1 adds **88 executable cases** separately from the frozen 300: real lost-COMMIT-acknowledgement/fragmenting/disconnecting proxies; actual command counts; pre-body continuation limits; malformed metadata/OK/rows; ownership, stale streams and transaction leases; bounded cleanup and new cancellation; unknown-context refresh, raw/prepared tracking replacement, selection preservation, unknown tracker items and both terminator modes; generation-safe command handoff, terminal close transitions, comment-ended batches, cancellation in transport cleanup, replication setup retirement, strict session snapshots and fractional-TIME bounds; executable-comment tracking invalidation, server-prepared lexer parity, optional batch delimiters and bounded startup facts; charset binding and strict decoding; raw dates; Word64 boundaries; injection/quote/comment/mode/batch cases. The complete current run has 403 records including the same 13 inventory entries and two inherited suite summaries. Assertions and original workloads are preserved. The eight original runner-policy tests, fifteen publication tests, twenty-two acceptance/reference tests and six wrapper-failure tests run independently of MariaDB.
+Stage 1 adds **88 executable cases** separately from the frozen 300: real lost-COMMIT-acknowledgement/fragmenting/disconnecting proxies; actual command counts; pre-body continuation limits; malformed metadata/OK/rows; ownership, stale streams and transaction leases; bounded cleanup and new cancellation; unknown-context refresh, raw/prepared tracking replacement, selection preservation, unknown tracker items and both terminator modes; generation-safe command handoff, terminal close transitions, comment-ended batches, cancellation in transport cleanup, replication setup retirement, strict session snapshots and fractional-TIME bounds; executable-comment tracking invalidation, server-prepared lexer parity, optional batch delimiters and bounded startup facts; charset binding and strict decoding; raw dates; Word64 boundaries; injection/quote/comment/mode/batch cases. The Stage 1 run has 403 records including the same 13 inventory entries and two inherited suite summaries. Assertions and original workloads are preserved. The eight original runner-policy tests, fifteen publication tests, twenty-two acceptance/reference tests and six wrapper-failure tests run independently of MariaDB.
 
 The separate memory experiments measure live heap at GC checkpoints across 10,000 and 1,000,000 rows, plus one retained byte after a 16 MiB result. They supplement process high-water statistics and do not change any frozen throughput benchmark. Exact current outcomes and open investigations are recorded in the live report and [implementation notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).
 
@@ -58,3 +58,29 @@ Server optimizer correctness, storage-engine internals, Galera failover, backup/
 Stage 2 adds 30 executable cases without changing the frozen 300 or Stage 1's 88 cases. Coverage includes both capability words and exact client extension offsets; server-offered flag intersection; the independent MariaDB ed25519 signing vector; binary/terminated challenges; unknown plugins and bounded switches; PARSEC salt and work limits; malformed SHA-2 continuations and RSA inputs; real SNI with explicit opt-out; greeting deadlines and cancellation with peer-observed closure; and wrong-password rejection across three plugins and transports. All 14 original native-connection targets are required separately, and every published Stage 1 PASS is protected. There are 59 Python policy tests, including installed-data selection/failure paths and Linux/CI/reference fingerprints.
 
 The isolated Linux profile uses real MariaDB 12.3.3, GHC 9.4.7 and Cabal 3.14.1.1. It runs all correctness checks and both inherited suites, with no cross-platform timing comparison. The macOS profile retains the original GHC 9.10.3/Cabal 3.16.1.0 benchmark comparison. See [Stage 2 evidence](../docs/STAGE2_IMPLEMENTATION.md). Windows and other server versions require additional profiles.
+
+## Stage 3 native statements
+
+Stage 3 adds 56 cases for complete prepared/OUT results, managed generations and
+cleanup, malformed/omitted/refreshed metadata, aggregate cache budgets, owned
+metadata buffers, native type attributes, bulk indicators/types/limits/encoding,
+full unsigned IDs, scalar/NULL parity, 16 MiB fragmentation, transaction rollback
+and observed wire command counts. The original assertions and all earlier
+stage assertions are preserved. Bulk, cache and extended-metadata inventory
+entries now execute real server checks. A MariaDB session counter independently
+proves metadata omission. The timeout's conflicting original expectation remains
+visible, with safe-retirement regressions retained. Six review regressions add
+buffered statement/rollback deadlines, asynchronous cleanup cancellation,
+incremental accounting through replacement/rejection/close/ID reuse, released
+metadata budgets and valid bulk execution with `maxBound` resource limits.
+
+There are 101 Python policy tests, including native record identity, checksums,
+units, repetition/summary consistency, immutable-reference matching and wrapper
+failure/interruption/publication behavior. Review additions cover required
+baseline artifacts, recomputed publication deltas/alarms, dependency JSON
+round-trips, workload versus policy changes and zero-allocation rejection.
+Every complete run adds eight native
+benchmark profiles to the 24 frozen runnable profiles. Native comparisons use
+the same current build's alternatives and a separate immutable first native
+capture; the original benchmark workloads and recorder are unchanged. Linux
+also checks all eight native benchmark paths as correctness smoke runs.

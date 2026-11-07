@@ -64,9 +64,11 @@ import System.Timeout (timeout)
 import qualified Data.Binary.Parser as P
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text.Encoding as TE
+import qualified Data.Text as T
 import qualified Data.Vector as V
 import Data.Int (Int64)
 import Data.Maybe (isJust)
+import qualified Data.IntMap.Strict as IM
 import Database.MySQL.Protocol.ColumnDef
 import Database.MySQL.Protocol.MySQLValue
 import Database.MySQL.Query
@@ -81,6 +83,10 @@ data ConnectionOptions = ConnectionOptions
     , connectTimeoutMicros :: !Int -- ^ Whole establishment deadline, including DNS/TLS/auth/setup.
     , maximumAuthIterations :: !Int -- ^ Maximum server-requested PARSEC PBKDF2 work.
     , enableSessionTracking :: !Bool -- ^ Negotiate tracking and OK terminators together.
+    , enableMetadataCaching :: !Bool -- ^ Negotiate MariaDB prepared metadata omission.
+    , enableExtendedMetadata :: !Bool -- ^ Retain native type/format attributes.
+    , maximumPreparedStatements :: !Int -- ^ Maximum registered server statements.
+    , maximumBulkRows :: !Int -- ^ Rows per bulk command; batches are never silently split.
     } deriving (Eq, Show)
 
 -- | 64 MiB messages, 16 MiB metadata, 65,535 columns, one-second cleanup,
@@ -94,6 +100,10 @@ defaultConnectionOptions = ConnectionOptions
     , connectTimeoutMicros = 10000000
     , maximumAuthIterations = 1048576
     , enableSessionTracking = True
+    , enableMetadataCaching = True
+    , enableExtendedMetadata = True
+    , maximumPreparedStatements = 1024
+    , maximumBulkRows = 10000
     }
 
 -- A cached fact must not pin a large result buffer or grow without bound.
@@ -107,7 +117,8 @@ validateOptions options = unless
       && maximumMessageBytes options <= fromIntegral (maxBound :: Int)
       && maximumMetadataBytes options > 0 && maximumColumns options > 0 && cleanupTimeoutMicros options > 0
       && connectTimeoutMicros options > 0 && maximumAuthIterations options >= 1024
-      && maximumAuthIterations options <= 1073741824)
+      && maximumAuthIterations options <= 1073741824
+      && maximumPreparedStatements options > 0 && maximumBulkRows options > 0)
     (throwIO (ProtocolError "invalid connection resource options"))
 
 -- | Observable lifecycle. Only 'Ready' admits a new command. 'Broken' and
@@ -158,6 +169,38 @@ data MySQLConn = MySQLConn
     , connectionServerPacketLimit :: !(IORef Word64)
     , connectionQueryEffect :: !(IORef (Maybe Bool))
     , connectionOpaqueStatements :: !(IORef [Word32])
+    , connectionStatements :: !(IORef (Maybe StatementRegistry))
+    , connectionStatementSerial :: !(IORef Word64)
+    , connectionActiveStatement :: !(IORef (Maybe StmtID))
+    , connectionResultIndex :: !(IORef Int)
+    }
+
+-- A decoder is compiled per metadata shape, not per row/execution. Metadata
+-- cannot be evicted independently: MariaDB may omit it in the next response.
+-- The aggregate byte charge shares the connection's metadata resource budget.
+data CachedColumns = CachedColumns
+    { cachedDetails :: ![ColumnMetadata]
+    , cachedFields :: ![ColumnDef]
+    , cachedColumnCount :: !Int
+    -- Intentionally lazy: ordinary text results must not construct binary
+    -- field parsers. The first binary read forces and shares this decoder.
+    , cachedBinaryDecoder :: Binary.Get [MySQLValue]
+    , cachedMetadataBytes :: !Word64
+    }
+
+data StatementState = StatementState
+    { statementSerial :: !Word64
+    , statementArity :: !Int
+    , statementResults :: !(IM.IntMap CachedColumns)
+    , statementMetadataBytes :: !Word64 -- ^ Sum of this statement's cached blocks.
+    }
+
+-- | Keep byte charges beside the entries they describe, under one atomic update.
+-- A metadata refresh must not scan unrelated statements: disabling omission or
+-- changing a parameter type can put this operation on every execution's path.
+data StatementRegistry = StatementRegistry
+    { registryStatements :: !(IM.IntMap StatementState)
+    , registryMetadataBytes :: !Word64
     }
 
 -- | Read lifecycle diagnostics without claiming a command or performing I/O.
@@ -197,6 +240,10 @@ newConnectionUsing options makeReader output abort = do
     serverLimit <- newIORef (maximumMessageBytes options)
     effect <- newIORef Nothing
     opaque <- newIORef []
+    statements <- newIORef (Just (StatementRegistry IM.empty 0))
+    serial <- newIORef 0
+    active <- newIORef Nothing
+    resultIndex <- newIORef 0
     input <- makeReader framing
     let checkedOutput packet = advanceFraming (maximumMessageBytes options) framing (pLen packet) (pSeqN packet) >> output packet
     pure MySQLConn
@@ -216,6 +263,10 @@ newConnectionUsing options makeReader output abort = do
         , connectionServerPacketLimit = serverLimit
         , connectionQueryEffect = effect
         , connectionOpaqueStatements = opaque
+        , connectionStatements = statements
+        , connectionStatementSerial = serial
+        , connectionActiveStatement = active
+        , connectionResultIndex = resultIndex
         }
 
 data FramingState = FramingState {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word64
@@ -251,6 +302,7 @@ releaseTransport conn = do
 
 abortConnection :: MySQLConn -> Bool -> IO ()
 abortConnection conn uncertain = mask_ $ do
+    clearStatements conn
     phase <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
         (rt { runtimeStatus=if runtimeStatus rt == Closed then Closed else Broken, runtimeOwner=Nothing },runtimeStatus rt)
     atomicModifyIORef' (connectionFailureRef conn) $ \prior ->
@@ -439,8 +491,12 @@ readGreeting conn = do
 negotiatedCapabilities :: ConnectionOptions -> Greeting -> Word64
 -- Advertise tracking and EOF deprecation only as a pair: both OK-envelope and
 -- result-terminator parsing must be available before either is used on the wire.
-negotiatedCapabilities options greeting = (clientCap .&. greetingCaps greeting) .|.
+negotiatedCapabilities options greeting = (implemented .&. greetingCaps greeting) .|.
     (if enableSessionTracking options && greetingCaps greeting .&. 0x01800000 == 0x01800000 then 0x01800000 else 0)
+  where
+    implemented = clientCap .|. bit 34 .|. bit 37
+        .|. (if enableMetadataCaching options then bit 36 else 0)
+        .|. (if enableExtendedMetadata options then bit 35 else 0)
 
 mkAuthWithOptions :: ConnectionOptions -> Word64 -> ConnectInfo -> Greeting -> Auth
 mkAuthWithOptions options caps ci greeting =
@@ -740,6 +796,9 @@ sendCommand conn cmd = do
         COM_STMT_EXECUTE ident _ _ -> do
             opaque <- readIORef (connectionOpaqueStatements conn)
             writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
+        COM_STMT_BULK_EXECUTE ident _ _ _ -> do
+            opaque <- readIORef (connectionOpaqueStatements conn)
+            writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
         _ -> pure ()
     encoder <- case cmd of
         COM_STMT_EXECUTE ident values nullMap -> do
@@ -759,18 +818,117 @@ sendCommand conn cmd = do
                     Binary.putWord8 1
                     mapM_ putParamMySQLType values
                     sequence_ encoded
+        COM_STMT_BULK_EXECUTE ident flags types rows -> do
+            caps <- readIORef (connectionCapabilities conn)
+            unless (testBit caps 34 && (flags .&. 64 == 0 || testBit caps 37))
+                (throwIO (ProtocolError "server did not negotiate requested bulk capability"))
+            unless (flags .&. 0xff3f == 0 && flags .&. 128 /= 0)
+                (throwIO (ProtocolError "invalid bulk flags"))
+            let dimensionsError = ProtocolError "bulk dimensions exceed client limits or are empty"
+            width <- maybe (throwIO dimensionsError) pure
+                (lengthWithin (maximumColumns (connectionOptions conn)) types)
+            rowCount <- maybe (throwIO dimensionsError) pure
+                (lengthWithin (maximumBulkRows (connectionOptions conn)) rows)
+            unless (width > 0 && rowCount > 0)
+                (throwIO (ProtocolError "bulk dimensions exceed client limits or are empty"))
+            ensureBulkMinimumFits conn width rowCount
+            forM_ rows $ \row -> do
+                unless (lengthWithin width row == Just width)
+                    (throwIO (ProtocolError "bulk parameter count mismatch"))
+                forM_ (zip types row) $ \(typ, cell) -> case cell of
+                    BulkValue value | value /= MySQLNull -> do
+                        unless (parameterTypeSignature typ == parameterTypeSignature value)
+                            (throwIO (ProtocolError "bulk column has inconsistent wire types"))
+                        either (throwIO . UnencodableParameter) pure (validateValue value)
+                    _ -> pure ()
+            let hasText = any (any (\cell -> case cell of BulkValue (MySQLText _) -> True; _ -> False)) rows
+            charset <- if hasText then renderClientCharset <$> getRenderContext conn else pure "utf8mb4"
+            serverLimit <- readIORef (connectionServerPacketLimit conn)
+            let limit = min serverLimit (maximumMessageBytes (connectionOptions conn))
+                header = 7 + 2 * fromIntegral width
+            when (header > limit) (throwIO (ProtocolError "bulk header exceeds message limit"))
+            remaining <- newIORef (limit - header)
+            let normalize cell = do
+                    left <- readIORef remaining
+                    when (left == 0) (throwIO (ProtocolError "bulk exceeds message limit"))
+                    normalized <- case cell of
+                        BulkValue (MySQLText value) -> do
+                            when (fromIntegral (T.length value) > left)
+                                (throwIO (ProtocolError "bulk text exceeds message limit"))
+                            either (throwIO . UnencodableParameter) (pure . BulkValue . MySQLBytes)
+                                (encodeCharsetText charset value)
+                        _ -> pure cell
+                    let bytes = 1 + case normalized of
+                            BulkValue value -> bulkValueSize value
+                            _ -> 0
+                    when (bytes > left) (throwIO (ProtocolError "bulk exceeds message limit"))
+                    writeIORef remaining (left - bytes)
+                    pure normalized
+            encodedRows <- mapM (mapM normalize) rows
+            pure (putCommand (COM_STMT_BULK_EXECUTE ident flags types encodedRows))
         _ -> pure (putCommand cmd)
     let body=Binary.runPut encoder
     serverLimit <- readIORef (connectionServerPacketLimit conn)
     size <- encodedLength (min serverLimit (maximumMessageBytes (connectionOptions conn))) body
+    writeIORef (connectionActiveStatement conn) $ case cmd of
+        COM_STMT_EXECUTE ident _ _ -> Just ident
+        COM_STMT_BULK_EXECUTE ident _ _ _ -> Just ident
+        _ -> Nothing
+    writeIORef (connectionResultIndex conn) 0
     setExchangeSequence conn 0
     writeIORef (connectionExchangeProgress conn) WireInFlight
     writeEncoded size body (mysqlWrite conn)
+
+-- Byte accounting happens while normalizing cells, before retaining another
+-- batch worth of transcoded text. Fixed scalars avoid per-cell builders; only
+-- bounded decimal/temporal values need their small existing encoder for sizing.
+bulkValueSize :: MySQLValue -> Word64
+bulkValueSize value = case value of
+    MySQLNull -> 0
+    MySQLBytes bytes -> stringSize bytes
+    MySQLGeometry bytes -> stringSize bytes
+    _ -> case parameterTypeSignature value .&. 255 of
+        1 -> 1
+        2 -> 2
+        3 -> 4
+        4 -> 4
+        5 -> 8
+        8 -> 8
+        _ -> fromIntegral (L.length (Binary.runPut (putBinaryField value)))
+  where
+    stringSize bytes = let size = fromIntegral (B.length bytes)
+                           prefix | size < 251 = 1
+                                  | size < 65536 = 3
+                                  | size < 16777216 = 4
+                                  | otherwise = 9
+                       in size + prefix
+
+-- | Every cell needs an indicator even when all values are NULL/default. Reject
+-- impossible batches before traversing their cells or choosing column types.
+ensureBulkMinimumFits :: MySQLConn -> Int -> Int -> IO ()
+ensureBulkMinimumFits conn width rows = do
+    serverLimit <- readIORef (connectionServerPacketLimit conn)
+    let minimumBytes = 7 + 2 * fromIntegral width + fromIntegral width * fromIntegral rows
+    when (minimumBytes > min serverLimit (maximumMessageBytes (connectionOptions conn)))
+        (throwIO (ProtocolError "bulk indicators exceed message limit"))
+
+-- | Count a finite list only when it fits the bound. Inspect at most one excess
+-- cons without evaluating its element. Unlike @take (limit + 1)@ this also works
+-- when a caller uses 'maxBound' as a permissive resource limit.
+lengthWithin :: Int -> [a] -> Maybe Int
+lengthWithin limit = go 0
+  where
+    go !count [] = if count <= limit then Just count else Nothing
+    go !count (_ : rest)
+        | count < limit = go (count + 1) rest
+        | otherwise = Nothing
+{-# INLINE lengthWithin #-}
 
 -- | Idempotently close the transport. Ready connections attempt bounded COM_QUIT;
 -- active ones are interrupted immediately without trying to drain their reply.
 close :: MySQLConn -> IO ()
 close conn = mask_ $ do
+    clearStatements conn
     prior <- atomicModifyIORef' (connectionRuntime conn) (\rt -> (rt {runtimeStatus=Closed,runtimeOwner=Nothing},runtimeStatus rt))
     unless (prior == Closed) $ do
         when (prior `elem` [Executing,Streaming,Replicating]) $
@@ -927,22 +1085,153 @@ readMetadataEnd conn = do
         unless (isEOF packet) (throwIO (UnexpectedPacket packet))
         void (consumeEnd conn packet)
 
-readColumns :: MySQLConn -> Int -> IO [ColumnDef]
-readColumns conn count = do
-    unless (count>=0 && count<=maximumColumns (connectionOptions conn)) (throwIO (ProtocolError "column count exceeds client limit"))
-    let loop 0 _ = pure []
+-- Read a complete metadata block before publishing it into a cache. A partial
+-- replacement never destroys the last fully validated decoder.
+readColumnBlock :: MySQLConn -> Int -> IO CachedColumns
+readColumnBlock conn count = do
+    unless (count >= 0 && count <= maximumColumns (connectionOptions conn))
+        (throwIO (ProtocolError "column count exceeds client limit"))
+    caps <- readIORef (connectionCapabilities conn)
+    let loop 0 total = pure ([], total)
         loop n total = do
             packet <- readConnPacket conn
             when (isERR packet) (serverError conn packet)
-            let budget=maximumMetadataBytes (connectionOptions conn)
-                size=fromIntegral (pLen packet)
-            when (total>budget || size>budget-total) (throwIO (ProtocolError "metadata exceeds client limit"))
-            let total'=total+size
-            field <- getFromPacketExact getField packet
-            (field:) <$> loop (n-1) total'
-    fields <- loop count 0
-    when (count>0) (readMetadataEnd conn)
-    pure fields
+            let budget = maximumMetadataBytes (connectionOptions conn)
+                size = fromIntegral (pLen packet)
+            when (total > budget || size > budget - total)
+                (throwIO (ProtocolError "metadata exceeds client limit"))
+            field <- getFromPacketExact (getColumnMetadata (testBit caps 35)) packet
+            (rest, bytes) <- loop (n - 1) (total + size)
+            pure (field : rest, bytes)
+    (details, bytes) <- loop count 0
+    when (count > 0) (readMetadataEnd conn)
+    let fields = map metadataColumn details
+    pure (CachedColumns details fields count (prepareBinaryRow fields) bytes)
+
+readColumns :: MySQLConn -> Int -> IO [ColumnDef]
+readColumns conn count = cachedFields <$> readColumnBlock conn count
+
+-- A header marker is present on text results too when caching is negotiated.
+-- Omission is legal only for the exact registered statement/result ordinal.
+-- Legacy metadata EOF still follows an omitted block when EOF deprecation is off.
+readResultColumns :: MySQLConn -> Packet -> IO CachedColumns
+readResultColumns conn packet = do
+    caps <- readIORef (connectionCapabilities conn)
+    (count, follows) <- getFromPacketExact (do
+        n <- getLenEncInt
+        flag <- if testBit caps 36 then P.getWord8 else pure 1
+        unless (flag <= 1) (fail "invalid metadata-follows flag")
+        pure (n, flag == 1)) packet
+    unless (count > 0 && count <= maximumColumns (connectionOptions conn))
+        (throwIO (ProtocolError "invalid result column count"))
+    active <- readIORef (connectionActiveStatement conn)
+    index <- atomicModifyIORef' (connectionResultIndex conn) (\n -> (n + 1, n))
+    if follows then do
+        columns <- readColumnBlock conn count
+        case active of
+            Just ident -> storeStatementColumns conn ident index columns
+            Nothing -> pure columns
+    else do
+        states <- statementMap conn
+        let found = active >>= (\ident -> IM.lookup (fromIntegral ident) states)
+                           >>= IM.lookup index . statementResults
+        case found of
+            Just columns | cachedColumnCount columns == count -> do
+                readMetadataEnd conn
+                pure columns
+            _ -> throwIO (ProtocolError "omitted metadata has no matching statement/result cache")
+
+-- The registry and its terminal marker share one atomic reference. A close
+-- racing with metadata publication can never resurrect a handle or its buffers.
+statementMap :: MySQLConn -> IO (IM.IntMap StatementState)
+statementMap conn = maybe IM.empty registryStatements <$> readIORef (connectionStatements conn)
+
+-- | Registration can replace a server ID. Remove that generation's entire charge
+-- atomically, so its metadata cannot remain billed to the replacement handle.
+registerStatement :: MySQLConn -> StmtID -> Word64 -> Int -> IO ()
+registerStatement conn ident serial arity = do
+    inserted <- atomicModifyIORef' (connectionStatements conn) $ \current -> case current of
+        Nothing -> (Nothing, False)
+        Just registry ->
+            let key = fromIntegral ident
+                states = registryStatements registry
+                old = maybe 0 statementMetadataBytes (IM.lookup key states)
+                state = StatementState
+                    { statementSerial = serial
+                    , statementArity = arity
+                    , statementResults = IM.empty
+                    , statementMetadataBytes = 0
+                    }
+                updated = registry
+                    { registryStatements = IM.insert key state states
+                    , registryMetadataBytes = registryMetadataBytes registry - old
+                    }
+            in (Just updated, True)
+    unless inserted (throwIO (ConnectionUnavailable Closed))
+
+-- Cached names must own their bytes. A tiny column name decoded from a shared
+-- receive chunk must not pin that chunk (and neighbouring row data) indefinitely.
+-- Copy only retained statement metadata; ordinary text results keep their path.
+ownColumnBlock :: CachedColumns -> IO CachedColumns
+ownColumnBlock columns = do
+    details <- forM (cachedDetails columns) $ \metadata -> do
+        let field = metadataColumn metadata
+        owned <- evaluate field
+            { columnDB = B.copy (columnDB field)
+            , columnTable = B.copy (columnTable field)
+            , columnOrigTable = B.copy (columnOrigTable field)
+            , columnName = B.copy (columnName field)
+            , columnOrigName = B.copy (columnOrigName field)
+            }
+        attributes <- forM (metadataAttributes metadata) $ \(tag, bytes) -> do
+            value <- evaluate (B.copy bytes)
+            pure (tag, value)
+        pure metadata {metadataColumn = owned, metadataAttributes = attributes}
+    let fields = map metadataColumn details
+    pure columns {cachedDetails = details, cachedFields = fields,
+                  cachedBinaryDecoder = prepareBinaryRow fields}
+
+storeStatementColumns :: MySQLConn -> StmtID -> Int -> CachedColumns -> IO CachedColumns
+storeStatementColumns conn ident index columns = do
+    owned <- ownColumnBlock columns
+    outcome <- atomicModifyIORef' (connectionStatements conn) $ \current -> case current of
+        Nothing -> (Nothing, Left (ConnectionUnavailable Closed))
+        Just registry -> case IM.lookup (fromIntegral ident) (registryStatements registry) of
+            Nothing -> (Just registry, Right ())
+            Just state ->
+                let old = maybe 0 cachedMetadataBytes (IM.lookup index (statementResults state))
+                    remaining = registryMetadataBytes registry - old
+                    replacement = cachedMetadataBytes columns
+                    budget = maximumMetadataBytes (connectionOptions conn)
+                    state' = state
+                        { statementResults = IM.insert index owned (statementResults state)
+                        , statementMetadataBytes = statementMetadataBytes state - old + replacement
+                        }
+                    registry' = registry
+                        { registryStatements = IM.insert (fromIntegral ident) state' (registryStatements registry)
+                        , registryMetadataBytes = remaining + replacement
+                        }
+                in if remaining > budget || replacement > budget - remaining
+                   then (Just registry, Left (ProtocolError "aggregate statement metadata exceeds client limit"))
+                   else (Just registry', Right ())
+    either throwIO (const (pure owned)) outcome
+
+forgetStatement :: MySQLConn -> StmtID -> IO ()
+forgetStatement conn ident = atomicModifyIORef' (connectionStatements conn) $ \registry ->
+    let remove current =
+            let key = fromIntegral ident
+                states = registryStatements current
+                released = maybe 0 statementMetadataBytes (IM.lookup key states)
+            in current
+                { registryStatements = IM.delete key states
+                , registryMetadataBytes = registryMetadataBytes current - released
+                }
+    in (fmap remove registry, ())
+
+clearStatements :: MySQLConn -> IO ()
+clearStatements conn = do
+    writeIORef (connectionStatements conn) Nothing
+    writeIORef (connectionOpaqueStatements conn) []
 
 -- | Return known session facts without issuing SQL. A snapshot can become stale
 -- after another operation; connected APIs obtain it under their command claim.
@@ -964,9 +1253,10 @@ refreshSessionState conn = withSessionLease conn $ do
         sendCommand conn (COM_QUERY "SELECT @@sql_mode,@@character_set_client,@@character_set_connection,@@collation_connection,VERSION(),CAST(@@max_allowed_packet AS CHAR)")
         first <- readConnPacket conn
         when (isERR first) (serverError conn first)
-        count <- getFromPacketExact getLenEncInt first
+        metadata <- readResultColumns conn first
+        let fields = cachedFields metadata
+            count = length fields
         unless (count == 6) (throwIO (ProtocolError "invalid session snapshot column count"))
-        fields <- readColumns conn count
         rowPacket <- readConnPacket conn
         when (fromIntegral (pLen rowPacket) > maximumMetadataBytes (connectionOptions conn))
             (throwIO (ProtocolError "session snapshot exceeds metadata budget"))

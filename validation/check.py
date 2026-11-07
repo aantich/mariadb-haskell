@@ -32,10 +32,22 @@ def install_runtime_data():
                           cwd=run.ROOT).returncode
 
 
+def native_benchmarks(output, repetitions, config):
+    """Keep additive native measurements in every complete validation run."""
+    destination = output / "native"
+    status = subprocess.call([sys.executable, str(run.HERE / "stage3_benchmarks.py"),
+                              "--config", str(config), "--output", str(destination),
+                              "--repetitions", str(repetitions)], cwd=run.ROOT)
+    if status:
+        raise RuntimeError("native benchmark recorder failed; its partial evidence is retained")
+    data = json.loads((destination / "results.json").read_text())
+    return data
+
+
 def main():
     if "--help" in sys.argv or "-h" in sys.argv:
         status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
-        print("\nFull runs also update validation/RESULTS.md, results/overview.svg and results/current.json; the original baseline is compared by default. Partial runs do not replace the live report.")
+        print("\nFull runs also execute the native-feature benchmarks and update validation/RESULTS.md, results/overview.svg and results/current.json; the original baseline is compared by default. Partial runs do not replace the live report.")
         return status
     parser=argparse.ArgumentParser(add_help=False)
     parser.add_argument("--config",type=Path,default=run.HERE/".local/environment.json")
@@ -83,7 +95,29 @@ def main():
                     attempt.update(state="FAILED", stage="acceptance evidence",
                                    reason="Acceptance evidence could not be verified: " + str(error))
                     data, gate, status = None, None, status or 1
-            attempt['exit_code'] = status
+            if data is not None and gate and gate['correctness_accepted'] and gate['evidence_accepted']:
+                try:
+                    native = native_benchmarks(output, args.repetitions, args.config)
+                    from stage3_benchmarks import verify_evidence
+                    verify_evidence(native, inputs)
+                    attempt['native_features'] = native
+                    comparison = native.get('baseline_comparison', {})
+                    native_timing = comparison.get('timing_investigations', [])
+                    native_allocation = comparison.get('allocation_investigations', [])
+                    gate['native_timing_investigations'] = native_timing
+                    gate['native_allocation_investigations'] = native_allocation
+                    gate['performance_requires_confirmation'] = gate.get('performance_requires_confirmation', False) or bool(native_timing or native_allocation)
+                    (run.HERE / 'results/stage1-gates.json').write_text(json.dumps(gate, indent=2) + '\n')
+                    if any(item['percent'] > 20 for item in native_timing):
+                        status = status or 1
+                except (OSError, ValueError, KeyError, RuntimeError) as error:
+                    attempt.update(state="FAILED", stage="native benchmarks",
+                                   reason="Native benchmark evidence failed: " + str(error))
+                    data, gate, status = None, None, status or 1
+                except KeyboardInterrupt:
+                    attempt.update(state="FAILED", stage="native benchmarks", reason="Native benchmarks interrupted.")
+                    data, gate, status = None, None, 130
+            attempt.update(exit_code=status, finished_at=live.now())
             live.publish(attempt,data,gate=gate)
             print("Live results updated:",live.REPORT,flush=True)
         else:

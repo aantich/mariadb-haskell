@@ -79,3 +79,24 @@ commit and push the reviewed Stage 2 changes. Publish on main using the
 committed-input validation workflow above. Preserve the original and accepted
 performance references and all review evidence. The next stage is a proposal
 until separately approved; this publication does not authorize its implementation.
+
+User approval, 7 November 2026: proceed with roadmap steps 1–2 (prepared
+statement/result foundations, then binary bulk, metadata caching and extended
+metadata), and record the full five-step sequence for continuation. See
+docs/ROADMAP.md. Keep safe retirement as the timeout default and retain the
+conflicting original baseline expectation explicitly. Steps 3–5 remain future
+work. Preserve frozen workloads and original/accepted performance references.
+
+Stage 3 full runs include the additive native-feature benchmarks automatically.
+Retain their embedded evidence and process logs; never omit them to obtain a
+passing publication. The first native-feature baseline under
+validation/baselines/macos-arm64-native-statements is immutable independently of
+the original unchanged-driver baseline. Maintain docs/ROADMAP.md as the
+continuation point and update its completed/remaining work with measured evidence.
+
+
+Superseding user instruction, 7 November 2026 after the Stage 3 review fixes:
+commit and push the reviewed prepared/native implementation and retained evidence.
+Publish on main using the committed-input validation workflow above. Preserve
+original, accepted and first-native baselines and the open timing investigations.
+Roadmap steps 3–5 remain future work until separately approved.

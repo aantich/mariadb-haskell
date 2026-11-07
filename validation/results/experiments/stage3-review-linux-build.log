@@ -1,0 +1,643 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.16kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#3 DONE 0.7s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 140B done
+#4 DONE 0.0s
+
+#5 [tooling 1/1] FROM docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#5 resolve docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32 0.0s done
+#5 DONE 0.0s
+
+#6 [stage-1 1/8] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#6 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 0.0s done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 3.39MB 0.1s done
+#7 DONE 0.1s
+
+#8 [stage-1 2/8] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     ghc cabal-install build-essential libgmp-dev zlib1g-dev libffi-dev pkg-config     libmariadb-dev openssl python3 git ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [stage-1 3/8] COPY --from=tooling /usr/local/bin/cabal /usr/local/bin/cabal
+#9 CACHED
+
+#10 [stage-1 4/8] WORKDIR /workspace
+#10 CACHED
+
+#11 [stage-1 5/8] COPY mysql-haskell.cabal ./
+#11 DONE 0.0s
+
+#12 [stage-1 6/8] RUN cabal user-config init && sed -i 's|url: http://hackage.haskell.org/|url: https://hackage.haskell.org/|' /root/.cabal/config && cabal update
+#12 0.117 Writing default configuration to /root/.cabal/config
+#12 0.363 Downloading the latest package list from hackage.haskell.org
+#12 12.02 Package list of hackage.haskell.org has been updated.
+#12 12.13 The index-state is set to 2026-11-07T14:54:27Z.
+#12 DONE 12.2s
+
+#13 [stage-1 7/8] RUN cabal build all --only-dependencies --enable-tests -O2
+#13 1.132 Resolving dependencies...
+#13 2.211 Build profile: -w ghc-9.4.7 -O2
+#13 2.211 In order, the following will be built (use -v for more details):
+#13 2.211  - appar-0.1.8 (lib:appar) (requires download & build)
+#13 2.211  - assoc-1.1.1 (lib) (requires download & build)
+#13 2.211  - attoparsec-0.14.4 (lib:attoparsec-internal) (requires download & build)
+#13 2.211  - base-orphans-0.9.4 (lib) (requires download & build)
+#13 2.211  - base16-bytestring-1.0.2.0 (lib) (requires download & build)
+#13 2.211  - basement-0.0.16 (lib) (requires download & build)
+#13 2.211  - blaze-builder-0.4.4.1 (lib) (requires download & build)
+#13 2.211  - bytestring-lexing-0.5.0.16 (lib) (requires download & build)
+#13 2.211  - call-stack-0.4.0 (lib) (requires download & build)
+#13 2.211  - cereal-0.5.8.3 (lib) (requires download & build)
+#13 2.211  - colour-2.3.7 (lib) (requires download & build)
+#13 2.211  - data-default-0.8.0.2 (lib) (requires download & build)
+#13 2.212  - half-0.3.3 (lib) (requires download & build)
+#13 2.212  - hourglass-0.2.12 (lib) (requires download & build)
+#13 2.212  - hsc2hs-0.68.10 (exe:hsc2hs) (requires download & build)
+#13 2.212  - integer-logarithms-1.0.5 (lib) (requires download & build)
+#13 2.212  - monad-loops-0.4.3 (lib) (requires download & build)
+#13 2.212  - network-byte-order-0.1.9 (lib) (requires download & build)
+#13 2.212  - old-locale-1.0.0.7 (lib) (requires download & build)
+#13 2.212  - os-string-2.0.11 (lib) (requires download & build)
+#13 2.212  - prettyprinter-1.7.2 (lib) (requires download & build)
+#13 2.212  - primitive-0.9.1.0 (lib) (requires download & build)
+#13 2.212  - ram-0.22.1 (lib) (requires download & build)
+#13 2.212  - splitmix-0.1.3.2 (lib) (requires download & build)
+#13 2.212  - tagged-0.8.11 (lib) (requires download & build)
+#13 2.212  - time-hourglass-0.3.0 (lib) (requires download & build)
+#13 2.212  - unbounded-delays-0.1.1.1 (lib) (requires download & build)
+#13 2.213  - vector-stream-0.1.0.1 (lib) (requires download & build)
+#13 2.213  - word-compat-0.0.6 (lib) (requires download & build)
+#13 2.213  - memory-0.18.0 (lib) (requires download & build)
+#13 2.213  - ansi-terminal-types-1.1.3 (lib) (requires download & build)
+#13 2.213  - data-default-class-0.2.0.0 (lib) (requires download & build)
+#13 2.213  - zlib-0.7.1.1 (lib) (requires download & build)
+#13 2.213  - unix-time-0.5.1 (lib:unix-time) (requires download & build)
+#13 2.213  - terminal-size-0.3.4 (lib) (requires download & build)
+#13 2.213  - network-3.2.12.0 (lib:network) (requires download & build)
+#13 2.214  - ech-config-0.0.2 (lib) (requires download & build)
+#13 2.214  - old-time-1.1.1.0 (lib:old-time) (requires download & build)
+#13 2.214  - hashable-1.4.7.0 (lib) (requires download & build)
+#13 2.214  - cborg-0.2.10.0 (lib) (requires download & build)
+#13 2.214  - random-1.3.1 (lib) (requires download & build)
+#13 2.214  - foldable1-classes-compat-0.1.3 (lib) (requires download & build)
+#13 2.214  - vector-0.13.2.0 (lib) (requires download & build)
+#13 2.214  - asn1-types-0.3.4 (lib:asn1-types) (requires download & build)
+#13 2.214  - ansi-terminal-1.1.5 (lib) (requires download & build)
+#13 2.214  - zlib-bindings-0.1.1.5 (lib) (requires download & build)
+#13 2.214  - iproute-1.8.0 (lib) (requires download & build)
+#13 2.214  - unordered-containers-0.2.21 (lib) (requires download & build)
+#13 2.214  - time-compat-1.9.9 (lib) (requires download & build)
+#13 2.214  - text-short-0.1.6.1 (lib) (requires download & build)
+#13 2.215  - scientific-0.3.10.0 (lib) (requires download & build)
+#13 2.215  - data-fix-0.3.4 (lib) (requires download & build)
+#13 2.215  - case-insensitive-1.2.2.0 (lib) (requires download & build)
+#13 2.215  - uuid-types-1.0.6.1 (lib) (requires download & build)
+#13 2.215  - QuickCheck-2.18.0.0 (lib) (requires download & build)
+#13 2.215  - these-1.2.1 (lib) (requires download & build)
+#13 2.216  - blaze-textual-0.2.3.1 (lib) (requires download & build)
+#13 2.216  - asn1-encoding-0.9.6 (lib) (requires download & build)
+#13 2.216  - prettyprinter-ansi-terminal-1.1.4 (lib) (requires download & build)
+#13 2.216  - base64-0.4.2.4 (lib) (requires download & build)
+#13 2.216  - base16-1.0 (lib) (requires download & build)
+#13 2.216  - attoparsec-0.14.4 (lib) (requires download & build)
+#13 2.216  - strict-0.5.1 (lib) (requires download & build)
+#13 2.216  - optparse-applicative-0.19.0.0 (lib) (requires download & build)
+#13 2.216  - crypton-pem-0.3.0 (lib) (requires download & build)
+#13 2.216  - crypton-asn1-types-0.4.1 (lib) (requires download & build)
+#13 2.217  - crypton-2.1.12 (lib) (requires download & build)
+#13 2.217  - io-streams-1.5.2.2 (lib) (requires download & build)
+#13 2.217  - serialise-0.2.6.1 (lib) (requires download & build)
+#13 2.217  - quickcheck-instances-0.4 (lib) (requires download & build)
+#13 2.217  - tasty-1.5.5 (lib) (requires download & build)
+#13 2.217  - crypton-asn1-parse-0.10.0 (lib) (requires download & build)
+#13 2.217  - crypton-asn1-encoding-0.10.0 (lib) (requires download & build)
+#13 2.217  - hpke-0.4.0 (lib) (requires download & build)
+#13 2.218  - tasty-quickcheck-0.11.1 (lib) (requires download & build)
+#13 2.218  - tasty-hunit-0.10.2 (lib) (requires download & build)
+#13 2.218  - tasty-expected-failure-0.12.3 (lib) (requires download & build)
+#13 2.218  - crypton-x509-1.10.1 (lib) (requires download & build)
+#13 2.218  - crypton-x509-store-1.10.0 (lib) (requires download & build)
+#13 2.218  - crypton-x509-validation-1.10.1 (lib) (requires download & build)
+#13 2.218  - crypton-x509-system-1.10.0 (lib) (requires download & build)
+#13 2.218  - tls-2.4.14 (lib) (requires download & build)
+#13 2.244 Downloading  base-orphans-0.9.4
+#13 2.621 Downloaded   base-orphans-0.9.4
+#13 2.621 Downloading  basement-0.0.16
+#13 2.636 Starting     base-orphans-0.9.4 (lib)
+#13 2.964 Downloaded   basement-0.0.16
+#13 2.964 Downloading  call-stack-0.4.0
+#13 2.974 Building     base-orphans-0.9.4 (lib)
+#13 2.985 Starting     basement-0.0.16 (lib)
+#13 3.303 Building     basement-0.0.16 (lib)
+#13 3.335 Downloaded   call-stack-0.4.0
+#13 3.335 Downloading  colour-2.3.7
+#13 3.346 Starting     call-stack-0.4.0 (lib)
+#13 3.647 Downloaded   colour-2.3.7
+#13 3.647 Downloading  monad-loops-0.4.3
+#13 3.659 Starting     colour-2.3.7 (lib)
+#13 3.672 Building     call-stack-0.4.0 (lib)
+#13 3.851 Installing   base-orphans-0.9.4 (lib)
+#13 3.887 Downloaded   monad-loops-0.4.3
+#13 3.887 Downloading  old-locale-1.0.0.7
+#13 3.955 Completed    base-orphans-0.9.4 (lib)
+#13 3.957 Starting     monad-loops-0.4.3 (lib)
+#13 3.968 Installing   call-stack-0.4.0 (lib)
+#13 3.974 Building     colour-2.3.7 (lib)
+#13 4.070 Completed    call-stack-0.4.0 (lib)
+#13 4.198 Downloaded   old-locale-1.0.0.7
+#13 4.198 Downloading  unbounded-delays-0.1.1.1
+#13 4.283 Building     monad-loops-0.4.3 (lib)
+#13 4.436 Downloaded   unbounded-delays-0.1.1.1
+#13 4.437 Downloading  vector-stream-0.1.0.1
+#13 4.765 Downloaded   vector-stream-0.1.0.1
+#13 4.765 Downloading  word-compat-0.0.6
+#13 4.928 Installing   monad-loops-0.4.3 (lib)
+#13 5.042 Completed    monad-loops-0.4.3 (lib)
+#13 5.043 Starting     old-locale-1.0.0.7 (lib)
+#13 5.082 Downloaded   word-compat-0.0.6
+#13 5.082 Downloading  assoc-1.1.1
+#13 5.369 Building     old-locale-1.0.0.7 (lib)
+#13 5.483 Downloaded   assoc-1.1.1
+#13 5.483 Downloading  hourglass-0.2.12
+#13 5.493 Starting     assoc-1.1.1 (lib)
+#13 5.684 Installing   old-locale-1.0.0.7 (lib)
+#13 5.797 Completed    old-locale-1.0.0.7 (lib)
+#13 5.831 Building     assoc-1.1.1 (lib)
+#13 5.897 Downloaded   hourglass-0.2.12
+#13 5.897 Downloading  base16-bytestring-1.0.2.0
+#13 5.909 Starting     hourglass-0.2.12 (lib)
+#13 6.047 Installing   assoc-1.1.1 (lib)
+#13 6.148 Completed    assoc-1.1.1 (lib)
+#13 6.231 Installing   colour-2.3.7 (lib)
+#13 6.235 Building     hourglass-0.2.12 (lib)
+#13 6.315 Downloaded   base16-bytestring-1.0.2.0
+#13 6.315 Downloading  bytestring-lexing-0.5.0.16
+#13 6.326 Starting     base16-bytestring-1.0.2.0 (lib)
+#13 6.357 Completed    colour-2.3.7 (lib)
+#13 6.635 Downloaded   bytestring-lexing-0.5.0.16
+#13 6.635 Downloading  memory-0.18.0
+#13 6.646 Starting     bytestring-lexing-0.5.0.16 (lib)
+#13 6.663 Building     base16-bytestring-1.0.2.0 (lib)
+#13 6.891 Downloaded   memory-0.18.0
+#13 6.891 Downloading  asn1-types-0.3.4
+#13 6.972 Building     bytestring-lexing-0.5.0.16 (lib)
+#13 7.090 Installing   base16-bytestring-1.0.2.0 (lib)
+#13 7.208 Downloaded   asn1-types-0.3.4
+#13 7.208 Downloading  asn1-encoding-0.9.6
+#13 7.217 Completed    base16-bytestring-1.0.2.0 (lib)
+#13 7.448 Downloaded   asn1-encoding-0.9.6
+#13 7.448 Downloading  network-byte-order-0.1.9
+#13 7.703 Downloaded   network-byte-order-0.1.9
+#13 7.703 Downloading  ech-config-0.0.2
+#13 7.713 Starting     network-byte-order-0.1.9 (lib)
+#13 7.935 Downloaded   ech-config-0.0.2
+#13 7.935 Downloading  cereal-0.5.8.3
+#13 8.048 Building     network-byte-order-0.1.9 (lib)
+#13 8.261 Downloaded   cereal-0.5.8.3
+#13 8.261 Downloading  data-default-0.8.0.2
+#13 8.272 Starting     cereal-0.5.8.3 (lib)
+#13 8.499 Downloaded   data-default-0.8.0.2
+#13 8.499 Downloading  data-default-class-0.2.0.0
+#13 8.519 Starting     data-default-0.8.0.2 (lib)
+#13 8.609 Building     cereal-0.5.8.3 (lib)
+#13 8.817 Downloaded   data-default-class-0.2.0.0
+#13 8.817 Downloading  half-0.3.3
+#13 8.857 Building     data-default-0.8.0.2 (lib)
+#13 8.883 Installing   network-byte-order-0.1.9 (lib)
+#13 9.007 Completed    network-byte-order-0.1.9 (lib)
+#13 9.313 Installing   data-default-0.8.0.2 (lib)
+#13 9.426 Completed    data-default-0.8.0.2 (lib)
+#13 10.18 Downloaded   half-0.3.3
+#13 10.18 Downloading  primitive-0.9.1.0
+#13 10.19 Starting     half-0.3.3 (lib)
+#13 10.43 Downloaded   primitive-0.9.1.0
+#13 10.43 Downloading  ram-0.22.1
+#13 10.44 Starting     primitive-0.9.1.0 (lib)
+#13 10.51 Building     half-0.3.3 (lib)
+#13 10.58 Installing   hourglass-0.2.12 (lib)
+#13 10.67 Downloaded   ram-0.22.1
+#13 10.67 Downloading  splitmix-0.1.3.2
+#13 10.69 Starting     ram-0.22.1 (lib)
+#13 10.72 Completed    hourglass-0.2.12 (lib)
+#13 10.78 Building     primitive-0.9.1.0 (lib)
+#13 10.92 Downloaded   splitmix-0.1.3.2
+#13 10.92 Downloading  random-1.3.1
+#13 10.94 Starting     splitmix-0.1.3.2 (lib)
+#13 11.06 Building     ram-0.22.1 (lib)
+#13 11.18 Downloaded   random-1.3.1
+#13 11.18 Downloading  tagged-0.8.11
+#13 11.39 Building     splitmix-0.1.3.2 (lib)
+#13 11.45 Downloaded   tagged-0.8.11
+#13 11.45 Downloading  foldable1-classes-compat-0.1.3
+#13 11.46 Starting     tagged-0.8.11 (lib)
+#13 11.83 Downloaded   foldable1-classes-compat-0.1.3
+#13 11.83 Downloading  hsc2hs-0.68.10
+#13 11.90 Building     tagged-0.8.11 (lib)
+#13 11.94 Installing   half-0.3.3 (lib)
+#13 12.10 Downloaded   hsc2hs-0.68.10
+#13 12.10 Downloading  old-time-1.1.1.0
+#13 12.12 Completed    half-0.3.3 (lib)
+#13 12.12 Starting     hsc2hs-0.68.10 (exe:hsc2hs)
+#13 12.16 Starting     unbounded-delays-0.1.1.1 (lib)
+#13 12.38 Downloaded   old-time-1.1.1.0
+#13 12.38 Downloading  terminal-size-0.3.4
+#13 12.62 Installing   splitmix-0.1.3.2 (lib)
+#13 12.65 Building     hsc2hs-0.68.10 (exe:hsc2hs)
+#13 12.66 Building     unbounded-delays-0.1.1.1 (lib)
+#13 12.73 Downloaded   terminal-size-0.3.4
+#13 12.73 Downloading  unix-time-0.5.1
+#13 12.79 Completed    splitmix-0.1.3.2 (lib)
+#13 12.79 Starting     vector-stream-0.1.0.1 (lib)
+#13 13.07 Downloaded   unix-time-0.5.1
+#13 13.07 Downloading  zlib-0.7.1.1
+#13 13.14 Installing   unbounded-delays-0.1.1.1 (lib)
+#13 13.27 Building     vector-stream-0.1.0.1 (lib)
+#13 13.31 Completed    unbounded-delays-0.1.1.1 (lib)
+#13 13.31 Starting     word-compat-0.0.6 (lib)
+#13 13.42 Downloaded   zlib-0.7.1.1
+#13 13.42 Downloading  zlib-bindings-0.1.1.5
+#13 13.53 Installing   tagged-0.8.11 (lib)
+#13 13.73 Completed    tagged-0.8.11 (lib)
+#13 13.73 Downloaded   zlib-bindings-0.1.1.5
+#13 13.73 Downloading  time-hourglass-0.3.0
+#13 13.78 Building     word-compat-0.0.6 (lib)
+#13 14.06 Downloaded   time-hourglass-0.3.0
+#13 14.06 Downloading  vector-0.13.2.0
+#13 14.09 Starting     time-hourglass-0.3.0 (lib)
+#13 14.18 Installing   word-compat-0.0.6 (lib)
+#13 14.36 Downloaded   vector-0.13.2.0
+#13 14.36 Downloading  integer-logarithms-1.0.5
+#13 14.38 Completed    word-compat-0.0.6 (lib)
+#13 14.38 Starting     ech-config-0.0.2 (lib)
+#13 14.58 Building     time-hourglass-0.3.0 (lib)
+#13 14.69 Downloaded   integer-logarithms-1.0.5
+#13 14.70 Downloading  os-string-2.0.11
+#13 14.72 Starting     integer-logarithms-1.0.5 (lib)
+#13 14.91 Building     ech-config-0.0.2 (lib)
+#13 14.98 Downloaded   os-string-2.0.11
+#13 14.98 Downloading  network-3.2.12.0
+#13 15.01 Starting     os-string-2.0.11 (lib)
+#13 15.31 Building     integer-logarithms-1.0.5 (lib)
+#13 15.33 Downloaded   network-3.2.12.0
+#13 15.33 Downloading  attoparsec-0.14.4
+#13 15.62 Installing   bytestring-lexing-0.5.0.16 (lib)
+#13 15.69 Building     os-string-2.0.11 (lib)
+#13 15.72 Downloaded   attoparsec-0.14.4
+#13 15.72 Downloading  blaze-builder-0.4.4.1
+#13 15.77 Starting     attoparsec-0.14.4 (lib:attoparsec-internal)
+#13 15.92 Completed    bytestring-lexing-0.5.0.16 (lib)
+#13 15.92 Starting     data-default-class-0.2.0.0 (lib)
+#13 16.10 Downloaded   blaze-builder-0.4.4.1
+#13 16.10 Downloading  blaze-textual-0.2.3.1
+#13 16.12 Starting     blaze-builder-0.4.4.1 (lib)
+#13 16.40 Installing   ram-0.22.1 (lib)
+#13 16.43 Building     attoparsec-0.14.4 (lib:attoparsec-internal)
+#13 16.54 Downloaded   blaze-textual-0.2.3.1
+#13 16.54 Downloading  cborg-0.2.10.0
+#13 16.58 Building     data-default-class-0.2.0.0 (lib)
+#13 16.69 Completed    ram-0.22.1 (lib)
+#13 16.71 Starting     random-1.3.1 (lib)
+#13 16.74 Building     blaze-builder-0.4.4.1 (lib)
+#13 16.92 Downloaded   cborg-0.2.10.0
+#13 16.92 Downloading  hashable-1.4.7.0
+#13 16.96 Installing   data-default-class-0.2.0.0 (lib)
+#13 17.22 Installing   ech-config-0.0.2 (lib)
+#13 17.24 Downloaded   hashable-1.4.7.0
+#13 17.25 Downloading  case-insensitive-1.2.2.0
+#13 17.25 Completed    data-default-class-0.2.0.0 (lib)
+#13 17.28 Starting     foldable1-classes-compat-0.1.3 (lib)
+#13 17.36 Building     random-1.3.1 (lib)
+#13 17.45 Installing   integer-logarithms-1.0.5 (lib)
+#13 17.56 Downloaded   case-insensitive-1.2.2.0
+#13 17.56 Downloading  data-fix-0.3.4
+#13 17.59 Completed    ech-config-0.0.2 (lib)
+#13 17.76 Completed    integer-logarithms-1.0.5 (lib)
+#13 17.85 Downloaded   data-fix-0.3.4
+#13 17.85 Downloading  these-1.2.1
+#13 17.95 Building     foldable1-classes-compat-0.1.3 (lib)
+#13 18.07 Installing   vector-stream-0.1.0.1 (lib)
+#13 18.12 Downloaded   these-1.2.1
+#13 18.12 Downloading  time-compat-1.9.9
+#13 18.27 Completed    vector-stream-0.1.0.1 (lib)
+#13 18.28 Installing   attoparsec-0.14.4 (lib:attoparsec-internal)
+#13 18.42 Downloaded   time-compat-1.9.9
+#13 18.42 Downloading  unordered-containers-0.2.21
+#13 18.53 Completed    attoparsec-0.14.4 (lib:attoparsec-internal)
+#13 18.72 Downloaded   unordered-containers-0.2.21
+#13 18.72 Downloading  prettyprinter-1.7.2
+#13 19.07 Downloaded   prettyprinter-1.7.2
+#13 19.07 Downloading  scientific-0.3.10.0
+#13 19.10 Starting     prettyprinter-1.7.2 (lib)
+#13 19.29 Installing   cereal-0.5.8.3 (lib)
+#13 19.42 Downloaded   scientific-0.3.10.0
+#13 19.42 Downloading  io-streams-1.5.2.2
+#13 19.57 Completed    cereal-0.5.8.3 (lib)
+#13 19.74 Building     prettyprinter-1.7.2 (lib)
+#13 19.78 Downloaded   io-streams-1.5.2.2
+#13 19.78 Downloading  strict-0.5.1
+#13 20.09 Downloaded   strict-0.5.1
+#13 20.09 Downloading  serialise-0.2.6.1
+#13 20.50 Downloaded   serialise-0.2.6.1
+#13 20.50 Downloading  text-short-0.1.6.1
+#13 20.87 Downloaded   text-short-0.1.6.1
+#13 20.87 Downloading  base16-1.0
+#13 21.21 Downloaded   base16-1.0
+#13 21.21 Downloading  crypton-2.1.12
+#13 21.32 Installing   foldable1-classes-compat-0.1.3 (lib)
+#13 21.67 Completed    foldable1-classes-compat-0.1.3 (lib)
+#13 21.68 Downloaded   crypton-2.1.12
+#13 21.68 Downloading  hpke-0.4.0
+#13 21.79 Installing   hsc2hs-0.68.10 (exe:hsc2hs)
+#13 21.86 Completed    hsc2hs-0.68.10 (exe:hsc2hs)
+#13 21.89 Starting     unix-time-0.5.1 (all, legacy fallback: build-type is Configure)
+#13 21.91 Starting     zlib-0.7.1.1 (lib)
+#13 21.92 Starting     old-time-1.1.1.0 (all, legacy fallback: build-type is Configure)
+#13 21.93 Starting     terminal-size-0.3.4 (lib)
+#13 21.96 Starting     network-3.2.12.0 (all, legacy fallback: build-type is Configure)
+#13 22.01 Downloaded   hpke-0.4.0
+#13 22.01 Downloading  crypton-asn1-types-0.4.1
+#13 22.02 Installing   primitive-0.9.1.0 (lib)
+#13 22.30 Completed    primitive-0.9.1.0 (lib)
+#13 22.34 Starting     cborg-0.2.10.0 (lib)
+#13 22.38 Starting     vector-0.13.2.0 (lib)
+#13 22.41 Downloaded   crypton-asn1-types-0.4.1
+#13 22.41 Downloading  crypton-asn1-encoding-0.10.0
+#13 22.70 Downloaded   crypton-asn1-encoding-0.10.0
+#13 22.70 Downloading  crypton-asn1-parse-0.10.0
+#13 22.73 Building     terminal-size-0.3.4 (lib)
+#13 22.75 Building     zlib-0.7.1.1 (lib)
+#13 23.03 Installing   os-string-2.0.11 (lib)
+#13 23.07 Downloaded   crypton-asn1-parse-0.10.0
+#13 23.07 Downloading  base64-0.4.2.4
+#13 23.23 Building     vector-0.13.2.0 (lib)
+#13 23.28 Building     cborg-0.2.10.0 (lib)
+#13 23.37 Downloaded   base64-0.4.2.4
+#13 23.37 Downloading  crypton-pem-0.3.0
+#13 23.41 Completed    os-string-2.0.11 (lib)
+#13 23.43 Starting     hashable-1.4.7.0 (lib)
+#13 23.68 Downloaded   crypton-pem-0.3.0
+#13 23.68 Downloading  crypton-x509-1.10.1
+#13 23.84 Installing   blaze-builder-0.4.4.1 (lib)
+#13 24.09 Downloaded   crypton-x509-1.10.1
+#13 24.09 Downloading  crypton-x509-store-1.10.0
+#13 24.22 Completed    blaze-builder-0.4.4.1 (lib)
+#13 24.52 Downloaded   crypton-x509-store-1.10.0
+#13 24.52 Downloading  crypton-x509-system-1.10.0
+#13 24.54 Building     old-time-1.1.1.0 (all, legacy fallback: build-type is Configure)
+#13 24.77 Installing   terminal-size-0.3.4 (lib)
+#13 24.80 Building     hashable-1.4.7.0 (lib)
+#13 24.90 Downloaded   crypton-x509-system-1.10.0
+#13 24.90 Downloading  uuid-types-1.0.6.1
+#13 25.05 Building     unix-time-0.5.1 (all, legacy fallback: build-type is Configure)
+#13 25.08 Completed    terminal-size-0.3.4 (lib)
+#13 25.35 Downloaded   uuid-types-1.0.6.1
+#13 25.35 Downloading  appar-0.1.8
+#13 25.69 Downloaded   appar-0.1.8
+#13 25.69 Downloading  iproute-1.8.0
+#13 25.72 Starting     appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+#13 26.04 Downloaded   iproute-1.8.0
+#13 26.04 Downloading  crypton-x509-validation-1.10.1
+#13 26.19 Installing   time-hourglass-0.3.0 (lib)
+#13 26.26 Building     network-3.2.12.0 (all, legacy fallback: build-type is Configure)
+#13 26.28 Building     appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+#13 26.41 Downloaded   crypton-x509-validation-1.10.1
+#13 26.41 Downloading  tls-2.4.14
+#13 26.42 Completed    time-hourglass-0.3.0 (lib)
+#13 26.73 Downloaded   tls-2.4.14
+#13 26.73 Downloading  ansi-terminal-types-1.1.3
+#13 27.08 Downloaded   ansi-terminal-types-1.1.3
+#13 27.08 Downloading  ansi-terminal-1.1.5
+#13 27.11 Starting     ansi-terminal-types-1.1.3 (lib)
+#13 27.24 Installing   unix-time-0.5.1 (all, legacy fallback: build-type is Configure)
+#13 27.34 Installing   appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+#13 27.51 Downloaded   ansi-terminal-1.1.5
+#13 27.51 Downloading  prettyprinter-ansi-terminal-1.1.4
+#13 27.52 Completed    unix-time-0.5.1 (all, legacy fallback: build-type is Configure)
+#13 27.63 Completed    appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+#13 27.77 Building     ansi-terminal-types-1.1.3 (lib)
+#13 27.81 Downloaded   prettyprinter-ansi-terminal-1.1.4
+#13 27.81 Downloading  optparse-applicative-0.19.0.0
+#13 27.99 Installing   basement-0.0.16 (lib)
+#13 28.21 Downloaded   optparse-applicative-0.19.0.0
+#13 28.21 Downloading  tasty-1.5.5
+#13 28.31 Completed    basement-0.0.16 (lib)
+#13 28.32 Starting     memory-0.18.0 (lib)
+#13 28.38 Installing   old-time-1.1.1.0 (all, legacy fallback: build-type is Configure)
+#13 28.49 Downloaded   tasty-1.5.5
+#13 28.49 Downloading  tasty-expected-failure-0.12.3
+#13 28.60 Completed    old-time-1.1.1.0 (all, legacy fallback: build-type is Configure)
+#13 28.78 Downloaded   tasty-expected-failure-0.12.3
+#13 28.78 Downloading  tasty-hunit-0.10.2
+#13 28.89 Building     memory-0.18.0 (lib)
+#13 29.08 Downloaded   tasty-hunit-0.10.2
+#13 29.08 Downloading  QuickCheck-2.18.0.0
+#13 29.26 Installing   zlib-0.7.1.1 (lib)
+#13 29.36 Downloaded   QuickCheck-2.18.0.0
+#13 29.36 Downloading  quickcheck-instances-0.4
+#13 29.47 Completed    zlib-0.7.1.1 (lib)
+#13 29.48 Starting     zlib-bindings-0.1.1.5 (lib)
+#13 29.71 Downloaded   quickcheck-instances-0.4
+#13 29.71 Downloading  tasty-quickcheck-0.11.1
+#13 29.98 Downloaded   tasty-quickcheck-0.11.1
+#13 30.09 Building     zlib-bindings-0.1.1.5 (lib)
+#13 30.16 Installing   hashable-1.4.7.0 (lib)
+#13 30.48 Completed    hashable-1.4.7.0 (lib)
+#13 30.50 Starting     these-1.2.1 (lib)
+#13 30.52 Starting     scientific-0.3.10.0 (lib)
+#13 30.55 Starting     data-fix-0.3.4 (lib)
+#13 30.58 Starting     case-insensitive-1.2.2.0 (lib)
+#13 30.60 Starting     time-compat-1.9.9 (lib)
+#13 30.61 Starting     text-short-0.1.6.1 (lib)
+#13 30.64 Starting     unordered-containers-0.2.21 (lib)
+#13 30.83 Installing   ansi-terminal-types-1.1.3 (lib)
+#13 31.31 Completed    ansi-terminal-types-1.1.3 (lib)
+#13 31.32 Starting     ansi-terminal-1.1.5 (lib)
+#13 31.54 Building     these-1.2.1 (lib)
+#13 31.56 Building     scientific-0.3.10.0 (lib)
+#13 31.57 Building     time-compat-1.9.9 (lib)
+#13 31.59 Building     case-insensitive-1.2.2.0 (lib)
+#13 31.62 Building     data-fix-0.3.4 (lib)
+#13 31.63 Building     text-short-0.1.6.1 (lib)
+#13 31.68 Building     unordered-containers-0.2.21 (lib)
+#13 32.29 Installing   zlib-bindings-0.1.1.5 (lib)
+#13 32.34 Building     ansi-terminal-1.1.5 (lib)
+#13 32.72 Completed    zlib-bindings-0.1.1.5 (lib)
+#13 33.01 Installing   prettyprinter-1.7.2 (lib)
+#13 33.37 Completed    prettyprinter-1.7.2 (lib)
+#13 33.73 Installing   data-fix-0.3.4 (lib)
+#13 33.99 Completed    data-fix-0.3.4 (lib)
+#13 34.11 Installing   ansi-terminal-1.1.5 (lib)
+#13 34.45 Completed    ansi-terminal-1.1.5 (lib)
+#13 34.47 Starting     prettyprinter-ansi-terminal-1.1.4 (lib)
+#13 34.62 Installing   case-insensitive-1.2.2.0 (lib)
+#13 34.99 Completed    case-insensitive-1.2.2.0 (lib)
+#13 35.37 Building     prettyprinter-ansi-terminal-1.1.4 (lib)
+#13 36.00 Installing   text-short-0.1.6.1 (lib)
+#13 36.24 Installing   these-1.2.1 (lib)
+#13 36.30 Completed    text-short-0.1.6.1 (lib)
+#13 36.30 Installing   time-compat-1.9.9 (lib)
+#13 36.35 Starting     base64-0.4.2.4 (lib)
+#13 36.36 Starting     base16-1.0 (lib)
+#13 36.47 Installing   memory-0.18.0 (lib)
+#13 36.52 Completed    these-1.2.1 (lib)
+#13 36.54 Starting     strict-0.5.1 (lib)
+#13 36.80 Completed    time-compat-1.9.9 (lib)
+#13 36.93 Completed    memory-0.18.0 (lib)
+#13 36.93 Starting     asn1-types-0.3.4 (all, legacy fallback: cabal-version is less than 1.8)
+#13 37.13 Building     base64-0.4.2.4 (lib)
+#13 37.19 Building     base16-1.0 (lib)
+#13 37.29 Building     strict-0.5.1 (lib)
+#13 37.63 Building     asn1-types-0.3.4 (all, legacy fallback: cabal-version is less than 1.8)
+#13 37.98 Installing   prettyprinter-ansi-terminal-1.1.4 (lib)
+#13 38.35 Completed    prettyprinter-ansi-terminal-1.1.4 (lib)
+#13 38.36 Starting     optparse-applicative-0.19.0.0 (lib)
+#13 39.14 Building     optparse-applicative-0.19.0.0 (lib)
+#13 39.19 Installing   scientific-0.3.10.0 (lib)
+#13 39.47 Completed    scientific-0.3.10.0 (lib)
+#13 39.49 Starting     attoparsec-0.14.4 (lib)
+#13 40.61 Installing   network-3.2.12.0 (all, legacy fallback: build-type is Configure)
+#13 40.63 Building     attoparsec-0.14.4 (lib)
+#13 40.95 Completed    network-3.2.12.0 (all, legacy fallback: build-type is Configure)
+#13 41.00 Starting     iproute-1.8.0 (lib)
+#13 41.18 Installing   asn1-types-0.3.4 (all, legacy fallback: cabal-version is less than 1.8)
+#13 41.37 Installing   base16-1.0 (lib)
+#13 41.45 Completed    asn1-types-0.3.4 (all, legacy fallback: cabal-version is less than 1.8)
+#13 41.46 Starting     asn1-encoding-0.9.6 (lib)
+#13 41.63 Building     iproute-1.8.0 (lib)
+#13 41.73 Completed    base16-1.0 (lib)
+#13 41.74 Starting     crypton-asn1-types-0.4.1 (lib)
+#13 41.79 Installing   random-1.3.1 (lib)
+#13 41.96 Starting     crypton-2.1.12 (lib)
+#13 42.09 Completed    random-1.3.1 (lib)
+#13 42.11 Starting     uuid-types-1.0.6.1 (lib)
+#13 42.12 Starting     QuickCheck-2.18.0.0 (lib)
+#13 42.12 Building     asn1-encoding-0.9.6 (lib)
+#13 42.71 Building     crypton-asn1-types-0.4.1 (lib)
+#13 43.22 Building     QuickCheck-2.18.0.0 (lib)
+#13 43.23 Building     uuid-types-1.0.6.1 (lib)
+#13 43.27 Building     crypton-2.1.12 (lib)
+#13 45.13 Installing   strict-0.5.1 (lib)
+#13 45.54 Completed    strict-0.5.1 (lib)
+#13 46.90 Installing   crypton-asn1-types-0.4.1 (lib)
+#13 46.92 Installing   asn1-encoding-0.9.6 (lib)
+#13 47.14 Installing   uuid-types-1.0.6.1 (lib)
+#13 47.24 Completed    asn1-encoding-0.9.6 (lib)
+#13 47.36 Completed    crypton-asn1-types-0.4.1 (lib)
+#13 47.38 Starting     crypton-asn1-encoding-0.10.0 (lib)
+#13 47.46 Starting     crypton-asn1-parse-0.10.0 (lib)
+#13 47.48 Completed    uuid-types-1.0.6.1 (lib)
+#13 48.23 Building     crypton-asn1-encoding-0.10.0 (lib)
+#13 48.29 Building     crypton-asn1-parse-0.10.0 (lib)
+#13 49.26 Installing   crypton-asn1-parse-0.10.0 (lib)
+#13 49.44 Installing   optparse-applicative-0.19.0.0 (lib)
+#13 49.58 Completed    crypton-asn1-parse-0.10.0 (lib)
+#13 49.82 Completed    optparse-applicative-0.19.0.0 (lib)
+#13 49.83 Starting     tasty-1.5.5 (lib)
+#13 50.86 Building     tasty-1.5.5 (lib)
+#13 50.94 Installing   iproute-1.8.0 (lib)
+#13 51.26 Completed    iproute-1.8.0 (lib)
+#13 52.37 Installing   crypton-asn1-encoding-0.10.0 (lib)
+#13 52.79 Completed    crypton-asn1-encoding-0.10.0 (lib)
+#13 55.00 Installing   cborg-0.2.10.0 (lib)
+#13 55.22 Completed    cborg-0.2.10.0 (lib)
+#13 58.63 Installing   unordered-containers-0.2.21 (lib)
+#13 58.85 Completed    unordered-containers-0.2.21 (lib)
+#13 59.16 Installing   tasty-1.5.5 (lib)
+#13 59.38 Completed    tasty-1.5.5 (lib)
+#13 59.38 Starting     tasty-hunit-0.10.2 (lib)
+#13 59.39 Starting     tasty-expected-failure-0.12.3 (lib)
+#13 59.84 Building     tasty-hunit-0.10.2 (lib)
+#13 59.85 Building     tasty-expected-failure-0.12.3 (lib)
+#13 60.38 Installing   tasty-expected-failure-0.12.3 (lib)
+#13 60.56 Installing   tasty-hunit-0.10.2 (lib)
+#13 60.58 Completed    tasty-expected-failure-0.12.3 (lib)
+#13 60.78 Completed    tasty-hunit-0.10.2 (lib)
+#13 63.16 Installing   QuickCheck-2.18.0.0 (lib)
+#13 63.38 Completed    QuickCheck-2.18.0.0 (lib)
+#13 63.39 Starting     tasty-quickcheck-0.11.1 (lib)
+#13 63.81 Building     tasty-quickcheck-0.11.1 (lib)
+#13 64.60 Installing   tasty-quickcheck-0.11.1 (lib)
+#13 64.79 Completed    tasty-quickcheck-0.11.1 (lib)
+#13 65.60 Installing   base64-0.4.2.4 (lib)
+#13 65.78 Completed    base64-0.4.2.4 (lib)
+#13 65.78 Starting     crypton-pem-0.3.0 (lib)
+#13 66.15 Building     crypton-pem-0.3.0 (lib)
+#13 66.81 Installing   crypton-pem-0.3.0 (lib)
+#13 66.98 Completed    crypton-pem-0.3.0 (lib)
+#13 72.17 Installing   attoparsec-0.14.4 (lib)
+#13 72.34 Completed    attoparsec-0.14.4 (lib)
+#13 108.2 Installing   vector-0.13.2.0 (lib)
+#13 108.3 Completed    vector-0.13.2.0 (lib)
+#13 108.3 Starting     quickcheck-instances-0.4 (lib)
+#13 108.4 Starting     blaze-textual-0.2.3.1 (lib)
+#13 108.4 Starting     io-streams-1.5.2.2 (lib)
+#13 108.4 Starting     serialise-0.2.6.1 (lib)
+#13 108.7 Building     blaze-textual-0.2.3.1 (lib)
+#13 108.7 Building     quickcheck-instances-0.4 (lib)
+#13 108.7 Building     serialise-0.2.6.1 (lib)
+#13 108.7 Building     io-streams-1.5.2.2 (lib)
+#13 109.9 Installing   blaze-textual-0.2.3.1 (lib)
+#13 110.1 Completed    blaze-textual-0.2.3.1 (lib)
+#13 111.2 Installing   quickcheck-instances-0.4 (lib)
+#13 111.4 Completed    quickcheck-instances-0.4 (lib)
+#13 112.4 Installing   io-streams-1.5.2.2 (lib)
+#13 112.6 Completed    io-streams-1.5.2.2 (lib)
+#13 112.8 Installing   crypton-2.1.12 (lib)
+#13 113.0 Completed    crypton-2.1.12 (lib)
+#13 113.1 Starting     hpke-0.4.0 (lib)
+#13 113.1 Starting     crypton-x509-1.10.1 (lib)
+#13 113.4 Building     hpke-0.4.0 (lib)
+#13 113.4 Building     crypton-x509-1.10.1 (lib)
+#13 114.1 Installing   serialise-0.2.6.1 (lib)
+#13 114.2 Completed    serialise-0.2.6.1 (lib)
+#13 115.0 Installing   hpke-0.4.0 (lib)
+#13 115.2 Completed    hpke-0.4.0 (lib)
+#13 118.0 Installing   crypton-x509-1.10.1 (lib)
+#13 118.2 Completed    crypton-x509-1.10.1 (lib)
+#13 118.2 Starting     crypton-x509-store-1.10.0 (lib)
+#13 118.6 Building     crypton-x509-store-1.10.0 (lib)
+#13 119.4 Installing   crypton-x509-store-1.10.0 (lib)
+#13 119.6 Completed    crypton-x509-store-1.10.0 (lib)
+#13 119.6 Starting     crypton-x509-system-1.10.0 (lib)
+#13 119.6 Starting     crypton-x509-validation-1.10.1 (lib)
+#13 120.0 Building     crypton-x509-validation-1.10.1 (lib)
+#13 120.0 Building     crypton-x509-system-1.10.0 (lib)
+#13 120.4 Installing   crypton-x509-system-1.10.0 (lib)
+#13 120.6 Completed    crypton-x509-system-1.10.0 (lib)
+#13 121.5 Installing   crypton-x509-validation-1.10.1 (lib)
+#13 121.7 Completed    crypton-x509-validation-1.10.1 (lib)
+#13 121.7 Starting     tls-2.4.14 (lib)
+#13 122.1 Building     tls-2.4.14 (lib)
+#13 144.1 Installing   tls-2.4.14 (lib)
+#13 144.3 Completed    tls-2.4.14 (lib)
+#13 DONE 144.4s
+
+#14 [stage-1 8/8] COPY . .
+#14 DONE 0.2s
+
+#15 exporting to image
+#15 exporting layers
+#15 exporting layers 17.0s done
+#15 exporting manifest sha256:9b585773c2b4564fd0fcd5b6ec66e38596eb1b2050f4247cd51add368ce0dc0e done
+#15 exporting config sha256:63ff1547d328edf37c15d8c7264789b049a4b79e6e53a02a378daf416a80cc9d done
+#15 exporting attestation manifest sha256:4c8ac35d358ca14c7f48c0c3023bbf19336d41813e6f429cb54f42e35e5ab266 done
+#15 exporting manifest list sha256:3da684a32ab5c95af834281c9ff2d16ab9778fd7fbf3dac33203a7bd65f96e33 done
+#15 naming to docker.io/library/mariadb-haskell-stage3-review:latest done
+#15 unpacking to docker.io/library/mariadb-haskell-stage3-review:latest
+#15 unpacking to docker.io/library/mariadb-haskell-stage3-review:latest 6.1s done
+#15 ERROR: failed to extract layer sha256:de560d22f0a0d8cf55e420dd42ea113642ba09a7e6f4bc9ee51fd11f198b1e4f: write /var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/676/fs/root/.cabal/packages/hackage.haskell.org/01-index.tar: no space left on device
+------
+ > exporting to image:
+------
+ERROR: failed to build: failed to solve: failed to extract layer sha256:de560d22f0a0d8cf55e420dd42ea113642ba09a7e6f4bc9ee51fd11f198b1e4f: write /var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/676/fs/root/.cabal/packages/hackage.haskell.org/01-index.tar: no space left on device

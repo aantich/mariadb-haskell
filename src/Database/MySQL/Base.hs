@@ -70,6 +70,21 @@ module Database.MySQL.Base
     , queryStmtVector
     , closeStmt
     , resetStmt
+    , PreparedStatement
+    , StatementException(..)
+    , prepareStatement
+    , withPreparedStatement
+    , preparedMetadata
+    , closePrepared
+    , resetPrepared
+    , queryPrepared
+    , executePrepared
+    , queryStmtMulti
+    , queryPreparedMulti
+    , PreparedResult(..)
+    , executeBulk
+    , executeBulkUnitResults
+    , BulkUnitResult(..)
       -- * Helpers
     , withTransaction
     , QueryParam(..)
@@ -99,7 +114,9 @@ import           Control.Exception
 import           Control.Monad
 import           Data.Binary                        (Get)
 import Data.Binary.Put (runPut, putWord8)
-import Data.Word (Word16)
+import Data.Word (Word16, Word64)
+import qualified Data.IntMap.Strict as IM
+import Data.List (transpose, find)
 import System.Timeout (timeout)
 import           Data.Bits                          ((.&.))
 import           Data.IORef                         (newIORef, readIORef, writeIORef, atomicModifyIORef')
@@ -225,9 +242,9 @@ readStatementResults conn binary = loop []
             let results=StatementOK ok:earlier
             if moreResults (okStatus ok) then loop results else finishResponse conn >> pure (reverse results)
         else do
-            count <- getFromPacketExact getLenEncInt packet
-            fields <- readColumns conn count
-            let decode=if binary then decodeBinaryRow (prepareBinaryRow fields) else decodeTextRow (prepareTextRow fields)
+            columns <- readResultColumns conn packet
+            let fields = cachedFields columns
+                decode=if binary then decodeBinaryRow (cachedBinaryDecoder columns) else decodeTextRow (prepareTextRow fields)
                 rows acc = do
                     next <- readConnPacket conn
                     done <- isResultEnd conn next
@@ -252,8 +269,7 @@ executeCore conn cmd = do
         when extra (throwIO ExtraResultSets)
         pure ok
     else do
-        count <- getFromPacketExact getLenEncInt packet
-        void (readColumns conn count)
+        void (readResultColumns conn packet)
         let skip = do
                 next <- readConnPacket conn
                 done <- isResultEnd conn next
@@ -263,14 +279,12 @@ executeCore conn cmd = do
         finishResponse conn
         throwIO ExtraResultSets
 
-executeCommand :: MySQLConn -> Command -> IO OK
-executeCommand conn cmd = withCommand conn (executeCore conn cmd)
-
 isBinaryCommand :: Command -> Bool
 isBinaryCommand (COM_STMT_EXECUTE _ _ _) = True
+isBinaryCommand (COM_STMT_BULK_EXECUTE _ _ _ _) = True
 isBinaryCommand _ = False
 
-data QueryReply = WithoutResultSet | ResultSetColumns Int
+data QueryReply = WithoutResultSet | ResultSetColumns CachedColumns
 
 readQueryReply :: MySQLConn -> IO QueryReply
 readQueryReply conn = do
@@ -280,9 +294,7 @@ readQueryReply conn = do
         ok <- consumeOK conn packet
         if moreResults (okStatus ok) then readQueryReply conn else finishResponse conn >> pure WithoutResultSet
     else do
-        count <- getFromPacketExact getLenEncInt packet
-        when (count==0) (throwIO (ProtocolError "zero result column count"))
-        pure (ResultSetColumns count)
+        ResultSetColumns <$> readResultColumns conn packet
 
 queryCore :: MySQLConn -> Command -> Bool -> IO ([ColumnDef],InputStream [MySQLValue])
 queryCore conn cmd binary = do
@@ -290,9 +302,9 @@ queryCore conn cmd binary = do
     reply <- readQueryReply conn
     case reply of
         WithoutResultSet -> (,) [] <$> Stream.nullInput
-        ResultSetColumns count -> do
-            fields <- readColumns conn count
-            let decode=if binary then decodeBinaryRow (prepareBinaryRow fields) else decodeTextRow (prepareTextRow fields)
+        ResultSetColumns columns -> do
+            let fields = cachedFields columns
+                decode=if binary then decodeBinaryRow (cachedBinaryDecoder columns) else decodeTextRow (prepareTextRow fields)
             stream <- resultSetRows conn binary decode
             pure (fields,stream)
 
@@ -302,11 +314,11 @@ queryVectorCore conn cmd binary = do
     reply <- readQueryReply conn
     case reply of
         WithoutResultSet -> (,) V.empty <$> Stream.nullInput
-        ResultSetColumns count -> do
-            fieldList <- readColumns conn count
-            let fields=V.fromList fieldList
-                decodeList=if binary then decodeBinaryRow (prepareBinaryRow fieldList) else decodeTextRow (prepareTextRow fieldList)
-                decode packet = V.fromListN count <$> decodeList packet
+        ResultSetColumns columns -> do
+            let fieldList = cachedFields columns
+                fields=V.fromList fieldList
+                decodeList=if binary then decodeBinaryRow (cachedBinaryDecoder columns) else decodeTextRow (prepareTextRow fieldList)
+                decode packet = V.fromListN (cachedColumnCount columns) <$> decodeList packet
             stream <- resultSetRows conn binary decode
             pure (fields,stream)
 
@@ -354,8 +366,7 @@ skipFurtherResults conn binary seen = do
         ok <- consumeOK conn packet
         if moreResults (okStatus ok) then skipFurtherResults conn binary seen else pure seen
     else do
-        count <- getFromPacketExact getLenEncInt packet
-        void (readColumns conn count)
+        void (readResultColumns conn packet)
         let skip = do
                 row <- readConnPacket conn
                 end <- isResultEnd conn row
@@ -388,6 +399,9 @@ prepareStmt conn qry = do
 -- | Prepare SQL and return parameter metadata followed by result metadata.
 prepareStmtDetail :: MySQLConn -> Query -> IO (StmtPrepareOK,[ColumnDef],[ColumnDef])
 prepareStmtDetail conn (Query stmt) = withCommand conn $ do
+    states <- statementMap conn
+    when (IM.size states >= maximumPreparedStatements (connectionOptions conn))
+        (throwIO (ProtocolError "prepared statement registry exceeds client limit"))
     sendCommand conn (COM_STMT_PREPARE stmt)
     packet <- readConnPacket conn
     when (isERR packet) (serverError conn packet)
@@ -402,13 +416,19 @@ prepareStmtDetail conn (Query stmt) = withCommand conn $ do
     -- Preparing alone has not executed the statement's session effects.
     writeIORef (connectionQueryEffect conn) (Just False)
     pdefs <- readColumns conn params
-    cdefs <- readColumns conn columns
-    pure (info,pdefs,cdefs)
+    metadata <- readColumnBlock conn columns
+    next <- atomicModifyIORef' (connectionStatementSerial conn) $ \n ->
+        if n == maxBound then (n, Nothing) else (n + 1, Just (n + 1))
+    serial <- maybe (throwIO (ProtocolError "statement registration generation exhausted")) pure next
+    registerStatement conn ident serial params
+    retained <- storeStatementColumns conn ident 0 metadata
+    pure (info,pdefs,cachedFields retained)
 -- | Release a statement. This command has no server reply and cannot run while
 -- a result is pending. Raw IDs cannot detect reuse by a later server statement.
 closeStmt :: MySQLConn -> StmtID -> IO ()
 closeStmt conn ident = withCommand conn $ do
     sendCommand conn (COM_STMT_CLOSE ident)
+    forgetStatement conn ident
     atomicModifyIORef' (connectionOpaqueStatements conn) (\ids -> (filter (/=ident) ids,()))
 -- | Reset a statement and consume its own reply; pending rows must be read first.
 resetStmt :: MySQLConn -> StmtID -> IO ()
@@ -416,20 +436,259 @@ resetStmt conn ident = void (command conn (COM_STMT_RESET ident))
 -- | Execute with binary parameters. Text values require a known client charset;
 -- numeric/binary values do not require a rendering snapshot.
 executeStmt :: MySQLConn -> StmtID -> [MySQLValue] -> IO OK
-executeStmt conn ident values = executeCommand conn (COM_STMT_EXECUTE ident values (makeNullMap values))
+executeStmt conn ident values = withCommand conn $ do
+    validateStmtArity conn ident values
+    executeCore conn (COM_STMT_EXECUTE ident values (makeNullMap values))
 -- | Stream prepared binary rows under the ownership contract of 'query'.
 queryStmt :: MySQLConn -> StmtID -> [MySQLValue] -> IO ([ColumnDef],InputStream [MySQLValue])
-queryStmt conn ident values = withCommand conn (queryCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True)
+queryStmt conn ident values = withCommand conn $ do
+    validateStmtArity conn ident values
+    queryCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True
 -- | Vector variant of 'queryStmt'.
 queryStmtVector :: MySQLConn -> StmtID -> [MySQLValue] -> IO (V.Vector ColumnDef,InputStream (V.Vector MySQLValue))
-queryStmtVector conn ident values = withCommand conn (queryVectorCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True)
+queryStmtVector conn ident values = withCommand conn $ do
+    validateStmtArity conn ident values
+    queryVectorCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True
+
+-- | A statement bound to its creating connection and registration generation.
+-- The constructor is private: a handle cannot accidentally be executed on a
+-- different session, or close a new statement that reused an old numeric ID.
+-- Consume streams before close/reset; terminal connection failure invalidates
+-- every handle. Raw-ID functions remain available for compatibility.
+data PreparedStatement = PreparedStatement !MySQLConn !StmtID !Word64
+
+-- | Local statement misuse. No command is sent for these errors.
+data StatementException = StatementClosed | InvalidBulkBatch String
+    deriving (Show)
+instance Exception StatementException
+
+-- | Prepare a connection-owned handle. Its initial metadata is available through
+-- 'preparedMetadata'; MariaDB may replace that metadata during later execution.
+prepareStatement :: MySQLConn -> Query -> IO PreparedStatement
+prepareStatement conn queryText = mask_ $ do
+    (info, _, _) <- prepareStmtDetail conn queryText
+    states <- statementMap conn
+    case IM.lookup (fromIntegral (stmtId info)) states of
+        Nothing -> throwIO StatementClosed
+        Just state -> pure (PreparedStatement conn (stmtId info) (statementSerial state))
+
+-- | Bracket a server statement. Closing a retired connection's handle is a
+-- local no-op, so cleanup does not replace the query's transport exception.
+-- Abandoned rows and close share one cleanup deadline. Timed I/O restores the
+-- caller's masking state; lifetime transitions and failure handling stay masked.
+withPreparedStatement :: MySQLConn -> Query -> (PreparedStatement -> IO a) -> IO a
+withPreparedStatement conn queryText action = mask $ \restore -> do
+    statement <- prepareStatement conn queryText
+    outcome <- try (restore (action statement))
+    case outcome of
+        Right value -> cleanupPrepared restore statement >> pure value
+        Left (primary :: SomeException) -> do
+            cleanupPrepared restore statement `catch` \(secondary :: SomeException) -> do
+                when (isCancellation secondary) (throwIO secondary)
+                atomicModifyIORef' (connectionFailureRef conn)
+                    (\failure -> (fmap (\f -> f {secondaryCleanupFailure=True}) failure, ()))
+            throwIO primary
+
+-- One deadline covers abandoned rows and close. A stalled or malformed drain
+-- retires the transport; a new asynchronous cancellation keeps its identity.
+-- Restore the caller's masking state only inside the protected timed action:
+-- otherwise a continuously buffered result can run past timeout without ever
+-- reaching an interruptible wait. Retirement and exception selection stay masked.
+cleanupPrepared :: (IO () -> IO ()) -> PreparedStatement -> IO ()
+cleanupPrepared restore statement@(PreparedStatement conn _ _) = do
+    result <- try $ timeout (cleanupTimeoutMicros (connectionOptions conn)) $ restore $ do
+        pending <- readIORef (connectionDrain conn)
+        maybe (pure ()) id pending
+        closePrepared statement
+    case result of
+        Right (Just ()) -> pure ()
+        Right Nothing -> abortConnection conn False >> throwIO CleanupDeadlineExceeded
+        Left (err :: SomeException) -> abortConnection conn False >> throwIO err
+
+checkedStatement :: PreparedStatement -> IO StatementState
+checkedStatement (PreparedStatement conn ident serial) = do
+    states <- statementMap conn
+    case IM.lookup (fromIntegral ident) states of
+        Just state | statementSerial state == serial -> pure state
+        _ -> throwIO StatementClosed
+
+validateStmtArity :: MySQLConn -> StmtID -> [MySQLValue] -> IO ()
+validateStmtArity conn ident values = do
+    states <- statementMap conn
+    forM_ (IM.lookup (fromIntegral ident) states) $ \state -> validateStatementValues state values
+
+validateStatementValues :: StatementState -> [MySQLValue] -> IO ()
+validateStatementValues state values =
+    unless (lengthWithin (statementArity state) values == Just (statementArity state))
+        (throwIO WrongParamsCount)
+
+-- | Latest first-result metadata, including unknown MariaDB extension tags.
+-- Reading metadata performs no I/O. A subsequent execution/reprepare can replace
+-- it; the returned immutable snapshot remains valid for the caller.
+preparedMetadata :: PreparedStatement -> IO [ColumnMetadata]
+preparedMetadata statement = do
+    state <- checkedStatement statement
+    pure (maybe [] cachedDetails (IM.lookup 0 (statementResults state)))
+
+-- | Idempotently release this handle only. It never closes a later registration
+-- that happens to reuse the same raw statement ID.
+closePrepared :: PreparedStatement -> IO ()
+closePrepared statement@(PreparedStatement conn ident _) = do
+    state <- try (checkedStatement statement)
+    case state of
+        Left StatementClosed -> pure ()
+        Left err -> throwIO err
+        Right _ -> withCommand conn $ do
+            void (checkedStatement statement)
+            sendCommand conn (COM_STMT_CLOSE ident)
+            forgetStatement conn ident
+            atomicModifyIORef' (connectionOpaqueStatements conn) (\ids -> (filter (/= ident) ids, ()))
+
+-- | Clear parameter/cursor state after consuming pending rows. MariaDB retains
+-- the statement's metadata-omission state on COM_STMT_RESET, so its matching
+-- decoder must also remain cached. Connection reset is a different operation.
+resetPrepared :: PreparedStatement -> IO ()
+resetPrepared statement@(PreparedStatement conn ident _) = withCommand conn $ do
+    void (checkedStatement statement)
+    sendCommand conn (COM_STMT_RESET ident)
+    readConnPacket conn >>= consumeCommandOK conn >> pure ()
+
+-- | Stream the first binary row set; later row sets are drained and reported as
+-- 'ExtraResultSets'. Use 'queryPreparedMulti' to retain procedure OUT/results.
+queryPrepared :: PreparedStatement -> [MySQLValue] -> IO ([ColumnDef], InputStream [MySQLValue])
+queryPrepared statement@(PreparedStatement conn ident _) values = withCommand conn $ do
+    state <- checkedStatement statement
+    validateStatementValues state values
+    queryCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True
+
+-- | Execute a non-row statement. Unexpected row results are completely drained
+-- before 'ExtraResultSets', preserving a synchronized connection.
+executePrepared :: PreparedStatement -> [MySQLValue] -> IO OK
+executePrepared statement@(PreparedStatement conn ident _) values = withCommand conn $ do
+    state <- checkedStatement statement
+    validateStatementValues state values
+    executeCore conn (COM_STMT_EXECUTE ident values (makeNullMap values))
+
+-- | Complete prepared results in wire order. OUT parameters are identified by
+-- SERVER_PS_OUT_PARAMS on their terminator, not guessed from column names.
+-- These APIs materialize rows; use 'queryPrepared' for large individual streams.
+data PreparedResult
+    = PreparedOK !OK
+    | PreparedRows ![ColumnMetadata] ![[MySQLValue]]
+    | PreparedOutParameters ![ColumnMetadata] ![MySQLValue]
+    deriving (Show, Eq)
+
+-- | Raw-ID variant of 'queryPreparedMulti'. Unknown/closed IDs are diagnosed by
+-- MariaDB, preserving the legacy raw API's server-error contract.
+queryStmtMulti :: MySQLConn -> StmtID -> [MySQLValue] -> IO [PreparedResult]
+queryStmtMulti conn ident values = withCommand conn $ do
+    validateStmtArity conn ident values
+    sendCommand conn (COM_STMT_EXECUTE ident values (makeNullMap values))
+    readPreparedResults conn
+
+-- | Collect every prepared result, including OUT parameters and trailing OK.
+queryPreparedMulti :: PreparedStatement -> [MySQLValue] -> IO [PreparedResult]
+queryPreparedMulti statement@(PreparedStatement conn ident _) values = withCommand conn $ do
+    state <- checkedStatement statement
+    validateStatementValues state values
+    sendCommand conn (COM_STMT_EXECUTE ident values (makeNullMap values))
+    readPreparedResults conn
+
+readPreparedResults :: MySQLConn -> IO [PreparedResult]
+readPreparedResults conn = loop []
+  where
+    loop earlier = do
+        packet <- readConnPacket conn
+        if isERR packet then serverError conn packet
+        else if isOK packet then do
+            ok <- consumeOK conn packet
+            next (okStatus ok) (PreparedOK ok : earlier)
+        else do
+            columns <- readResultColumns conn packet
+            let rows acc = do
+                    row <- readConnPacket conn
+                    ending <- isResultEnd conn row
+                    if ending then (,) (reverse acc) <$> consumeEnd conn row
+                    else if isERR row then serverError conn row
+                    else decodeBinaryRow (cachedBinaryDecoder columns) row >>= \value -> rows (value : acc)
+            (values, flags) <- rows []
+            result <- if flags .&. 0x1000 == 0
+                then pure (PreparedRows (cachedDetails columns) values)
+                else case values of
+                    [out] -> pure (PreparedOutParameters (cachedDetails columns) out)
+                    _ -> throwIO (ProtocolError "prepared OUT result must contain exactly one row")
+            next flags (result : earlier)
+    next flags results
+        | moreResults flags = loop results
+        | otherwise = finishResponse conn >> pure (reverse results)
+
+-- | Per-operation bulk feedback returned by MariaDB, in server order. Aggregate
+-- execution instead returns one OK with its total count and first generated ID.
+data BulkUnitResult = BulkUnitResult
+    { bulkInsertId :: !Word64
+    , bulkAffectedRows :: !Word64
+    } deriving (Show, Eq)
+
+-- One type per column is a bulk wire invariant. Reject mixed signedness/types
+-- before sending; do not silently split into independently committed batches.
+bulkCommand :: PreparedStatement -> Word16 -> [[BulkParameter]] -> IO Command
+bulkCommand statement@(PreparedStatement conn ident _) flags rows = do
+    state <- checkedStatement statement
+    let width = statementArity state
+        invalid = InvalidBulkBatch "empty/zero-parameter batch or row limit exceeded"
+    count <- maybe (throwIO invalid) pure
+        (lengthWithin (maximumBulkRows (connectionOptions conn)) rows)
+    unless (width > 0 && count > 0) (throwIO invalid)
+    ensureBulkMinimumFits conn width count
+    forM_ rows $ \row -> unless (lengthWithin width row == Just width)
+        (throwIO WrongParamsCount)
+    let exemplar column = case find present column of
+            Just (BulkValue value) -> value
+            _ -> MySQLNull
+        present (BulkValue MySQLNull) = False
+        present (BulkValue _) = True
+        present _ = False
+        types = map exemplar (transpose rows)
+    pure (COM_STMT_BULK_EXECUTE ident flags types rows)
+
+-- | Execute exactly one bounded native MariaDB binary bulk command. NULL,
+-- DEFAULT and IGNORE use native parameter indicators. Errors are not replayed
+-- and can follow partial server work: use an explicit transaction for atomicity.
+-- Empty batches, mixed column wire types and oversized messages fail locally.
+executeBulk :: PreparedStatement -> [[BulkParameter]] -> IO OK
+executeBulk statement@(PreparedStatement conn _ _) rows = withCommand conn $ do
+    cmd <- bulkCommand statement 128 rows
+    executeCore conn cmd
+
+-- | Request MariaDB's negotiated per-operation generated IDs/counts. This is a
+-- distinct command mode, not fabricated feedback from an aggregate OK.
+executeBulkUnitResults :: PreparedStatement -> [[BulkParameter]] -> IO [BulkUnitResult]
+executeBulkUnitResults statement@(PreparedStatement conn _ _) rows = withCommand conn $ do
+    cmd <- bulkCommand statement 192 rows
+    sendCommand conn cmd
+    results <- readPreparedResults conn
+    case [values | PreparedRows _ values <- results] of
+        [values] | all ordinary results -> mapM unit values
+        _ -> throwIO (ProtocolError "unexpected bulk unit-result shape")
+  where
+    ordinary (PreparedOK _) = True
+    ordinary (PreparedRows columns _) = length columns == 2
+    ordinary _ = False
+    unit [ident, affected] = BulkUnitResult <$> unsigned ident <*> unsigned affected
+    unit _ = throwIO (ProtocolError "invalid bulk unit-result row")
+    -- The server describes these as BIGINT and stores their unsigned bit pattern.
+    unsigned (MySQLInt64U value) = pure value
+    unsigned (MySQLInt64 value) = pure (fromIntegral value)
+    unsigned _ = throwIO (ProtocolError "invalid bulk unit-result integer")
 
 -- No exception thrown by cleanup replaces an ordinary application failure.
-cleanupTransaction :: MySQLConn -> IO ()
-cleanupTransaction conn = do
+-- As with statement cleanup, restore only the timed I/O. The lease and failure
+-- diagnostics remain protected while buffered draining is interruptible.
+cleanupTransaction :: (IO () -> IO ()) -> MySQLConn -> IO ()
+cleanupTransaction restore conn = do
     phase <- connectionStatus conn
     when (phase `elem` [Ready,Streaming]) $ do
-        cleaned <- timeout (cleanupTimeoutMicros (connectionOptions conn)) $ do
+        cleaned <- timeout (cleanupTimeoutMicros (connectionOptions conn)) $ restore $ do
             pending <- readIORef (connectionDrain conn)
             maybe (pure ()) id pending
             void (execute_ conn "ROLLBACK")
@@ -460,7 +719,7 @@ withTransaction conn body = mask $ \restore -> do
             outcome <- try (restore body >>= \value -> guardUnconsumed conn >> pure value)
             case outcome of
                 Left (primary :: SomeException) -> do
-                    cleanupTransaction conn `catch` \(secondary :: SomeException) -> do
+                    cleanupTransaction restore conn `catch` \(secondary :: SomeException) -> do
                         abortConnection conn False
                         atomicModifyIORef' (connectionFailureRef conn) (\failure -> (fmap (\f -> f {secondaryCleanupFailure=True}) failure,()))
                         when (isCancellation secondary) (throwIO secondary)

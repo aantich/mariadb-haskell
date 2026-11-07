@@ -95,3 +95,50 @@ docker rm -v mariadb-haskell-linux
 ```
 
 Use a new container name/output location for each retained run. Linux correctness requires every published Stage 1 pass, every Stage 2 native target and every additive Stage 2 case. Its results stay separate from the Mac live benchmark profile. The container uses its own database and private test CA; it does not install trust roots or change the host MariaDB service. Ensure sufficient Docker disk/build space; the local Stage 2 run used separate task-local build storage after encountering the existing Docker disk limit.
+
+## Stage 3 statements and native feature benchmarks
+
+Every complete `check.py` run now also runs eight native-feature profiles with
+seven or more process repetitions. These compare native aggregate/unit bulk,
+sequential prepared inserts, text batching and cached/uncached narrow/wide
+prepared queries. Work, transaction boundaries and content verification match
+within each comparison. Connection/statement setup is outside timing. Each
+process performs two warm-ups. Wall time excludes the final GC; allocation,
+CPU and GC counters include that collection consistently across alternatives.
+
+The native recorder stores all samples and process logs under the complete run's
+`native/` directory. Validated native evidence is embedded in the live JSON and
+rendered in the main results document. Missing, partial, stale or inconsistent
+native measurements block publication. A native failure updates the failed
+attempt and retains the raw frozen-suite candidate, rather than presenting old
+native measurements as current. Filtered development runs skip these timings.
+
+The first native-feature capture is preserved separately under
+`baselines/macos-arm64-native-statements/`; it does not replace the original
+unchanged-driver baseline. Subsequent runs verify its checksum and compare only
+matching native workloads, server, machine, compiler and dependencies. Native
+timing increases above 20% fail the wrapper; increases above 5% in timing or
+allocation remain explicit investigation signals. The accepted performance
+reference is not advanced automatically.
+
+For a separate native experiment, use a new output directory:
+
+```sh
+python3 validation/stage3_benchmarks.py --output validation/results/runs/NEW_NATIVE_RUN
+```
+
+The frozen native benchmark inventory slots remain historical placeholders;
+they are not a statement that the new APIs are unsupported. The three correctness
+inventory entries for bulk/cache/extended metadata now run actual feature tests.
+See the [Stage 3 implementation and migration notes](../docs/STAGE3_IMPLEMENTATION.md)
+and [continuation roadmap](../docs/ROADMAP.md). Linux CI also smoke-tests all eight
+native benchmark paths without comparing their timings with Mac baselines.
+
+The native baseline's `results.json`, `SUMMARY.md` and `SHA256SUMS` are required
+and fingerprinted build/test inputs. Missing or changed artifacts fail validation.
+Publication rereads the checksummed baseline and recalculates comparability,
+deltas and alarms, so an incomplete or edited comparison cannot suppress a
+regression. Matching uses the Haskell workload/fixture hashes, verified profile
+units, compiler, dependencies, RTS, machine and server settings. Python admission
+policy changes do not invalidate identical measured workloads. Dependency pairs
+are normalized across JSON serialization.
