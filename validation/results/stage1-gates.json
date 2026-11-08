@@ -6,38 +6,43 @@
   "timing_investigations": [
     {
       "reference": "original",
-      "id": "connector-c/write.execute-many",
-      "percent": 7.151277013752466
+      "id": "haskell/latency.text",
+      "percent": 5.3768358997814625
     },
     {
-      "reference": "accepted",
-      "id": "connector-c/read.text.wide",
-      "percent": 6.37199100424799
+      "reference": "original",
+      "id": "haskell/write.text",
+      "percent": 8.107191316146544
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/read.text.narrow",
+      "percent": 7.769448946515389
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/blob.text",
+      "percent": 7.360040122876299
     },
     {
       "reference": "accepted",
       "id": "haskell/read.parallel-4",
-      "percent": 17.742069769378066
+      "percent": 16.518191657647165
     },
     {
       "reference": "accepted",
-      "id": "connector-c/write.execute-many",
-      "percent": 6.997122678524725
+      "id": "connector-c/blob.text",
+      "percent": 6.957716569858219
     },
     {
       "reference": "previous_stage",
-      "id": "connector-c/read.text.wide",
-      "percent": 11.133027789058403
+      "id": "connector-c/read.text.narrow",
+      "percent": 8.130907612562254
     },
     {
       "reference": "previous_stage",
-      "id": "connector-c/write.execute-many",
-      "percent": 9.459459459459453
-    },
-    {
-      "reference": "previous_stage",
-      "id": "haskell/read.parallel-16",
-      "percent": 11.603775690089924
+      "id": "connector-c/blob.text",
+      "percent": 9.229493557851765
     }
   ],
   "allocation_investigations": [],

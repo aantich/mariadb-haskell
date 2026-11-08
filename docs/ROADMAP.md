@@ -28,7 +28,7 @@ Stage 2 `e12462a`, on `codex/stage3-native-statements`.
    processed internally and add `COM_RESET_CONNECTION` for clean sessions.
    Invalidate prepared handles/caches and restore required session settings.
    Resetting a session does not recover a desynchronized transport.
-4. **Complete CDC — implemented and validated locally, awaiting review.** The 16
+4. **Complete CDC — implemented, validated and published on main.** The 16
    event/table-map/checksum failures now pass. GTID resume, transaction checkpoints
    and explicit acknowledgement controls use the corrected, bounded decoder.
    Literal and real-server tests cover rotation, transaction boundaries,
@@ -147,18 +147,27 @@ The next step remains CDC planning after separate approval.
 
 ## Stage 5 continuation checkpoint — 8 November 2026
 
-Anton approved the CDC implementation proposal. Work starts from `733183a` on
-`codex/stage5-cdc` and remains uncommitted for review. Read the
-[API/contracts and evolving evidence](STAGE5_IMPLEMENTATION.md).
+Anton approved the CDC implementation proposal, then authorized merging all work
+into main and publishing it. Implementation `9d0eedc` starts from `733183a` and
+is merged into main. Read the [API/contracts and evidence](STAGE5_IMPLEMENTATION.md)
+and [committed publication record](STAGE5_IMPLEMENTATION.md#committed-publication--8-november-2026).
 
 - [x] Correct event framing/checksums, metadata lifetime and MariaDB event IDs.
 - [x] Implement transaction checkpoints, GTID resume and explicit acknowledgements.
 - [x] Add bounded sparse/compressed/fragmented decoding and real recovery fixtures.
 - [x] Capture a separate immutable eight-profile CDC baseline with exact sources.
 - [x] Complete Linux and full Mac correctness/benchmark confirmation.
-- [ ] Review and publish only after Anton authorizes commit/push.
+- [x] Review and publish after Anton authorizes commit/push.
 
-Next development after CDC review is workload-specific APIs, prioritized by actual
+The fresh committed-input full run records 636 PASS / 1 known timeout-conflict
+FAIL / 4 UNSUPPORTED / 2 unavailable. All 83 new CDC cases and 535 published
+Stage 4 passes succeed; all 143 policy tests pass. Each of 47 runnable benchmark
+profiles has seven repetitions. Eight ordinary timing/reference investigations
+remain open; native/reuse/CDC timing signals and all allocation investigations
+are absent in this publication capture. Earlier review measurements remain in
+the [confirmation history](../validation/results/stage5-confirmation.json).
+
+Next development is workload-specific APIs, prioritized by actual
 application demand. XA-aware CDC and the new storage-engine-binlog semisync
 extension remain explicit limitations. Deferred ordinary performance work stays
 open; no performance reference advances.

@@ -1,10 +1,11 @@
 # Stage 5: MariaDB change data capture
 
 Implementation authorized by Anton on 8 November 2026, following the CDC proposal.
-Work starts from published Stage 4 `733183a` on `codex/stage5-cdc` and remains
-uncommitted for review. Full macOS and Linux validation is complete; the live
-report identifies the current working-tree capture rather than attributing the
-implementation to its unchanged parent commit.
+Work started from published Stage 4 `733183a` on `codex/stage5-cdc` and was left
+uncommitted for review. Anton subsequently authorized merging, committing and
+pushing the complete stage to main. Full macOS and Linux validation is complete;
+the committed publication record below supersedes the historical working-tree
+status while preserving every review capture.
 
 ## Contracts and implementation sequence
 
@@ -191,9 +192,9 @@ already proves that cardinality, while the row's advertised column count is
 still checked. Sparse metadata selection remains once per event/image, and the
 malformed-input assertions remain unchanged.
 
-## Final measurements — 8 November 2026
+## Final review measurements — 8 November 2026
 
-Three complete Mac captures of the final executable inputs include all **47 runnable profiles**, each with **seven process repetitions and two warmups per process**. The final two full captures ran sequentially in the user-confirmed idle window (13:46–13:50 UTC). The second was declared current before it ran, and supplies the live report; both complete captures are retained. Earlier structural-source captures and the two standalone CDC confirmations also remain available in the confirmation manifest. Frozen native-feature inventory placeholders remain visible; the separate native workloads exercise their implemented APIs.
+Three complete Mac captures of the final executable inputs include all **47 runnable profiles**, each with **seven process repetitions and two warmups per process**. The final two full review captures ran sequentially in the user-confirmed idle window (13:46–13:50 UTC). The second was declared current before it ran, and supplied the pre-publication live report; both complete captures are retained. Earlier structural-source captures and the two standalone CDC confirmations also remain available in the confirmation manifest. Frozen native-feature inventory placeholders remain visible; the separate native workloads exercise their implemented APIs.
 
 The table compares the immutable first CDC capture with the final idle capture. Times are **nanoseconds per stated unit**, lower is better; change is `(current / baseline - 1) * 100`. These are measurements of this Mac/MariaDB 12.3.3 configuration.
 
@@ -214,4 +215,31 @@ The earlier structural-source sparse-update captures exceeded the 5% timing thre
 
 The declared final full run exits 0, has no >20% original-baseline timing alarms and no allocation investigations. Native, reuse and CDC profiles have no >5% timing signals. **Seven stricter ordinary workload/reference timing signals remain open**, including unchanged Connector/C controls and Haskell parallel reads. Those previously deferred investigations are not marked resolved; no accepted performance reference advances.
 
-Publication remains a separate, authorized step after diff review. The current parent commit does not contain this implementation; the working-tree fingerprint supplies its identity. A later commit/push must rerun the full committed-input publication workflow.
+These review measurements preceded publication: their recorded parent commit
+does not contain the implementation, so their working-tree fingerprints supply
+their identities. The committed publication below uses a fresh full execution.
+
+## Committed publication — 8 November 2026
+
+Anton authorized merging all current work into main, committing and pushing to
+GitHub. Implementation `9d0eedc6ee47ac7316658c00d7825ba8f1faafa7` was merged into
+main by fast-forward. The fresh full committed-input run completed with exit 0:
+**636 PASS / 1 FAIL / 4 UNSUPPORTED / 2 unavailable**, all 83 Stage 5 cases and
+both inherited suites passing. It preserves every one of the 535 published
+Stage 4 passes. All 143 policy tests pass, and the strict publication freshness
+guard confirms clean committed executable inputs.
+
+All 47 runnable benchmark profiles have seven repetitions and two warmups per
+process. This publication capture has no >20% original-baseline timing alarms,
+allocation investigations or >5% native/reuse/CDC timing signals. Eight stricter
+ordinary workload/reference timing signals remain open, including unchanged
+Connector/C controls; no accepted performance reference advances.
+
+The executable fingerprint remains
+`c8266d02f0496188400dea1f6929346217f44b321a7c5927f6ee149cfe9ca5e6`.
+Every executable input matches the successful Linux review run. The
+[publication manifest](../validation/results/stage5-publication.json) retains
+the fresh raw results, source identity and comparison findings. The live report
+now identifies this committed implementation; the preceding review captures and
+their original parent commits remain historical evidence. A results-only commit
+publishes these measurements without claiming another execution.

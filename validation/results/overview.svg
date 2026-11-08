@@ -26,7 +26,7 @@
 <text x="790" y="120" font-size="11" font-weight="700" letter-spacing="0.7" fill="#cbd5e1">ENVIRONMENT GAPS</text>
 <text x="790" y="171" font-size="43" font-weight="700" fill="#fbbf24">2</text>
 <text x="790" y="201" font-size="10.5" fill="#94a3b8">Fixtures not available on this host</text>
-<text x="30" y="258" font-size="13" fill="#cbd5e1">12.3.3-MariaDB-log  /  7 benchmark repetitions  /  working tree c8266d02f049</text>
+<text x="30" y="258" font-size="13" fill="#cbd5e1">12.3.3-MariaDB-log  /  7 benchmark repetitions  /  commit 9d0eedc6ee47</text>
 <text x="30" y="281" font-size="11" fill="#94a3b8">Counts include two inherited suite summaries. Missing APIs and environment gaps are not passes.</text>
 </g>
 </svg>
