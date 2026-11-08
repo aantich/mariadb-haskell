@@ -120,3 +120,15 @@ commit and push the reviewed session-reset/session-observation implementation
 and retained evidence. Publish on main using the committed-input validation
 workflow above. Preserve original, accepted, native and first-reuse baselines
 and all open timing investigations. Later roadmap stages still require approval.
+
+User approval, 8 November 2026: proceed with Stage 5 CDC implementation as
+proposed: decoder correctness, transaction/checkpoint model, MariaDB GTID resume,
+consumer-controlled acknowledgements, bounded streaming and additive correctness/
+performance validation. Preserve all published passes and immutable references;
+leave implementation uncommitted for review. See docs/STAGE5_IMPLEMENTATION.md.
+
+Superseding user instruction, 8 November 2026: merge all current Stage 5 work
+into main, commit and push it to GitHub. Use the committed-input publication
+workflow above, retaining the review captures and immutable baselines. Keep
+deferred timing investigations and explicit CDC limitations visible. Later
+workload-specific APIs remain outside this publication authorization.

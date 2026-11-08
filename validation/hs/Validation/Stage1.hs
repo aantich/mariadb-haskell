@@ -193,8 +193,9 @@ cases =
             _ -> fail "transport cleanup swallowed cancellation"
         equal "retired before cancellation propagates" Broken =<< connectionStatus c
     , case1 "replication.setup-error-retires" $ do
-        -- The first two query replies answer checksum and semi-sync discovery.
-        let packets = textTranscript ++ textTranscript ++ [encodeToPacket 1 (ERR 1236 "HY000" "injected binlog failure")]
+        -- CDC setup now uses one atomic SET without discovery when ACK is off.
+        -- Inject the same server error into that first setup command.
+        let packets = [encodeToPacket 1 (ERR 1236 "HY000" "injected binlog failure")]
         (c,_,closed) <- scripted defaultConnectionOptions packets
         expectERR [1236] (BinLog.dumpBinLog c 123 (BinLog.BinLogTracker "binlog.000001" 4) False)
         equal "failed replication setup retires its owner" Broken =<< connectionStatus c

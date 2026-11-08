@@ -47,6 +47,13 @@ The live results identify the committed inputs tested for publication.
 The [Stage 4 review report](docs/STAGE4_CODE_REVIEW.md) records the resolved findings
 and retained reproductions. Open timing investigations remain visible.
 
+[Stage 5 MariaDB CDC](docs/STAGE5_IMPLEMENTATION.md) adds checked binlog decoding,
+transaction checkpoints, GTID resume and consumer-controlled semisynchronous
+acknowledgements. It is implemented and validated on macOS and Linux. The
+implementation report and live results identify the exact tested source,
+measurements and remaining limits; historical review captures retain their
+working-tree fingerprints.
+
 ## A first query
 
 ```haskell

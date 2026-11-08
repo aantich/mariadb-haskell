@@ -6,33 +6,38 @@
   "timing_investigations": [
     {
       "reference": "original",
-      "id": "haskell/read.parallel-4",
-      "percent": 17.788767220063573
+      "id": "connector-c/write.execute-many",
+      "percent": 7.151277013752466
     },
     {
-      "reference": "original",
-      "id": "haskell/write.text",
-      "percent": 7.927147479386276
+      "reference": "accepted",
+      "id": "connector-c/read.text.wide",
+      "percent": 6.37199100424799
     },
     {
       "reference": "accepted",
       "id": "haskell/read.parallel-4",
-      "percent": 38.814420114894666
+      "percent": 17.742069769378066
+    },
+    {
+      "reference": "accepted",
+      "id": "connector-c/write.execute-many",
+      "percent": 6.997122678524725
     },
     {
       "reference": "previous_stage",
-      "id": "haskell/read.prepared.narrow",
-      "percent": 5.633220852558352
+      "id": "connector-c/read.text.wide",
+      "percent": 11.133027789058403
     },
     {
       "reference": "previous_stage",
-      "id": "haskell/write.execute-many",
-      "percent": 15.53102398172821
+      "id": "connector-c/write.execute-many",
+      "percent": 9.459459459459453
     },
     {
       "reference": "previous_stage",
-      "id": "haskell/latency.prepared",
-      "percent": 9.703389830508469
+      "id": "haskell/read.parallel-16",
+      "percent": 11.603775690089924
     }
   ],
   "allocation_investigations": [],
@@ -44,14 +49,16 @@
   "statement_target_count": 5,
   "session_target_passes": 2,
   "session_target_count": 2,
+  "cdc_target_passes": 18,
+  "cdc_target_count": 18,
   "correctness_accepted": true,
   "performance_requires_confirmation": true,
   "previous_stage_reference": {
     "schema": 1,
-    "reference": "references/stage3-publication-1.json",
-    "sha256": "d577035b8cd4b851bf234776162025cebfdd6d1cec61927f31a280e208bffe56",
-    "tested_commit": "ef4e52b234187435d1ea464834df629cea5f267a",
-    "purpose": "Preserve every published Stage 3 PASS, including all prior stages, while measuring incremental costs. Original, accepted and first-native performance baselines remain unchanged."
+    "reference": "references/stage4-publication-1.json",
+    "sha256": "519c49879d475e26473a8561c366c8899f2bb1d02f60f2cec09c29af6904dfa0",
+    "tested_commit": "f2835647de4b650a8755d0216d384159a6b858e5",
+    "purpose": "Preserve all 535 published Stage 4 passes during CDC development. Original, accepted, native and reuse performance references remain unchanged."
   },
   "accepted_reference": {
     "schema": 1,
@@ -60,9 +67,11 @@
     "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
     "note": "Last accepted main before Stage 1; not advanced by failing attempts."
   },
-  "tested_input_sha256": "16a2d8939fb7c44241deaa7662391c846af97821b291e177a50887e4d5703365",
+  "tested_input_sha256": "c8266d02f0496188400dea1f6929346217f44b321a7c5927f6ee149cfe9ca5e6",
   "native_timing_investigations": [],
   "native_allocation_investigations": [],
   "reuse_timing_investigations": [],
-  "reuse_allocation_investigations": []
+  "reuse_allocation_investigations": [],
+  "cdc_timing_investigations": [],
+  "cdc_allocation_investigations": []
 }

@@ -34,6 +34,9 @@ STATEMENT_TARGETS = [
 ]
 
 SESSION_TARGETS = ['capability.session-tracking', 'capability.reset-connection']
+CDC_TARGETS = ['cdc.multiple-table-maps', 'cdc.repeated-row-events', 'cdc.table-id-mismatch',
+               'cdc.crc32-corruption-rejected', *['cdc.native-event-'+str(n) for n in range(160,172)],
+               'cdc.gtid-resume', 'cdc.durable-ack-control']
 
 def results(document):
     """Accept either a portable raw run or the live publication envelope."""
@@ -133,6 +136,11 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
             if new.get(ident, {}).get("status") != "PASS":
                 failures.append("required session target not passing: " + ident)
 
+    if require_targets and previous_stage is not None:
+        for ident in CDC_TARGETS:
+            if new.get(ident, {}).get('status') != 'PASS':
+                failures.append('required CDC target not passing: '+ident)
+
     for ident, benchmark in candidate.get("benchmarks", {}).items():
         prior_status = original.get("benchmarks", {}).get(ident, {}).get("status")
         if benchmark["status"] not in statuses:
@@ -178,6 +186,8 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
         "statement_target_count": len(STATEMENT_TARGETS),
         "session_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in SESSION_TARGETS),
         "session_target_count": len(SESSION_TARGETS),
+        "cdc_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in CDC_TARGETS),
+        "cdc_target_count": len(CDC_TARGETS),
         "correctness_accepted": not failures,
         "performance_requires_confirmation": bool(timing or allocation),
     }

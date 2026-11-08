@@ -42,7 +42,10 @@ def is_input(path):
                         "validation/baselines/macos-arm64-native-statements/SHA256SUMS",
                         "validation/baselines/macos-arm64-session-reuse/results.json",
                         "validation/baselines/macos-arm64-session-reuse/SUMMARY.md",
-                        "validation/baselines/macos-arm64-session-reuse/SHA256SUMS"}
+                        "validation/baselines/macos-arm64-session-reuse/SHA256SUMS",
+                        "validation/baselines/macos-arm64-cdc/results.json",
+                        "validation/baselines/macos-arm64-cdc/SUMMARY.md",
+                        "validation/baselines/macos-arm64-cdc/SHA256SUMS"}
             or path.startswith(".github/workflows/"))
 
 
@@ -297,6 +300,25 @@ def render(document, baseline):
         comparison = reuse['baseline_comparison']
         lines += ["", f"Public snapshot read: **{snapshot['median_elapsed_ns_per_unit']:,.1f} ns/call**, **{snapshot['median_allocated_bytes_per_unit']:,.1f} allocated bytes/call**, no SQL. Seven or more independent processes per profile, with two warmups; raw samples and checksums are embedded in [current.json](results/current.json).", "",
                   f"Immutable reuse baseline comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [First reuse baseline](baselines/macos-arm64-session-reuse/results.json).", ""]
+    cdc = attempt.get('cdc')
+    if cdc and cdc.get('complete') and cdc.get('inputs', {}).get('sha256') == attempt['inputs']['sha256']:
+        comparison = cdc['baseline_comparison']
+        baseline_cdc = json.loads((HERE / 'baselines/macos-arm64-cdc/results.json').read_text())
+        lines += ["### MariaDB CDC", "",
+            "[CDC contracts and limits](../docs/STAGE5_IMPLEMENTATION.md) describe transaction checkpoints and explicit acknowledgements. XA-aware checkpointing and storage-engine-binlog GTID semisync remain outside this implementation.", "",
+            "Separate immutable first CDC capture; no equivalent CDC throughput measurement exists in the unchanged-driver baseline. Units are rows, except framing/CRC uses events. Live profiles include source connection/setup and checkpoint observation; source log creation is outside timing. Retention timing includes four forced major collections and is a memory workload.", "",
+            "| Workload | Baseline ns/unit | Current ns/unit | Change vs baseline | Current allocated B/unit |",
+            "| --- | ---: | ---: | ---: | ---: |"]
+        for ident, profile in cdc['profiles'].items():
+            old = baseline_cdc['profiles'][ident]['median_elapsed_ns_per_unit']
+            new = profile['median_elapsed_ns_per_unit']
+            delta = comparison['profiles'].get(ident, {}).get('elapsed_ns')
+            change = f"{delta:+.1f}%" if delta is not None else 'different profile'
+            lines.append(f"| `{ident}` | {old:,.1f} | {new:,.1f} | {change} | {profile['median_allocated_bytes_per_unit']:,.1f} |")
+        retained = cdc['profiles']['cdc.retention']['samples']
+        last = [sample['retained_heap'][-1][1] for sample in retained]
+        lines += ["", f"Streaming retained heap at 1,000,000 rows: **{min(last):,}–{max(last):,} bytes** after major GC across the measured processes. All warmup/measured checkpoints are retained in [current.json](results/current.json). This is live heap, not a process high-water mark.", "",
+            f"CDC comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [First CDC capture](baselines/macos-arm64-cdc/results.json).", ""]
     engines = sorted({ident.partition("/")[0] for ident in data["benchmarks"]}, key=lambda engine: (engine != "haskell", engine))
     for engine in engines:
         title = {"haskell": "Haskell driver", "connector-c": "MariaDB Connector/C control"}.get(engine, engine)
@@ -374,6 +396,9 @@ def verify(document, snapshot, *, allow_working_tree=False):
     if any(case['id'].startswith('stage4.') for case in data['correctness']):
         from stage4_benchmarks import verify_evidence as verify_reuse
         verify_reuse(attempt.get('session_reuse', {}), attempt['inputs'])
+    if any(case['id'].startswith('stage5.') for case in data['correctness']):
+        from stage5_benchmarks import verify_evidence as verify_cdc
+        verify_cdc(attempt.get('cdc', {}), attempt['inputs'])
     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
         raise ValueError("recorder and report disagree about the tested commit")
 

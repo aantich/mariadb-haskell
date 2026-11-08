@@ -122,10 +122,10 @@ def main():
         lost = [case['id'] for case in previous['correctness']
                 if case['status']=='PASS' and current.get(case['id'])!='PASS']
         added_failures = [case['id'] for case in data['correctness']
-                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.')) and case['status']!='PASS']
+                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.', 'stage5.')) and case['status']!='PASS']
         sys.path.insert(0, str(ROOT/'validation'))
         import stage1_gates
-        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS + stage1_gates.SESSION_TARGETS if current.get(ident) != 'PASS']
+        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS + stage1_gates.SESSION_TARGETS + stage1_gates.CDC_TARGETS if current.get(ident) != 'PASS']
         if lost or added_failures or native_failures:
             raise RuntimeError('Linux correctness regressions: '+repr(lost+added_failures+native_failures))
         # Smoke all native benchmark paths on this compiler/server too. These
@@ -141,6 +141,9 @@ def main():
                 command([binary, 'stage4-bench', f'reuse.{transport}.{mode}', '1',
                          '+RTS', '-N4', '-T', '-RTS'], env=native_env)
         command([binary, 'stage4-bench', 'session.snapshot', '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
+        for profile in ['cdc.decode.single-table', 'cdc.decode.interleaved', 'cdc.decode.compressed',
+                        'cdc.decode.sparse-update', 'cdc.framing.crc32', 'cdc.live.rows', 'cdc.live.checkpoints', 'cdc.retention']:
+            command([binary, 'stage5-bench', profile, '1000', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
         print('Linux correctness profile passed; frozen timings were not compared.', flush=True)
     finally:
         process.terminate()

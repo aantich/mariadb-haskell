@@ -91,6 +91,7 @@ library
   hs-source-dirs:     src
   other-modules:      Database.MySQL.Query
                       Database.MySQL.Session
+                      Database.MySQL.BinLogProtocol.CDC
   build-depends:
     asn1-encoding >=0.9 && <0.10,
     asn1-types >=0.3 && <0.4,
@@ -113,7 +114,8 @@ library
     time >=1.5.0 && <1.12 || ^>=1.12.2 || ^>=1.14,
     tls >=1.7.0 && <1.8 || ^>=1.8.0 || ^>=1.9.0 || ^>=2.0.0 || ^>=2.1.0 || ^>=2.2.0 || ^>=2.3.0 || ^>=2.4.0,
     vector >=0.8 && <0.13 || ^>=0.13.0,
-    word-compat >=0.0 && <0.1
+    word-compat >=0.0 && <0.1,
+    zlib >=0.6 && <0.8
 
   -- Decision: require crypton 2.0, the first release with its side-channel
   -- fixes (none backported to 1.x). Before it, P-384/P-521 point multiplication
@@ -297,7 +299,9 @@ executable mariadb-validation
     Validation.Stage3Bench
     Validation.Stage4
     Validation.Stage4Bench
+    Validation.Stage5
+    Validation.Stage5Bench
     Validation.FaultTransport
   build-depends:
-    binary, bytestring, containers, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector
+    binary, bytestring, containers, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector, zlib, process, directory
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-T

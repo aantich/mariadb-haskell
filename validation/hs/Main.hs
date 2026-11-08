@@ -21,9 +21,11 @@ import qualified Validation.Stage3 as Stage3
 import qualified Validation.Stage3Bench as Stage3Bench
 import qualified Validation.Stage4 as Stage4
 import qualified Validation.Stage4Bench as Stage4Bench
+import qualified Validation.Stage5 as Stage5
+import qualified Validation.Stage5Bench as Stage5Bench
 
 allCases :: [Case]
-allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases
+allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases ++ Stage5.cases
 
 main :: IO ()
 main=do
@@ -42,6 +44,7 @@ main=do
     run ["case",ident]=case find ((==ident) . caseId) allCases of
         Nothing -> throwIO (userError ("unknown test " ++ ident))
         Just c -> caseRun c >> putStrLn ("PASS\t" ++ ident)
+    run ["stage5-bench",ident,n]=Stage5Bench.run ident (read n)
     run ["stage4-bench",ident,n]=Stage4Bench.run ident (read n)
     run ["stage3-bench",ident,n]=Stage3Bench.run ident (read n)
     run ["stage1-bench",ident,n]=Supplementary.run ident (read n)

@@ -53,10 +53,19 @@ def session_reuse_benchmarks(output, repetitions, config):
     return json.loads((destination / 'results.json').read_text())
 
 
+def cdc_benchmarks(output, repetitions, config):
+    """Preserve complete CDC measurements alongside every full Stage 5 run."""
+    destination = output / 'cdc'
+    subprocess.run([sys.executable, str(run.HERE / 'stage5_benchmarks.py'),
+                    '--config', str(config), '--output', str(destination),
+                    '--repetitions', str(repetitions)], cwd=run.ROOT, check=True)
+    return json.loads((destination / 'results.json').read_text())
+
+
 def main():
     if "--help" in sys.argv or "-h" in sys.argv:
         status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
-        print("\nFull runs also execute the native-feature benchmarks and update validation/RESULTS.md, results/overview.svg and results/current.json; the original baseline is compared by default. Partial runs do not replace the live report.")
+        print("\nFull runs also execute native, session-reuse and CDC benchmarks and update validation/RESULTS.md, results/overview.svg and results/current.json; the original baseline is compared by default. Partial runs do not replace the live report.")
         return status
     parser=argparse.ArgumentParser(add_help=False)
     parser.add_argument("--config",type=Path,default=run.HERE/".local/environment.json")
@@ -145,6 +154,25 @@ def main():
                     data, gate, status = None, None, status or 1
                 except KeyboardInterrupt:
                     attempt.update(state='FAILED', stage='session reuse benchmarks', reason='Session reuse benchmarks interrupted.')
+                    data, gate, status = None, None, 130
+            if data is not None and any(case['id'].startswith('stage5.') for case in data.get('correctness', [])):
+                try:
+                    from stage5_benchmarks import verify_evidence as verify_cdc
+                    cdc = cdc_benchmarks(output, args.repetitions, args.config)
+                    verify_cdc(cdc, inputs)
+                    attempt['cdc'] = cdc
+                    comparison = cdc['baseline_comparison']
+                    gate['cdc_timing_investigations'] = comparison['timing_investigations']
+                    gate['cdc_allocation_investigations'] = comparison['allocation_investigations']
+                    gate['performance_requires_confirmation'] = gate.get('performance_requires_confirmation', False) or bool(comparison['timing_investigations'] or comparison['allocation_investigations'])
+                    (run.HERE / 'results/stage1-gates.json').write_text(json.dumps(gate, indent=2) + '\n')
+                    if any(item['percent'] > 20 for item in comparison['timing_investigations']):
+                        status = status or 1
+                except (OSError, ValueError, KeyError, RuntimeError, subprocess.CalledProcessError) as error:
+                    attempt.update(state='FAILED', stage='CDC benchmarks', reason='CDC evidence failed: '+str(error))
+                    data, gate, status = None, None, status or 1
+                except KeyboardInterrupt:
+                    attempt.update(state='FAILED', stage='CDC benchmarks', reason='CDC benchmarks interrupted.')
                     data, gate, status = None, None, 130
             attempt.update(exit_code=status, finished_at=live.now())
             live.publish(attempt,data,gate=gate)

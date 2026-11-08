@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/workspace/validation/linux/verify.py", line 159, in <module>
+    main()
+  File "/workspace/validation/linux/verify.py", line 76, in main
+    certificates()
+  File "/workspace/validation/linux/verify.py", line 58, in certificates
+    command(['openssl', 'ca', '-batch', '-config', TLS/'ca.cnf', '-in', TLS/f'{stem}.csr',
+  File "/workspace/validation/linux/verify.py", line 22, in command
+    return subprocess.run(list(map(str, args)), cwd=ROOT, check=True, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['openssl', 'ca', '-batch', '-config', '/tmp/mariadb-haskell-stage2-tls/ca.cnf', '-in', '/tmp/mariadb-haskell-stage2-tls/server.csr', '-out', '/tmp/mariadb-haskell-stage2-tls/server-cert.pem']' returned non-zero exit status 1.

@@ -1,0 +1,7 @@
+{
+  "base_commit": "733183a32959496753204e60d83a259cd229198a",
+  "input_sha256": "4341156c0b007835c97ec56975aca3733dfd4ea045622c29b110f2caa62d9aaa",
+  "verified_inputs": 161,
+  "patch_sha256": "4c47607943967ec3dbafc8f1d6a878d1d1f5ca5c11d73bfe351229bd0f4d45a4",
+  "method": "git archive base; git apply retained patch; independently hash every recorded input"
+}

@@ -4,7 +4,7 @@
 Workload-specific units/checksums live in immutable specifications. Both native
 and session-reuse recorders use these same completeness and baseline guards.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import argparse
 import json
 import hashlib
@@ -29,6 +29,7 @@ class FeatureSpec:
     pairs: dict
     baseline_directory: Path
     workload_paths: tuple
+    heap_profiles: dict = field(default_factory=dict)
 
 
 def sample(spec, output, ident):
@@ -52,6 +53,26 @@ def sample(spec, output, ident):
     return result
 
 
+def verify_heap(spec, ident, entries):
+    """Require measured heap at every checkpoint in both warmups and the run.
+
+    A fixed 2 MiB growth allowance covers RTS bookkeeping without allowing a
+    million-row history to masquerade as bounded streaming. These are live
+    post-major-GC bytes, separately from process high-water memory.
+    """
+    checkpoints = list(spec.heap_profiles[ident])
+    if (not isinstance(entries, list) or len(entries) != 3*len(checkpoints)
+            or any(not isinstance(entry, list) or len(entry) != 2
+                   or any(type(value) is not int for value in entry) or entry[1] <= 0 for entry in entries)
+            or [entry[0] for entry in entries] != checkpoints*3):
+        raise ValueError('CDC retained heap checkpoints are incomplete')
+    width = len(checkpoints)
+    for offset in range(0, len(entries), width):
+        window = entries[offset:offset+width]
+        if window[-1][1] > window[0][1]+2*1024*1024:
+            raise ValueError('CDC retained heap grows beyond its streaming allowance')
+
+
 def verify_measurements(spec, data, inputs):
     """Validate samples/units independently of any baseline comparison."""
     if (not data.get('complete') or data.get('repetitions', 0) < 7
@@ -70,6 +91,8 @@ def verify_measurements(spec, data, inputs):
             raise ValueError(f'{spec.label} benchmark repetitions are incomplete')
         for entry in profile['samples']:
             sample(spec, spec.marker + '\t' + ident + '\t' + '\t'.join(str(entry[k]) for k in keys), ident)
+            if ident in spec.heap_profiles:
+                verify_heap(spec, ident, entry.get('retained_heap', []))
         for key in keys[1:-1]:
             expected = statistics.median(s[key] / s['units'] for s in profile['samples'])
             if profile.get('median_' + key + '_per_unit') != expected:
@@ -208,7 +231,12 @@ def main(spec):
                 (args.output / f'{ident}.{repetition}.log').write_text(output.stdout + output.stderr)
                 if output.returncode:
                     raise RuntimeError(f'{spec.label} benchmark process failed: ' + ident)
-                data['profiles'][ident]['samples'].append(sample(spec, output.stdout, ident))
+                entry = sample(spec, output.stdout, ident)
+                if ident in spec.heap_profiles:
+                    entry['retained_heap'] = [list(map(int, line.split('\t')[1:]))
+                        for line in output.stdout.splitlines() if line.startswith(spec.marker+'_HEAP\t')]
+                    verify_heap(spec, ident, entry['retained_heap'])
+                data['profiles'][ident]['samples'].append(entry)
                 print(spec.marker, repetition + 1, ident, flush=True)
         for profile in data['profiles'].values():
             for key in ('elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns'):

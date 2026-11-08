@@ -1,0 +1,2702 @@
+diff --git a/mysql-haskell.cabal b/mysql-haskell.cabal
+index f739c93..cd1f497 100644
+--- a/mysql-haskell.cabal
++++ b/mysql-haskell.cabal
+@@ -91,6 +91,7 @@ library
+   hs-source-dirs:     src
+   other-modules:      Database.MySQL.Query
+                       Database.MySQL.Session
++                      Database.MySQL.BinLogProtocol.CDC
+   build-depends:
+     asn1-encoding >=0.9 && <0.10,
+     asn1-types >=0.3 && <0.4,
+@@ -113,7 +114,8 @@ library
+     time >=1.5.0 && <1.12 || ^>=1.12.2 || ^>=1.14,
+     tls >=1.7.0 && <1.8 || ^>=1.8.0 || ^>=1.9.0 || ^>=2.0.0 || ^>=2.1.0 || ^>=2.2.0 || ^>=2.3.0 || ^>=2.4.0,
+     vector >=0.8 && <0.13 || ^>=0.13.0,
+-    word-compat >=0.0 && <0.1
++    word-compat >=0.0 && <0.1,
++    zlib >=0.6 && <0.8
+ 
+   -- Decision: require crypton 2.0, the first release with its side-channel
+   -- fixes (none backported to 1.x). Before it, P-384/P-521 point multiplication
+@@ -297,7 +299,9 @@ executable mariadb-validation
+     Validation.Stage3Bench
+     Validation.Stage4
+     Validation.Stage4Bench
++    Validation.Stage5
++    Validation.Stage5Bench
+     Validation.FaultTransport
+   build-depends:
+-    binary, bytestring, containers, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector
++    binary, bytestring, containers, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector, zlib, process, directory
+   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-T
+diff --git a/src/Database/MySQL/BinLog.hs b/src/Database/MySQL/BinLog.hs
+index 050048a..6d330eb 100644
+--- a/src/Database/MySQL/BinLog.hs
++++ b/src/Database/MySQL/BinLog.hs
+@@ -16,6 +16,9 @@ module Database.MySQL.BinLog
+     , BinLogTracker(..)
+     , registerPesudoSlave
+     , dumpBinLog
++    , BinLogStart(..), AcknowledgementMode(..), CDCOptions(..), defaultCDCOptions
++    , CDCStream(..), openCDC, resumeFromCheckpoint
++    , module Database.MySQL.BinLogProtocol.CDC
+     , RowBinLogEvent(..)
+     , decodeRowBinLogEvent
+     -- * helpers
+@@ -28,10 +31,13 @@ module Database.MySQL.BinLog
+     , module Database.MySQL.BinLogProtocol.BinLogMeta
+     ) where
+ 
+-import           Control.Exception                         (throwIO)
++import           Control.Exception                         (throwIO, mask, mask_, onException, finally)
+ import           Control.Monad
+-import           Data.Binary.Put
+ import           Data.ByteString                           (ByteString)
++import           Data.Bits
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Lazy as L
++import           Database.MySQL.BinLogProtocol.CDC
+ import           Data.IORef                                (IORef, newIORef,
+                                                             readIORef,
+                                                             writeIORef)
+@@ -52,7 +58,7 @@ type SlaveID = Word32
+ --
+ data BinLogTracker = BinLogTracker
+     { btFileName :: {-# UNPACK #-} !ByteString
+-    , btNextPos  :: {-# UNPACK #-} !Word32
++    , btNextPos  :: {-# UNPACK #-} !Word64
+     } deriving (Show, Eq, Generic)
+ 
+ -- | Register a pesudo slave to master, although MySQL document suggests you should call this
+@@ -73,81 +79,212 @@ dumpBinLog :: MySQLConn               -- ^ connection to be listened
+                                       -- if master doesn't support, this parameter will be ignored.
+            -> IO (FormatDescription, IORef ByteString, InputStream BinLogPacket)
+                 -- ^ 'FormatDescription', 'IORef' contains current binlog filename, 'BinLogPacket' stream.
+-dumpBinLog conn sid (BinLogTracker initfn initpos) wantAck = do
+-    guardUnconsumed conn
+-    checksum <- isCheckSumEnabled conn
+-    when checksum $ void $ execute_ conn "SET @master_binlog_checksum = @@global.binlog_checksum"
+-    semiAck  <- isSemiSyncEnabled conn
+-    let needAck = semiAck && wantAck
+-    when needAck . void $ execute_ conn "SET @rpl_semi_sync_slave = 1"
+-    withCommand conn $ do
+-        sendCommand conn (COM_BINLOG_DUMP initpos 0x00 sid initfn)
+-        generation <- markResponseStream conn Replicating
+-        -- Binlog packets are not ordinary command replies. Physical message
+-        -- limits and continuation checks still apply under this sequence policy.
+-        setExchangeSequence conn 256
+-        let readEvent = readBinLogPacket checksum needAck conn
+-            writePacket = mysqlWrite conn
+-        rp <- skipToPacketT readEvent BINLOG_ROTATE_EVENT
+-        re <- getFromBinLogPacket getRotateEvent rp
+-        fref <- newIORef (rFileName re)
+-
+-        p <- skipToPacketT readEvent BINLOG_FORMAT_DESCRIPTION_EVENT
+-        replyAck needAck p fref writePacket
+-        fmt <- getFromBinLogPacket getFormatDescription p
+-
+-        finished <- newIORef False
+-        es <- Stream.makeInputStream $ do
+-            done <- readIORef finished
+-            if done then pure Nothing else streamGuard conn generation $ do
+-                q <- readEvent
+-                case q of
+-                    Nothing -> do
+-                        writeIORef finished True
+-                        close conn
+-                        pure Nothing
+-                    Just event -> do
+-                        when (blEventType event == BINLOG_ROTATE_EVENT) $ do
+-                            rotation <- getFromBinLogPacket getRotateEvent event
+-                            writeIORef' fref (rFileName rotation)
+-                        replyAck needAck event fref writePacket
+-                        pure (Just event)
+-        pure (fmt, fref, es)
++dumpBinLog conn sid tracker wantAck = do
++    let mode = if wantAck then AcknowledgeOnRead else AcknowledgementsDisabled
++    (fmt, ref, packets, _) <- openPackets conn sid
++        (defaultCDCOptions (FromBinLog tracker)) { cdcAcknowledgements = mode }
++    legacy <- Stream.makeInputStream $ do
++        value <- Stream.read packets
++        case value of
++            Nothing -> close conn >> pure Nothing
++            Just event -> pure (Just event)
++    pure (fmt, ref, legacy)
++
++-- | Explicit start position. GTID sets contain only previously completed
++-- transactions; the server selects the next available group, including across
++-- file rotations. Purged history is an error, never a silent fallback.
++data BinLogStart = FromBinLog !BinLogTracker | FromGtid !GtidSet deriving (Eq, Show)
++
++-- | Manual mode never acknowledges during reading. The legacy on-read mode
++-- acknowledges receipt only and must not be used as a durability guarantee.
++data AcknowledgementMode = AcknowledgementsDisabled | AcknowledgeManually | AcknowledgeOnRead
++    deriving (Eq, Show)
++
++-- | Replication setup and decoding bounds. Nonblocking mode finishes at the
++-- server's current log end; ordinary blocking streams wait for further work.
++data CDCOptions = CDCOptions
++    { cdcStart :: !BinLogStart
++    , cdcAcknowledgements :: !AcknowledgementMode
++    , cdcNonBlocking :: !Bool
++    , cdcDecodeLimits :: !DecodeLimits
++    , cdcBootstrapEventLimit :: !Int
++    } deriving (Eq, Show)
++
++-- | Blocking, no acknowledgements, bounded decoding and at most 1024 setup
++-- events. Register a unique nonzero replica server ID at the application level.
++defaultCDCOptions :: BinLogStart -> CDCOptions
++defaultCDCOptions start = CDCOptions start AcknowledgementsDisabled False defaultDecodeLimits 1024
++
++-- | Choose the proven resume mechanism for a completed checkpoint. File-started
++-- streams retain file coordinates; GTID-started streams retain their full domain
++-- state. Call 'openCDC' on a fresh connection; this helper performs no I/O.
++resumeFromCheckpoint :: CDCCheckpoint -> BinLogStart
++resumeFromCheckpoint token = case checkpointGtids token of
++    Just gtids -> FromGtid gtids
++    Nothing -> let position = checkpointPosition token
++               in FromBinLog (BinLogTracker (binlogFile position) (binlogNextPosition position))
++
++-- | Single-thread-owned change stream. 'cdcLatestCheckpoint' observes a
++-- decoded complete-group boundary while the stream is active, not application durability. Persist it
++-- atomically with destination changes before calling 'cdcAcknowledge'. Closing
++-- is terminal; reopening/resuming always uses a fresh connection.
++data CDCStream = CDCStream
++    { cdcEvents :: !(InputStream CDCEvent)
++    , cdcLatestCheckpoint :: !(IO (Maybe CDCCheckpoint))
++    , cdcAcknowledge :: !(CDCCheckpoint -> IO ())
++    , cdcClose :: !(IO ())
++    }
++
++-- | Dedicate a connection to MariaDB CDC. Stream decoding and acknowledgement
++-- failures retire the transport. Cancellation never retries SQL or advances a
++-- checkpoint. Manual acknowledgements require server semisync to be enabled;
++-- acknowledgement tokens belong to this stream and cannot refer to future or
++-- incomplete transactions. Semisync acknowledges replica receipt, not an
++-- exactly-once destination commit protocol.
++openCDC :: MySQLConn -> SlaveID -> CDCOptions -> IO CDCStream
++openCDC conn sid options = mask $ \restore -> do
++    when (cdcAcknowledgements options == AcknowledgeOnRead)
++        (throwIO (userError "openCDC requires manual or disabled acknowledgements"))
++    (fd, ref, packets, generation) <- restore (openPackets conn sid options)
++    initialFile <- readIORef ref
++    let initialGtids = case cdcStart options of
++            FromGtid entries -> Just entries
++            FromBinLog _ -> Nothing
++    (decoded, latest) <- newCDCDecoder (cdcDecodeLimits options) initialGtids fd initialFile packets
++        `onException` abortConnection conn False
++    finished <- newIORef False
++    guarded <- Stream.makeInputStream $ do
++        done <- readIORef finished
++        if done then pure Nothing else streamGuard conn generation $ do
++            value <- Stream.read decoded
++            case value of
++                Nothing -> writeIORef finished True >> close conn >> pure Nothing
++                Just event -> pure (Just event)
++    acknowledged <- newIORef Nothing
++    let acknowledge token = do
++            streamGuard conn generation (pure ())
++            -- Invalid tokens are local misuse: reject without poisoning a
++            -- healthy replication session or transmitting bytes.
++            unless (cdcAcknowledgements options == AcknowledgeManually)
++                (throwIO (userError "manual acknowledgements are disabled"))
++            current <- latest
++            unless (maybe False (`validCheckpoint` token) current)
++                (throwIO (userError "checkpoint does not belong to delivered stream history"))
++            prior <- readIORef acknowledged
++            case prior of
++                Just previous | previous == token -> pure ()
++                Just previous | not (validCheckpoint token previous) ->
++                    throwIO (userError "checkpoint would move acknowledgement backwards")
++                _ -> streamGuard conn generation $ mask_ $ do
++                    let position = checkpointPosition token
++                    mysqlWrite conn (putToPacket 0 (putSemiAckResp (binlogNextPosition position) (binlogFile position)))
++                    writeIORef acknowledged (Just token)
++    pure (CDCStream guarded (streamGuard conn generation latest) acknowledge (close conn))
++
++-- Both legacy and transaction-aware interfaces use the same checked wire
++-- reader. The low capability value deliberately avoids advertising MariaDB
++-- storage-engine-binlog/GTID semisync extensions that this file-position ACK
++-- implementation does not support.
++openPackets :: MySQLConn -> SlaveID -> CDCOptions
++            -> IO (FormatDescription, IORef ByteString, InputStream BinLogPacket, Word64)
++openPackets conn sid options = do
++    let limits = cdcDecodeLimits options
++    when (sid == 0 || cdcBootstrapEventLimit options <= 0 || maxTableMaps limits <= 0
++          || maxTableMapBytes limits <= 0 || maxExpandedEventBytes limits <= 0)
++        (throwIO (userError "invalid CDC server ID/resource limits"))
++    (initialFile, initialPosition) <- case cdcStart options of
++        FromBinLog (BinLogTracker file position) -> do
++            when (B.null file || B.length file > 512 || B.elem 0 file || position < 4
++                  || position > fromIntegral (maxBound :: Word32))
++                (throwIO (userError "invalid/out-of-range COM_BINLOG_DUMP position"))
++            pure (file, fromIntegral position)
++        FromGtid entries -> do
++            when (B.length (renderGtidSet entries) > 65535)
++                (throwIO (userError "GTID connect state is too large"))
++            pure ("", 4)
++    mask $ \restore -> do
++        guardUnconsumed conn
++        beginTransactionLease conn
++        (restore (setup initialFile initialPosition limits) `onException` abortConnection conn False)
++            `finally` endTransactionLease conn
+   where
+-    skipToPacketT iop typ = do
+-        p <- iop
+-        case p of
+-            Just p' -> do
+-                if blEventType p' == typ then return p' else skipToPacketT iop typ
+-            Nothing -> throwIO NetworkException
+-
+-    replyAck needAck p fref wp' = when (needAck && blSemiAck p) $ do
+-        fn <- readIORef fref
+-        wp' (makeSemiAckPacket (blLogPos p) fn)
+-
+-    makeSemiAckPacket pos fn = putToPacket 0 $ do
+-        putWord8 0xEF      -- semi-ack
+-        putWord64le pos
+-        putByteString fn
+-
+-    readBinLogPacket checksum needAck connection = do
+-        p <- readConnPacket connection
+-        if  | isOK p -> Just <$> getFromPacket (getBinLogPacket checksum needAck) p
+-            | isEOF p -> return Nothing
+-            | isERR p -> decodeFromPacket p >>= throwIO . ERRException
+-            | otherwise -> throwIO (UnexpectedPacket p)
+-
+--- | Row based binlog event type.
+---
+--- It's recommended to enable row query event before 'dumpBinLog', so that you can get
+--- 'RowQueryEvent' in row based binlog(it's important for detect a table change for example),
+--- more information please refer <http://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_binlog_rows_query_log_events sysvar_binlog_rows_query_log_events>
+---
+--- A 'BinLogTracker' is included so that you can roll up your own HA solutions,
+--- for example, writing the tracker to zookeeper when you done with an event.
+---
+--- The first 'Word32' field is a timestamp present when this event is logged.
+---
++    setup initialFile initialPosition limits = do
++        semi <- if cdcAcknowledgements options == AcknowledgementsDisabled then pure False else isSemiSyncEnabled conn
++        when (cdcAcknowledgements options == AcknowledgeManually && not semi)
++            (throwIO (userError "manual ACK requested but MariaDB semisync is not enabled"))
++        let needAck = semi && cdcAcknowledgements options /= AcknowledgementsDisabled
++        -- One SET restores all replication setup variables atomically. GTID
++        -- text is generated exclusively from validated numeric identities, so
++        -- the SQL is ASCII-only and cannot depend on an unknown client charset
++        -- or SQL mode. No user-provided SQL bytes are interpolated here.
++        let connectState = case cdcStart options of
++                FromGtid entries -> "'" <> renderGtidSet entries <> "'"
++                FromBinLog _ -> "NULL"
++            setupSQL = "SET @mariadb_slave_capability=4,@slave_gtid_strict_mode=1,@slave_gtid_ignore_duplicates=0,@slave_connect_state="
++                <> connectState <> ",@master_binlog_checksum='CRC32',@rpl_semi_sync_slave=" <> if needAck then "1" else "0"
++        void $ execute_ conn (Query (L.fromStrict setupSQL))
++        -- Declaring CRC32 support also makes the artificial initial ROTATE
++        -- checksummed. Subsequent files choose their mode in their own FDE,
++        -- which can differ from the server's current global setting.
++        checksumState <- newIORef True
++        withCommand conn $ do
++            let flags = (if cdcNonBlocking options then 1 else 0) .|. 2
++            sendCommand conn (COM_BINLOG_DUMP initialPosition flags sid initialFile)
++            generation <- markResponseStream conn Replicating
++            setExchangeSequence conn 256
++            let readEvent = do
++                    packet <- readConnPacket conn
++                    when (pLen packet > fromIntegral (maxExpandedEventBytes limits) + 1024)
++                        (throwIO (userError "CDC wire event byte budget exceeded"))
++                    if | isOK packet -> do
++                           checksum <- readIORef checksumState
++                           event <- getFromPacket (getBinLogPacket checksum needAck) packet
++                           when (blEventType event == BINLOG_FORMAT_DESCRIPTION_EVENT) $ do
++                               -- FDE always carries a CRC, even when its
++                               -- descriptor turns checksums off for this file.
++                               void (getFromBinLogPacket getFormatDescription event)
++                               writeIORef checksumState (L.last (blBody event) == 1)
++                           pure (Just event)
++                       | isEOF packet -> pure Nothing
++                       | isERR packet -> decodeFromPacket packet >>= throwIO . ERRException
++                       | otherwise -> throwIO (UnexpectedPacket packet)
++                findType remaining typ = do
++                    when (remaining <= 0) (throwIO (userError "CDC bootstrap event limit exceeded"))
++                    packet <- readEvent
++                    case packet of
++                        Nothing -> throwIO NetworkException
++                        Just value | blEventType value == typ -> pure value
++                                   | blEventType value `elem` [BINLOG_HEARTBEAT_EVENT,BINLOG_IGNORABLE_EVENT]
++                                   || blFlags value .&. 0x80 /= 0 -> findType (remaining - 1) typ
++                               | otherwise -> throwIO (userError "unexpected data event during CDC bootstrap")
++            rotationPacket <- findType (cdcBootstrapEventLimit options) BINLOG_ROTATE_EVENT
++            rotation <- getFromBinLogPacket getRotateEvent rotationPacket
++            ref <- newIORef (B.copy (rFileName rotation))
++            formatPacket <- findType (cdcBootstrapEventLimit options) BINLOG_FORMAT_DESCRIPTION_EVENT
++            fd <- getFromBinLogPacket getFormatDescription formatPacket
++            let autoAck packet = when (needAck && blSemiAck packet && cdcAcknowledgements options == AcknowledgeOnRead) $ do
++                    file <- readIORef ref
++                    mysqlWrite conn (putToPacket 0 (putSemiAckResp (blLogPos packet) file))
++            autoAck formatPacket
++            finished <- newIORef False
++            packets <- Stream.makeInputStream $ do
++                done <- readIORef finished
++                if done then pure Nothing else streamGuard conn generation $ do
++                    next <- readEvent
++                    case next of
++                        Nothing -> writeIORef finished True >> pure Nothing
++                        Just event -> do
++                            when (blEventType event == BINLOG_ROTATE_EVENT) $ do
++                                value <- getFromBinLogPacket getRotateEvent event
++                                writeIORef ref (B.copy (rFileName value))
++                            autoAck event
++                            pure (Just event)
++            pure (fd, ref, packets, generation)
++
++-- | Legacy row-only view. Trackers after individual rows are not transaction
++-- checkpoints: persisting one may resume in the middle of a transaction.
++-- Use 'openCDC' for transaction boundaries, MariaDB annotations and safe resume.
++-- The first field is the server event timestamp in seconds.
+ data RowBinLogEvent
+     = RowQueryEvent  {-# UNPACK #-} !Word32 !BinLogTracker !QueryEvent'
+     | RowDeleteEvent {-# UNPACK #-} !Word32 !BinLogTracker !TableMapEvent !DeleteRowsEvent
+@@ -155,44 +292,31 @@ data RowBinLogEvent
+     | RowUpdateEvent {-# UNPACK #-} !Word32 !BinLogTracker !TableMapEvent !UpdateRowsEvent
+   deriving (Show, Eq, Generic)
+ 
+--- | decode row based event from 'BinLogPacket' stream.
++-- | Decode the legacy row-only view with bounded table-ID metadata. The input
++-- is single-consumer. Bracket the connection lifetime: semantic decoding errors
++-- propagate from this offline adapter, which has no connection to retire.
++-- Byte-valued row fields may share event storage; copy small retained fields
++-- when keeping them beyond consumption of their containing event.
+ decodeRowBinLogEvent :: (FormatDescription, IORef ByteString, InputStream BinLogPacket)
+                      -> IO (InputStream RowBinLogEvent)
+-decodeRowBinLogEvent (fd', fref', is') = Stream.makeInputStream (loop fd' fref' is')
+-  where
+-    loop fd fref is = do
+-        p <- Stream.read is
+-        case p of
+-            Nothing -> return Nothing
+-            Just p' -> do
+-                let t = blEventType p'
+-                if  | t == BINLOG_ROWS_QUERY_EVENT -> do
+-                        tr <- track p' fref
+-                        e <- getFromBinLogPacket getQueryEvent' p'
+-                        pure (Just (RowQueryEvent (blTimestamp p') tr e))
+-                    | t == BINLOG_TABLE_MAP_EVENT -> do
+-                        tme <- getFromBinLogPacket (getTableMapEvent fd) p'
+-                        q <- Stream.read is
+-                        case q of
+-                            Nothing -> return Nothing
+-                            Just q' -> do
+-                                let u = blEventType q'
+-                                if  | u == BINLOG_WRITE_ROWS_EVENTv1 || u == BINLOG_WRITE_ROWS_EVENTv2 -> do
+-                                        tr <- track q' fref
+-                                        e <- getFromBinLogPacket' (getWriteRowEvent fd tme) q'
+-                                        pure (Just (RowWriteEvent (blTimestamp q') tr tme e))
+-                                    | u == BINLOG_DELETE_ROWS_EVENTv1 || u == BINLOG_DELETE_ROWS_EVENTv2 -> do
+-                                        tr <- track q' fref
+-                                        e <- getFromBinLogPacket' (getDeleteRowEvent fd tme) q'
+-                                        pure (Just (RowDeleteEvent (blTimestamp q') tr tme e))
+-                                    | u == BINLOG_UPDATE_ROWS_EVENTv1 || u == BINLOG_UPDATE_ROWS_EVENTv2 -> do
+-                                        tr <- track q' fref
+-                                        e <- getFromBinLogPacket' (getUpdateRowEvent fd tme) q'
+-                                        pure (Just (RowUpdateEvent (blTimestamp q') tr tme e))
+-                                    | otherwise -> loop fd fref is
+-                    | otherwise -> loop fd fref is
+-
+-    track p fref = BinLogTracker <$> readIORef fref <*> (pure . fromIntegral . blLogPos) p
++decodeRowBinLogEvent (fd, ref, input) = do
++    file <- readIORef ref
++    (events, _) <- newCDCDecoder defaultDecodeLimits Nothing fd file input
++    let next = do
++            event <- Stream.read events
++            case event of
++                Nothing -> pure Nothing
++                Just value -> do
++                    let BinLogPosition name position = cdcEventPosition value
++                        tracker = BinLogTracker name position
++                        stamp = cdcEventTimestamp value
++                    case cdcEventPayload value of
++                        CDCRowQuery rowQuery -> pure (Just (RowQueryEvent stamp tracker rowQuery))
++                        CDCWrite table row -> pure (Just (RowWriteEvent stamp tracker table row))
++                        CDCUpdate table row -> pure (Just (RowUpdateEvent stamp tracker table row))
++                        CDCDelete table row -> pure (Just (RowDeleteEvent stamp tracker table row))
++                        _ -> next
++    Stream.makeInputStream next
+ 
+ -- | Get latest master's binlog filename and position.
+ --
+@@ -202,10 +326,10 @@ getLastBinLogTracker conn = do
+     row <- Stream.read is
+     Stream.skipToEof is
+     case row of
+-        Just (MySQLText fn : MySQLInt64U pos : _) -> return . Just $ BinLogTracker (encodeUtf8 fn) (fromIntegral pos)
++        Just (MySQLText fn : MySQLInt64U pos : _) -> return . Just $ BinLogTracker (encodeUtf8 fn) pos
+         _                                         -> return Nothing
+ 
+--- | Return True if binlog_checksum = CRC32. Only for MySQL > 5.6
++-- | Return True if binlog_checksum = CRC32. MariaDB CRC32 mode
+ --
+ isCheckSumEnabled :: MySQLConn -> IO Bool
+ isCheckSumEnabled conn = do
+@@ -216,7 +340,7 @@ isCheckSumEnabled conn = do
+         Just [_, MySQLText "CRC32"] -> return True
+         _                           -> return False
+ 
+--- | Return True if rpl_semi_sync_master_enabled = ON. Only for MySQL > 5.5
++-- | Return True if rpl_semi_sync_master_enabled = ON. MariaDB semisynchronous replication
+ --
+ isSemiSyncEnabled :: MySQLConn -> IO Bool
+ isSemiSyncEnabled conn = do
+diff --git a/src/Database/MySQL/BinLogProtocol/BinLogEvent.hs b/src/Database/MySQL/BinLogProtocol/BinLogEvent.hs
+index 4f4c02d..2a56480 100644
+--- a/src/Database/MySQL/BinLogProtocol/BinLogEvent.hs
++++ b/src/Database/MySQL/BinLogProtocol/BinLogEvent.hs
+@@ -15,8 +15,9 @@ Binlog event type
+ module Database.MySQL.BinLogProtocol.BinLogEvent where
+ 
+ import           Control.Monad
+-import           Control.Monad.Loops                       (untilM)
++import qualified Data.Vector.Unboxed                       as V
+ import           Data.Binary
++import           Data.Binary.Put (putWord64le, putByteString)
+ import           Data.Binary.Parser
+ import           Data.Bits
+ import           Data.ByteString                           (ByteString)
+@@ -73,7 +74,127 @@ data BinLogEventType
+     | BINLOG_GTID_EVENT
+     | BINLOG_ANONYMOUS_GTID_EVENT
+     | BINLOG_PREVIOUS_GTIDS_EVENT
+-  deriving (Show, Eq, Enum)
++    | MARIADB_ANNOTATE_ROWS_EVENT
++    | MARIADB_BINLOG_CHECKPOINT_EVENT
++    | MARIADB_GTID_EVENT
++    | MARIADB_GTID_LIST_EVENT
++    | MARIADB_START_ENCRYPTION_EVENT
++    | MARIADB_QUERY_COMPRESSED_EVENT
++    | MARIADB_WRITE_ROWS_COMPRESSED_EVENTv1
++    | MARIADB_UPDATE_ROWS_COMPRESSED_EVENTv1
++    | MARIADB_DELETE_ROWS_COMPRESSED_EVENTv1
++    | MARIADB_WRITE_ROWS_COMPRESSED_EVENTv2
++    | MARIADB_UPDATE_ROWS_COMPRESSED_EVENTv2
++    | MARIADB_DELETE_ROWS_COMPRESSED_EVENTv2
++    | MARIADB_PARTIAL_ROW_DATA_EVENT
++    | UnrecognizedBinLogEvent !Word8
++  deriving (Show, Eq)
++
++-- | Preserve wire identifiers, including future events. Unlike derived Enum,
++-- decoding a new MariaDB event can never raise a pure out-of-range exception.
++instance Enum BinLogEventType where
++    toEnum n = case n of
++        0 -> BINLOG_UNKNOWN_EVENT
++        1 -> BINLOG_START_EVENT_V3
++        2 -> BINLOG_QUERY_EVENT
++        3 -> BINLOG_STOP_EVENT
++        4 -> BINLOG_ROTATE_EVENT
++        5 -> BINLOG_INTVAR_EVENT
++        6 -> BINLOG_LOAD_EVENT
++        7 -> BINLOG_SLAVE_EVENT
++        8 -> BINLOG_CREATE_FILE_EVENT
++        9 -> BINLOG_APPEND_BLOCK_EVENT
++        10 -> BINLOG_EXEC_LOAD_EVENT
++        11 -> BINLOG_DELETE_FILE_EVENT
++        12 -> BINLOG_NEW_LOAD_EVENT
++        13 -> BINLOG_RAND_EVENT
++        14 -> BINLOG_USER_VAR_EVENT
++        15 -> BINLOG_FORMAT_DESCRIPTION_EVENT
++        16 -> BINLOG_XID_EVENT
++        17 -> BINLOG_BEGIN_LOAD_QUERY_EVENT
++        18 -> BINLOG_EXECUTE_LOAD_QUERY_EVENT
++        19 -> BINLOG_TABLE_MAP_EVENT
++        20 -> BINLOG_WRITE_ROWS_EVENTv0
++        21 -> BINLOG_UPDATE_ROWS_EVENTv0
++        22 -> BINLOG_DELETE_ROWS_EVENTv0
++        23 -> BINLOG_WRITE_ROWS_EVENTv1
++        24 -> BINLOG_UPDATE_ROWS_EVENTv1
++        25 -> BINLOG_DELETE_ROWS_EVENTv1
++        26 -> BINLOG_INCIDENT_EVENT
++        27 -> BINLOG_HEARTBEAT_EVENT
++        28 -> BINLOG_IGNORABLE_EVENT
++        29 -> BINLOG_ROWS_QUERY_EVENT
++        30 -> BINLOG_WRITE_ROWS_EVENTv2
++        31 -> BINLOG_UPDATE_ROWS_EVENTv2
++        32 -> BINLOG_DELETE_ROWS_EVENTv2
++        33 -> BINLOG_GTID_EVENT
++        34 -> BINLOG_ANONYMOUS_GTID_EVENT
++        35 -> BINLOG_PREVIOUS_GTIDS_EVENT
++        160 -> MARIADB_ANNOTATE_ROWS_EVENT
++        161 -> MARIADB_BINLOG_CHECKPOINT_EVENT
++        162 -> MARIADB_GTID_EVENT
++        163 -> MARIADB_GTID_LIST_EVENT
++        164 -> MARIADB_START_ENCRYPTION_EVENT
++        165 -> MARIADB_QUERY_COMPRESSED_EVENT
++        166 -> MARIADB_WRITE_ROWS_COMPRESSED_EVENTv1
++        167 -> MARIADB_UPDATE_ROWS_COMPRESSED_EVENTv1
++        168 -> MARIADB_DELETE_ROWS_COMPRESSED_EVENTv1
++        169 -> MARIADB_WRITE_ROWS_COMPRESSED_EVENTv2
++        170 -> MARIADB_UPDATE_ROWS_COMPRESSED_EVENTv2
++        171 -> MARIADB_DELETE_ROWS_COMPRESSED_EVENTv2
++        172 -> MARIADB_PARTIAL_ROW_DATA_EVENT
++        _ -> UnrecognizedBinLogEvent (fromIntegral n)
++    fromEnum t = case t of
++        BINLOG_UNKNOWN_EVENT -> 0
++        BINLOG_START_EVENT_V3 -> 1
++        BINLOG_QUERY_EVENT -> 2
++        BINLOG_STOP_EVENT -> 3
++        BINLOG_ROTATE_EVENT -> 4
++        BINLOG_INTVAR_EVENT -> 5
++        BINLOG_LOAD_EVENT -> 6
++        BINLOG_SLAVE_EVENT -> 7
++        BINLOG_CREATE_FILE_EVENT -> 8
++        BINLOG_APPEND_BLOCK_EVENT -> 9
++        BINLOG_EXEC_LOAD_EVENT -> 10
++        BINLOG_DELETE_FILE_EVENT -> 11
++        BINLOG_NEW_LOAD_EVENT -> 12
++        BINLOG_RAND_EVENT -> 13
++        BINLOG_USER_VAR_EVENT -> 14
++        BINLOG_FORMAT_DESCRIPTION_EVENT -> 15
++        BINLOG_XID_EVENT -> 16
++        BINLOG_BEGIN_LOAD_QUERY_EVENT -> 17
++        BINLOG_EXECUTE_LOAD_QUERY_EVENT -> 18
++        BINLOG_TABLE_MAP_EVENT -> 19
++        BINLOG_WRITE_ROWS_EVENTv0 -> 20
++        BINLOG_UPDATE_ROWS_EVENTv0 -> 21
++        BINLOG_DELETE_ROWS_EVENTv0 -> 22
++        BINLOG_WRITE_ROWS_EVENTv1 -> 23
++        BINLOG_UPDATE_ROWS_EVENTv1 -> 24
++        BINLOG_DELETE_ROWS_EVENTv1 -> 25
++        BINLOG_INCIDENT_EVENT -> 26
++        BINLOG_HEARTBEAT_EVENT -> 27
++        BINLOG_IGNORABLE_EVENT -> 28
++        BINLOG_ROWS_QUERY_EVENT -> 29
++        BINLOG_WRITE_ROWS_EVENTv2 -> 30
++        BINLOG_UPDATE_ROWS_EVENTv2 -> 31
++        BINLOG_DELETE_ROWS_EVENTv2 -> 32
++        BINLOG_GTID_EVENT -> 33
++        BINLOG_ANONYMOUS_GTID_EVENT -> 34
++        BINLOG_PREVIOUS_GTIDS_EVENT -> 35
++        MARIADB_ANNOTATE_ROWS_EVENT -> 160
++        MARIADB_BINLOG_CHECKPOINT_EVENT -> 161
++        MARIADB_GTID_EVENT -> 162
++        MARIADB_GTID_LIST_EVENT -> 163
++        MARIADB_START_ENCRYPTION_EVENT -> 164
++        MARIADB_QUERY_COMPRESSED_EVENT -> 165
++        MARIADB_WRITE_ROWS_COMPRESSED_EVENTv1 -> 166
++        MARIADB_UPDATE_ROWS_COMPRESSED_EVENTv1 -> 167
++        MARIADB_DELETE_ROWS_COMPRESSED_EVENTv1 -> 168
++        MARIADB_WRITE_ROWS_COMPRESSED_EVENTv2 -> 169
++        MARIADB_UPDATE_ROWS_COMPRESSED_EVENTv2 -> 170
++        MARIADB_DELETE_ROWS_COMPRESSED_EVENTv2 -> 171
++        MARIADB_PARTIAL_ROW_DATA_EVENT -> 172
++        UnrecognizedBinLogEvent n -> fromIntegral n
+ 
+ data BinLogPacket = BinLogPacket
+     { blTimestamp :: !Word32
+@@ -86,33 +207,72 @@ data BinLogPacket = BinLogPacket
+     , blSemiAck   :: !Bool
+     } deriving (Show, Eq)
+ 
+-putSemiAckResp :: Word32 -> ByteString -> Put
+-putSemiAckResp pos fn = put pos >> put fn
++-- | Semisynchronous acknowledgement payload: marker, little-endian 64-bit
++-- position, then the un-terminated filename (MariaDB semisync wire format).
++putSemiAckResp :: Word64 -> ByteString -> Put
++putSemiAckResp pos fn = putWord8 0xef >> putWord64le pos >> putByteString fn
+ 
++-- | Decode exactly one replication message, verifying CRC32 over the complete
++-- event header and body. Packet framing bytes and semisync headers are excluded.
+ getBinLogPacket :: Bool -> Bool -> Get BinLogPacket
+ getBinLogPacket checksum semi = do
+-    _  <- getWord8     -- OK byte
+-    ack <- if semi
+-        then getWord8 >> (== 0x01) <$> getWord8
+-        else return False
+-    ts <- getWord32le
+-    typ <- toEnum . fromIntegral <$> getWord8
+-    sid <- getWord32le
+-    size <- getWord32le
+-    pos <- getWord32le
+-    flgs <- getWord16le
+-    body <- getLazyByteString (fromIntegral size - if checksum then 23 else 19)
+-    return (BinLogPacket ts typ sid size (fromIntegral pos) flgs body ack)
++    marker <- getWord8
++    unless (marker == 0) (fail "binlog: missing OK marker")
++    ack <- if semi then do
++        magic <- getWord8
++        flags <- getWord8
++        unless (magic == 0xef && flags .&. complement 1 == 0)
++            (fail "binlog: malformed semisync header")
++        pure (flags == 1)
++      else pure False
++    raw <- getRemainingLazyByteString
++    let hasChecksum = checksum || (L.length raw >= 5 && L.index raw 4 == 15)
++        trailer = if hasChecksum then 4 else 0
++        total = L.length raw
++    when (total < 19 + trailer) (fail "binlog: truncated common header/checksum")
++    let parser = do
++            ts <- getWord32le
++            typ <- toEnum . fromIntegral <$> getWord8
++            sid <- getWord32le
++            size <- getWord32le
++            pos <- getWord32le
++            flags <- getWord16le
++            unless (fromIntegral size == total) (fail "binlog: event size disagrees with message")
++            body <- getLazyByteString (total - 19 - trailer)
++            when hasChecksum $ do
++                expected <- getWord32le
++                unless (expected == binLogCRC32 (L.take (total - 4) raw))
++                    (fail "binlog: CRC32 mismatch")
++            pure (BinLogPacket ts typ sid size (fromIntegral pos) flags body ack)
++    case runGetOrFail parser raw of
++        Left (_, _, message) -> fail message
++        Right (_, _, event) -> pure event
++
++-- | IEEE CRC32 used by MariaDB. A shared unboxed lookup table avoids eight
++-- branches per payload byte and does not concatenate lazy event chunks.
++binLogCRC32 :: L.ByteString -> Word32
++binLogCRC32 = complement . L.foldl' step 0xffffffff
++  where
++    step crc byte = (crc `shiftR` 8) `xor`
++        (crcTable V.! fromIntegral ((crc `xor` fromIntegral byte) .&. 255))
++
++crcTable :: V.Vector Word32
++crcTable = V.generate 256 (go 8 . fromIntegral)
++  where
++    go :: Int -> Word32 -> Word32
++    go 0 n = n
++    go k n = go (k - 1) ((n `shiftR` 1) `xor` if testBit n 0 then 0xedb88320 else 0)
++{-# NOINLINE crcTable #-}
+ 
+ getFromBinLogPacket :: Get a -> BinLogPacket -> IO a
+ getFromBinLogPacket g (BinLogPacket _ _ _ _ _ _ body _ ) =
+-    case parseDetailLazy g body  of
++    case parseDetailLazy (g <* endOfInput) body  of
+         Left  (buf, offset, errmsg) -> throwIO (DecodePacketFailed buf offset errmsg)
+         Right (_,   _,      r     ) -> return r
+ 
+ getFromBinLogPacket' :: (BinLogEventType -> Get a) -> BinLogPacket -> IO a
+ getFromBinLogPacket' g (BinLogPacket _ typ _ _ _ _ body _ ) =
+-    case parseDetailLazy (g typ) body  of
++    case parseDetailLazy (g typ <* endOfInput) body  of
+         Left  (buf, offset, errmsg) -> throwIO (DecodePacketFailed buf offset errmsg)
+         Right (_,   _,      r     ) -> return r
+ 
+@@ -128,11 +288,15 @@ data FormatDescription = FormatDescription
+     } deriving (Show, Eq, Generic)
+ 
+ getFormatDescription :: Get FormatDescription
+-getFormatDescription = FormatDescription <$> getWord16le
+-                                         <*> getByteString 50
+-                                         <*> getWord32le
+-                                         <*  getWord8
+-                                         <*> (L.toStrict <$> getRemainingLazyByteString)
++getFormatDescription = do
++    version <- getWord16le
++    server <- getByteString 50
++    created <- getWord32le
++    header <- getWord8
++    unless (version == 4 && header == 19) (fail "unsupported binlog format/header length")
++    lengths <- L.toStrict <$> getRemainingLazyByteString
++    when (B.null lengths || B.length lengths > 257 || B.last lengths > 1) (fail "missing/unsupported checksum descriptor")
++    pure (FormatDescription version (B.copy server) created (B.copy (B.init lengths)))
+ 
+ eventHeaderLen :: FormatDescription -> BinLogEventType -> Word8
+ eventHeaderLen fd typ
+@@ -148,7 +312,12 @@ data RotateEvent = RotateEvent
+     { rPos :: !Word64, rFileName :: !ByteString } deriving (Show, Eq)
+ 
+ getRotateEvent :: Get RotateEvent
+-getRotateEvent = RotateEvent <$> getWord64le <*> getRemainingByteString
++getRotateEvent = do
++    position <- getWord64le
++    name <- getRemainingByteString
++    unless (position >= 4 && not (B.null name) && B.length name <= 512 && not (B.elem 0 name))
++        (fail "invalid rotate filename/position")
++    pure (RotateEvent position name)
+ 
+ -- | This's query parser for statement based binlog's query event, it's actually
+ -- not used in row based binlog.
+@@ -192,6 +361,7 @@ data TableMapEvent = TableMapEvent
+     , tmColumnCnt  :: !Int
+     , tmColumnType :: ![FieldType]
+     , tmColumnMeta :: ![BinLogMeta]
++    , tmOptionalMetadata :: ![(Word8, ByteString)] -- ^ Owned, length-validated MariaDB TLVs, including unknown kinds.
+     , tmNullMap    :: !ByteString
+     } deriving (Show, Eq, Generic)
+ 
+@@ -202,21 +372,37 @@ getTableMapEvent fd = do
+     flgs <- getWord16le
+     slen <- getWord8
+     schema <- getByteString (fromIntegral slen)
+-    _ <- getWord8 -- 0x00
++    schemaTerminator <- getWord8
++    unless (schemaTerminator == 0) (fail "table map: missing name terminator")
+     tlen <- getWord8
+     table <- getByteString (fromIntegral tlen)
+-    _ <- getWord8 -- 0x00
++    zero <- getWord8
++    unless (zero == 0) (fail "table map: missing name terminator")
+     cc <- getLenEncInt
++    when (cc <= 0 || cc > 4096) (fail "table map: invalid/excessive column count")
+     colTypBS <- getByteString cc
+     let typs = map FieldType (B.unpack colTypBS)
+     colMetaBS <- getLenEncBytes
+ 
+     metas <- case runGetOrFail (forM typs getBinLogMeta) (L.fromStrict colMetaBS) of
+         Left (_, _, errmsg) -> fail errmsg
+-        Right (_, _, r)     -> return r
++        Right (rest, _, r) | L.null rest -> return r
++        Right _ -> fail "table map: unused column metadata"
+ 
+     nullmap <- getByteString ((cc + 7) `div` 8)
+-    return (TableMapEvent tid flgs schema table cc typs metas nullmap)
++    optional <- getOptionalMetadata 256
++    return (TableMapEvent tid flgs (B.copy schema) (B.copy table) cc typs metas optional (B.copy nullmap))
++
++-- Unknown TLVs remain available to consumers (signedness, charset and column
++-- names must not be invented from a SQL query against a potentially newer DDL).
++getOptionalMetadata :: Int -> Get [(Word8, ByteString)]
++getOptionalMetadata budget = do
++    empty <- isEmpty
++    if empty then pure [] else do
++        when (budget <= 0) (fail "table map: optional metadata item budget exceeded")
++        kind <- getWord8
++        value <- getLenEncBytes
++        ((kind,B.copy value):) <$> getOptionalMetadata (budget - 1)
+ 
+ data DeleteRowsEvent = DeleteRowsEvent
+     { deleteTableId    :: !Word64
+@@ -234,11 +420,14 @@ getDeleteRowEvent fd tme typ = do
+     flgs <- getWord16le
+     when (typ == BINLOG_DELETE_ROWS_EVENTv2) $ do
+         extraLen <- getWord16le
+-        void $ getByteString (fromIntegral extraLen - 2)
++        when (extraLen < 2) (fail "rows: invalid extra-header length")
++        skip (fromIntegral extraLen - 2)
++    unless (tid == tmTableId tme) (fail "rows: table ID does not match metadata")
+     colCnt <- getLenEncInt
++    unless (colCnt == tmColumnCnt tme) (fail "rows: column count does not match metadata")
+     let (plen, poffset) = (colCnt + 7) `quotRem` 8
+     pmap <- getPresentMap plen poffset
+-    DeleteRowsEvent tid flgs colCnt pmap <$> untilM (getBinLogRow (tmColumnMeta tme) pmap) isEmpty
++    DeleteRowsEvent tid flgs colCnt pmap <$> getRows (min 65536 (1048576 `div` colCnt)) (getBinLogRow (tmColumnMeta tme) pmap)
+ 
+ data WriteRowsEvent = WriteRowsEvent
+     { writeTableId    :: !Word64
+@@ -256,11 +445,14 @@ getWriteRowEvent fd tme typ = do
+     flgs <- getWord16le
+     when (typ == BINLOG_WRITE_ROWS_EVENTv2) $ do
+         extraLen <- getWord16le
+-        void $ getByteString (fromIntegral extraLen - 2)
++        when (extraLen < 2) (fail "rows: invalid extra-header length")
++        skip (fromIntegral extraLen - 2)
++    unless (tid == tmTableId tme) (fail "rows: table ID does not match metadata")
+     colCnt <- getLenEncInt
++    unless (colCnt == tmColumnCnt tme) (fail "rows: column count does not match metadata")
+     let (plen, poffset) = (colCnt + 7) `quotRem` 8
+     pmap <- getPresentMap plen poffset
+-    WriteRowsEvent tid flgs colCnt pmap <$> untilM (getBinLogRow (tmColumnMeta tme) pmap) isEmpty
++    WriteRowsEvent tid flgs colCnt pmap <$> getRows (min 65536 (1048576 `div` colCnt)) (getBinLogRow (tmColumnMeta tme) pmap)
+ 
+ data UpdateRowsEvent = UpdateRowsEvent
+     { updateTableId    :: !Word64
+@@ -278,20 +470,37 @@ getUpdateRowEvent fd tme typ = do
+     flgs <- getWord16le
+     when (typ == BINLOG_UPDATE_ROWS_EVENTv2) $ do
+         extraLen <- getWord16le
+-        void $ getByteString (fromIntegral extraLen - 2)
++        when (extraLen < 2) (fail "rows: invalid extra-header length")
++        skip (fromIntegral extraLen - 2)
++    unless (tid == tmTableId tme) (fail "rows: table ID does not match metadata")
+     colCnt <- getLenEncInt
++    unless (colCnt == tmColumnCnt tme) (fail "rows: column count does not match metadata")
+     let (plen, poffset) = (colCnt + 7) `quotRem` 8
+     pmap <- getPresentMap plen poffset
+     pmap' <- getPresentMap plen poffset
+     UpdateRowsEvent tid flgs colCnt (pmap, pmap') <$>
+-        untilM ((,) <$> getBinLogRow (tmColumnMeta tme) pmap <*> getBinLogRow (tmColumnMeta tme) pmap')
+-               isEmpty
++        getRows (min 65536 (1048576 `div` (2 * colCnt))) ((,) <$> getBinLogRow (tmColumnMeta tme) pmap <*> getBinLogRow (tmColumnMeta tme) pmap')
++
++-- Empty images must still consume their null bitmap/values. A zero-progress
++-- parser is rejected instead of looping forever on a corrupt present bitmap.
++getRows :: Int -> Get a -> Get [a]
++getRows budget row = do
++    empty <- isEmpty
++    if empty then pure [] else do
++        when (budget <= 0) (fail "rows: decoded row/value budget exceeded")
++        before <- bytesRead
++        value <- row
++        after <- bytesRead
++        unless (after > before) (fail "rows: zero-length row image")
++        (value :) <$> getRows (budget - 1) row
+ 
+ getPresentMap :: Int -> Int -> Get BitMap
+ getPresentMap plen poffset = do
+     pmap <- getByteString plen
+-    let pmap' = if B.null pmap
+-                then B.empty
+-                else B.init pmap `B.snoc` (B.last pmap .&. 0xFF `shiftR` (7 - poffset))
+-    pure (BitMap pmap')
+-
++    -- quotRem is applied to (columns + 7), so remainder 7 means an exact
++    -- multiple of eight columns. Unused high bits must never count as columns.
++    let bits = poffset + 1
++        mask = if bits == 8 then 255 else (1 `shiftL` bits) - 1
++    when (not (B.null pmap) && B.last pmap .&. complement mask /= 0)
++        (fail "rows: nonzero padding in present bitmap")
++    pure (BitMap pmap)
+diff --git a/src/Database/MySQL/BinLogProtocol/BinLogMeta.hs b/src/Database/MySQL/BinLogProtocol/BinLogMeta.hs
+index 2fb8fbd..c2cf616 100644
+--- a/src/Database/MySQL/BinLogProtocol/BinLogMeta.hs
++++ b/src/Database/MySQL/BinLogProtocol/BinLogMeta.hs
+@@ -28,6 +28,7 @@ You will not directly meet following 'FieldType' namely:
+ 
+ module Database.MySQL.BinLogProtocol.BinLogMeta where
+ 
++import           Control.Monad (unless)
+ import           Data.Binary.Get
+ import           Data.Bits
+ import           Data.Word
+@@ -68,25 +69,31 @@ getBinLogMeta t
+     | t == mySQLTypeInt24      = pure BINLOG_TYPE_INT24
+     | t == mySQLTypeLong       = pure BINLOG_TYPE_LONG
+     | t == mySQLTypeLongLong   = pure BINLOG_TYPE_LONGLONG
+-    | t == mySQLTypeFloat      = BINLOG_TYPE_FLOAT <$> getWord8
+-    | t == mySQLTypeDouble     = BINLOG_TYPE_DOUBLE <$> getWord8
++    | t == mySQLTypeFloat      = BINLOG_TYPE_FLOAT <$> checkedByte "FLOAT width" (==4)
++    | t == mySQLTypeDouble     = BINLOG_TYPE_DOUBLE <$> checkedByte "DOUBLE width" (==8)
+ 
+     | t == mySQLTypeBit        = do
+         byte0 <- getWord8
+         byte1 <- getWord8
+         let nbits = (fromIntegral byte1 `shiftL` 3) .|.  fromIntegral byte0
+             nbytes = fromIntegral $ (nbits + 7) `shiftR` 3
++        unless (byte0 <= 7 && nbits >= 1 && nbits <= 64) (fail "invalid BIT metadata")
+         pure (BINLOG_TYPE_BIT nbits nbytes)
+ 
+     | t == mySQLTypeTimestamp  = pure BINLOG_TYPE_TIMESTAMP
+     | t == mySQLTypeDateTime   = pure BINLOG_TYPE_DATETIME
+     | t == mySQLTypeDate       = pure BINLOG_TYPE_DATE
+     | t == mySQLTypeTime       = pure BINLOG_TYPE_TIME
+-    | t == mySQLTypeTimestamp2 = BINLOG_TYPE_TIMESTAMP2 <$> getWord8
+-    | t == mySQLTypeDateTime2  = BINLOG_TYPE_DATETIME2 <$> getWord8
+-    | t == mySQLTypeTime2      = BINLOG_TYPE_TIME2 <$> getWord8
++    | t == mySQLTypeTimestamp2 = BINLOG_TYPE_TIMESTAMP2 <$> checkedByte "fractional precision" (<=6)
++    | t == mySQLTypeDateTime2  = BINLOG_TYPE_DATETIME2 <$> checkedByte "fractional precision" (<=6)
++    | t == mySQLTypeTime2      = BINLOG_TYPE_TIME2 <$> checkedByte "fractional precision" (<=6)
+     | t == mySQLTypeYear       = pure BINLOG_TYPE_YEAR
+-    | t == mySQLTypeNewDecimal = BINLOG_TYPE_NEWDECIMAL <$> getWord8 <*> getWord8
++    | t == mySQLTypeNewDecimal = do
++        precision <- getWord8
++        scale <- getWord8
++        unless (precision >= 1 && precision <= 65 && scale <= 38 && scale <= precision)
++            (fail "invalid DECIMAL metadata")
++        pure (BINLOG_TYPE_NEWDECIMAL precision scale)
+     | t == mySQLTypeVarChar    = BINLOG_TYPE_STRING <$> getWord16le
+     | t == mySQLTypeVarString  = BINLOG_TYPE_STRING <$> getWord16le
+ 
+@@ -105,15 +112,22 @@ getBinLogMeta t
+                        in pure $! BINLOG_TYPE_STRING len'
+              else let t' = FieldType byte0
+                   in if | t' == mySQLTypeSet    -> let nbits = fromIntegral byte1 `shiftL` 3
+-                                                       nbytes = fromIntegral $ (nbits + 7) `shiftR` 8
+-                                                   in pure (BINLOG_TYPE_SET nbits nbytes)
+-                        | t' == mySQLTypeEnum   -> pure (BINLOG_TYPE_ENUM byte1)
++                                                       nbytes = fromIntegral $ (nbits + 7) `shiftR` 3
++                                                   in if byte1 >= 1 && byte1 <= 8 then pure (BINLOG_TYPE_SET nbits nbytes) else fail "invalid SET width"
++                        | t' == mySQLTypeEnum   -> if byte1 == 1 || byte1 == 2 then pure (BINLOG_TYPE_ENUM byte1) else fail "invalid ENUM width"
+                         | t' == mySQLTypeString -> pure (BINLOG_TYPE_STRING (fromIntegral byte1))
+                         | otherwise             -> fail $ "Database.MySQL.BinLogProtocol.BinLogMeta:\
+                                                            \ impossible type inside binlog string: " ++ show t'
+         else pure (BINLOG_TYPE_STRING (fromIntegral byte1))
+ 
+-    | t == mySQLTypeBlob       = BINLOG_TYPE_BLOB <$> getWord8
+-    | t == mySQLTypeGeometry   = BINLOG_TYPE_GEOMETRY <$> getWord8
++    | t == mySQLTypeBlob       = BINLOG_TYPE_BLOB <$> checkedByte "BLOB length width" (\n -> n >= 1 && n <= 4)
++    | t == mySQLTypeGeometry   = BINLOG_TYPE_GEOMETRY <$> checkedByte "GEOMETRY length width" (\n -> n >= 1 && n <= 4)
+     | otherwise                = fail $ "Database.MySQL.BinLogProtocol.BinLogMeta:\
+                                         \ impossible type in binlog: " ++ show t
++
++-- Validate metadata before it can drive byte counts or temporal arithmetic.
++checkedByte :: String -> (Word8 -> Bool) -> Get Word8
++checkedByte label valid = do
++    value <- getWord8
++    unless (valid value) (fail ("invalid binlog " ++ label))
++    pure value
+diff --git a/src/Database/MySQL/BinLogProtocol/BinLogValue.hs b/src/Database/MySQL/BinLogProtocol/BinLogValue.hs
+index 51dc200..fa4a33b 100644
+--- a/src/Database/MySQL/BinLogProtocol/BinLogValue.hs
++++ b/src/Database/MySQL/BinLogProtocol/BinLogValue.hs
+@@ -204,7 +204,7 @@ getBinLogField BINLOG_TYPE_YEAR                = do
+ -- following a simple lookup table.
+ --
+ getBinLogField (BINLOG_TYPE_NEWDECIMAL precision scale)
+-    | precision < scale = fail "NEWDECIMAL: precision must be >= scale"
++    | precision == 0 || precision > 65 || scale > 38 || precision < scale = fail "NEWDECIMAL: invalid precision/scale"
+     | otherwise = do
+     let i = (precision - scale)
+         (ucI, cI) = i `quotRem` digitsPerInteger
+@@ -254,12 +254,14 @@ getBinLogField (BINLOG_TYPE_NEWDECIMAL precision scale)
+ 
+ getBinLogField (BINLOG_TYPE_ENUM size) =
+     if  | size == 1 -> BinLogEnum . fromIntegral <$> getWord8
+-        | size == 2 -> BinLogEnum <$> getWord16be
++        | size == 2 -> BinLogEnum <$> getWord16le
+         | otherwise -> fail $ "Database.MySQL.BinLogProtocol.BinLogValue: wrong \
+                               \BINLOG_TYPE_ENUM size: " ++ show size
+ 
+ 
+-getBinLogField (BINLOG_TYPE_SET _ bytes) = BinLogSet <$> getBits' bytes
++getBinLogField (BINLOG_TYPE_SET _ bytes)
++    | bytes == 0 || bytes > 8 = fail "invalid SET storage width"
++    | otherwise = BinLogSet . B.foldr (\byte rest -> fromIntegral byte .|. (rest `shiftL` 8)) 0 <$> getByteString (fromIntegral bytes)
+ getBinLogField (BINLOG_TYPE_BLOB lensize) = do
+     len <- if  | lensize == 1 -> fromIntegral <$> getWord8
+                | lensize == 2 -> fromIntegral <$> getWord16le
+@@ -291,7 +293,7 @@ getMicroSecond 3 = (* 1000) . fromIntegral <$> getInt16be
+ getMicroSecond 4 = (* 100) . fromIntegral <$> getInt16be
+ getMicroSecond 5 = (* 10) . fromIntegral <$> getInt24be
+ getMicroSecond 6 = fromIntegral <$> getInt24be
+-getMicroSecond _ = pure 0
++getMicroSecond _ = fail "invalid fractional-second precision"
+ 
+ getBits' :: Word8 -> Get Word64
+ getBits' bytes = if bytes <= 8
+@@ -303,23 +305,21 @@ getBits' bytes = if bytes <= 8
+ -- | BinLog row decoder
+ --
+ getBinLogRow :: [BinLogMeta] -> BitMap -> Get [BinLogValue]
+-getBinLogRow metas pmap = do
+-    let plen = B.foldl' (\acc word8 -> acc + popCount word8) 0 (fromBitMap pmap)
+-        maplen = (plen + 7) `shiftR` 3
+-    nullmap <- getByteString maplen
+-    go metas (BitMap nullmap) 0 pmap 0
++getBinLogRow metas pmap =
++    -- Construct this Get once per event/image and reuse it for every row. The
++    -- selected metadata list is shared, so sparse images do not rescan every
++    -- omitted column for every row in a large event.
++    let selected = [meta | (index,meta) <- zip [0..] metas, isColumnSet pmap index]
++        maplen = (length selected + 7) `shiftR` 3
++    in do
++        nullmap <- getByteString maplen
++        -- MariaDB initializes this bitmap to 0xff and clears non-NULL bits;
++        -- unused high bits are allowed to remain set (sql/rpl_record.cc).
++        go selected (BitMap nullmap) 0
+   where
+-    go :: [BinLogMeta] -> BitMap -> Int -> BitMap -> Int -> Get [BinLogValue]
+-    go []     _       _       _     _    = pure []
+-    go (f:fs) nullmap nullpos pmap' ppos = do
+-        let ppos' = ppos + 1
+-        if isColumnSet pmap' ppos
+-        then do
+-            r <- if isColumnSet nullmap nullpos
+-                    then return BinLogNull
+-                    else getBinLogField f
+-            let nullpos' = nullpos + 1
+-            rest <- nullpos' `seq` ppos' `seq` go fs nullmap nullpos' pmap' ppos'
+-            return (rest `seq` (r : rest))
+-        else ppos' `seq` go fs nullmap nullpos pmap' ppos'
+-
++    go :: [BinLogMeta] -> BitMap -> Int -> Get [BinLogValue]
++    go [] _ _ = pure []
++    go (meta:rest) nullmap index = do
++        value <- if isColumnSet nullmap index then pure BinLogNull else getBinLogField meta
++        values <- go rest nullmap (index + 1)
++        pure (value : values)
+diff --git a/validation/check.py b/validation/check.py
+index fcfb050..fce3e55 100644
+--- a/validation/check.py
++++ b/validation/check.py
+@@ -53,6 +53,15 @@ def session_reuse_benchmarks(output, repetitions, config):
+     return json.loads((destination / 'results.json').read_text())
+ 
+ 
++def cdc_benchmarks(output, repetitions, config):
++    """Preserve complete CDC measurements alongside every full Stage 5 run."""
++    destination = output / 'cdc'
++    subprocess.run([sys.executable, str(run.HERE / 'stage5_benchmarks.py'),
++                    '--config', str(config), '--output', str(destination),
++                    '--repetitions', str(repetitions)], cwd=run.ROOT, check=True)
++    return json.loads((destination / 'results.json').read_text())
++
++
+ def main():
+     if "--help" in sys.argv or "-h" in sys.argv:
+         status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
+@@ -146,6 +155,25 @@ def main():
+                 except KeyboardInterrupt:
+                     attempt.update(state='FAILED', stage='session reuse benchmarks', reason='Session reuse benchmarks interrupted.')
+                     data, gate, status = None, None, 130
++            if data is not None and any(case['id'].startswith('stage5.') for case in data.get('correctness', [])):
++                try:
++                    from stage5_benchmarks import verify_evidence as verify_cdc
++                    cdc = cdc_benchmarks(output, args.repetitions, args.config)
++                    verify_cdc(cdc, inputs)
++                    attempt['cdc'] = cdc
++                    comparison = cdc['baseline_comparison']
++                    gate['cdc_timing_investigations'] = comparison['timing_investigations']
++                    gate['cdc_allocation_investigations'] = comparison['allocation_investigations']
++                    gate['performance_requires_confirmation'] = gate.get('performance_requires_confirmation', False) or bool(comparison['timing_investigations'] or comparison['allocation_investigations'])
++                    (run.HERE / 'results/stage1-gates.json').write_text(json.dumps(gate, indent=2) + '\n')
++                    if any(item['percent'] > 20 for item in comparison['timing_investigations']):
++                        status = status or 1
++                except (OSError, ValueError, KeyError, RuntimeError, subprocess.CalledProcessError) as error:
++                    attempt.update(state='FAILED', stage='CDC benchmarks', reason='CDC evidence failed: '+str(error))
++                    data, gate, status = None, None, status or 1
++                except KeyboardInterrupt:
++                    attempt.update(state='FAILED', stage='CDC benchmarks', reason='CDC benchmarks interrupted.')
++                    data, gate, status = None, None, 130
+             attempt.update(exit_code=status, finished_at=live.now())
+             live.publish(attempt,data,gate=gate)
+             print("Live results updated:",live.REPORT,flush=True)
+diff --git a/validation/feature_benchmarks.py b/validation/feature_benchmarks.py
+index f6317e0..9c94a72 100644
+--- a/validation/feature_benchmarks.py
++++ b/validation/feature_benchmarks.py
+@@ -4,7 +4,7 @@
+ Workload-specific units/checksums live in immutable specifications. Both native
+ and session-reuse recorders use these same completeness and baseline guards.
+ """
+-from dataclasses import dataclass
++from dataclasses import dataclass, field
+ import argparse
+ import json
+ import hashlib
+@@ -29,6 +29,7 @@ class FeatureSpec:
+     pairs: dict
+     baseline_directory: Path
+     workload_paths: tuple
++    heap_profiles: dict = field(default_factory=dict)
+ 
+ 
+ def sample(spec, output, ident):
+@@ -52,6 +53,26 @@ def sample(spec, output, ident):
+     return result
+ 
+ 
++def verify_heap(spec, ident, entries):
++    """Require measured heap at every checkpoint in both warmups and the run.
++
++    A fixed 2 MiB growth allowance covers RTS bookkeeping without allowing a
++    million-row history to masquerade as bounded streaming. These are live
++    post-major-GC bytes, separately from process high-water memory.
++    """
++    checkpoints = list(spec.heap_profiles[ident])
++    if (not isinstance(entries, list) or len(entries) != 3*len(checkpoints)
++            or any(not isinstance(entry, list) or len(entry) != 2
++                   or any(type(value) is not int for value in entry) or entry[1] <= 0 for entry in entries)
++            or [entry[0] for entry in entries] != checkpoints*3):
++        raise ValueError('CDC retained heap checkpoints are incomplete')
++    width = len(checkpoints)
++    for offset in range(0, len(entries), width):
++        window = entries[offset:offset+width]
++        if window[-1][1] > window[0][1]+2*1024*1024:
++            raise ValueError('CDC retained heap grows beyond its streaming allowance')
++
++
+ def verify_measurements(spec, data, inputs):
+     """Validate samples/units independently of any baseline comparison."""
+     if (not data.get('complete') or data.get('repetitions', 0) < 7
+@@ -70,6 +91,8 @@ def verify_measurements(spec, data, inputs):
+             raise ValueError(f'{spec.label} benchmark repetitions are incomplete')
+         for entry in profile['samples']:
+             sample(spec, spec.marker + '\t' + ident + '\t' + '\t'.join(str(entry[k]) for k in keys), ident)
++            if ident in spec.heap_profiles:
++                verify_heap(spec, ident, entry.get('retained_heap', []))
+         for key in keys[1:-1]:
+             expected = statistics.median(s[key] / s['units'] for s in profile['samples'])
+             if profile.get('median_' + key + '_per_unit') != expected:
+@@ -208,7 +231,12 @@ def main(spec):
+                 (args.output / f'{ident}.{repetition}.log').write_text(output.stdout + output.stderr)
+                 if output.returncode:
+                     raise RuntimeError(f'{spec.label} benchmark process failed: ' + ident)
+-                data['profiles'][ident]['samples'].append(sample(spec, output.stdout, ident))
++                entry = sample(spec, output.stdout, ident)
++                if ident in spec.heap_profiles:
++                    entry['retained_heap'] = [list(map(int, line.split('\t')[1:]))
++                        for line in output.stdout.splitlines() if line.startswith(spec.marker+'_HEAP\t')]
++                    verify_heap(spec, ident, entry['retained_heap'])
++                data['profiles'][ident]['samples'].append(entry)
+                 print(spec.marker, repetition + 1, ident, flush=True)
+         for profile in data['profiles'].values():
+             for key in ('elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns'):
+diff --git a/validation/hs/Main.hs b/validation/hs/Main.hs
+index a39db3c..41bdc3a 100644
+--- a/validation/hs/Main.hs
++++ b/validation/hs/Main.hs
+@@ -21,9 +21,11 @@ import qualified Validation.Stage3 as Stage3
+ import qualified Validation.Stage3Bench as Stage3Bench
+ import qualified Validation.Stage4 as Stage4
+ import qualified Validation.Stage4Bench as Stage4Bench
++import qualified Validation.Stage5 as Stage5
++import qualified Validation.Stage5Bench as Stage5Bench
+ 
+ allCases :: [Case]
+-allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases
++allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases ++ Stage5.cases
+ 
+ main :: IO ()
+ main=do
+@@ -42,6 +44,7 @@ main=do
+     run ["case",ident]=case find ((==ident) . caseId) allCases of
+         Nothing -> throwIO (userError ("unknown test " ++ ident))
+         Just c -> caseRun c >> putStrLn ("PASS\t" ++ ident)
++    run ["stage5-bench",ident,n]=Stage5Bench.run ident (read n)
+     run ["stage4-bench",ident,n]=Stage4Bench.run ident (read n)
+     run ["stage3-bench",ident,n]=Stage3Bench.run ident (read n)
+     run ["stage1-bench",ident,n]=Supplementary.run ident (read n)
+diff --git a/validation/hs/Validation/CDC.hs b/validation/hs/Validation/CDC.hs
+index 6033113..c9f5a1e 100644
+--- a/validation/hs/Validation/CDC.hs
++++ b/validation/hs/Validation/CDC.hs
+@@ -13,6 +13,7 @@ import Database.MySQL.Base
+ import Database.MySQL.BinLog
+ import qualified System.IO.Streams as S
+ import Validation.Common
++import qualified Validation.Stage5 as Stage5
+ 
+ format :: FormatDescription
+ format=FormatDescription 4 "12.3.3-MariaDB" 0 (B.replicate 171 8)
+@@ -73,8 +74,8 @@ cases =
+         case event of
+             Just (RowWriteEvent _ _ _ row) -> equal "live insert image" [[BinLogLong 1,BinLogLong 7]] (writeRowData row)
+             _ -> throwIO (userError ("missing live row event: " ++ show event))
+-    , Case "cdc.gtid-resume" "cdc" $ throwIO (Unsupported "BinLogTracker only exposes filename/32-bit position; MariaDB GTID resume is absent")
+-    , Case "cdc.durable-ack-control" "cdc" $ throwIO (Unsupported "semisync acknowledgements happen in the reader, before a consumer durability checkpoint")
++    , Case "cdc.gtid-resume" "cdc" $ Stage5.gtidResumeFeature
++    , Case "cdc.durable-ack-control" "cdc" $ Stage5.manualAckFeature
+     ] ++
+     [ Case ("cdc.native-event-" ++ show typ) "cdc" $ do
+         let body=runPut $ do
+diff --git a/validation/hs/Validation/Stage1.hs b/validation/hs/Validation/Stage1.hs
+index de9b754..3d7ca3c 100644
+--- a/validation/hs/Validation/Stage1.hs
++++ b/validation/hs/Validation/Stage1.hs
+@@ -193,8 +193,9 @@ cases =
+             _ -> fail "transport cleanup swallowed cancellation"
+         equal "retired before cancellation propagates" Broken =<< connectionStatus c
+     , case1 "replication.setup-error-retires" $ do
+-        -- The first two query replies answer checksum and semi-sync discovery.
+-        let packets = textTranscript ++ textTranscript ++ [encodeToPacket 1 (ERR 1236 "HY000" "injected binlog failure")]
++        -- CDC setup now uses one atomic SET without discovery when ACK is off.
++        -- Inject the same server error into that first setup command.
++        let packets = [encodeToPacket 1 (ERR 1236 "HY000" "injected binlog failure")]
+         (c,_,closed) <- scripted defaultConnectionOptions packets
+         expectERR [1236] (BinLog.dumpBinLog c 123 (BinLog.BinLogTracker "binlog.000001" 4) False)
+         equal "failed replication setup retires its owner" Broken =<< connectionStatus c
+diff --git a/validation/linux/verify.py b/validation/linux/verify.py
+index 45988ac..0bb5c2f 100644
+--- a/validation/linux/verify.py
++++ b/validation/linux/verify.py
+@@ -122,10 +122,10 @@ def main():
+         lost = [case['id'] for case in previous['correctness']
+                 if case['status']=='PASS' and current.get(case['id'])!='PASS']
+         added_failures = [case['id'] for case in data['correctness']
+-                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.')) and case['status']!='PASS']
++                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.', 'stage5.')) and case['status']!='PASS']
+         sys.path.insert(0, str(ROOT/'validation'))
+         import stage1_gates
+-        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS + stage1_gates.SESSION_TARGETS if current.get(ident) != 'PASS']
++        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS + stage1_gates.SESSION_TARGETS + stage1_gates.CDC_TARGETS if current.get(ident) != 'PASS']
+         if lost or added_failures or native_failures:
+             raise RuntimeError('Linux correctness regressions: '+repr(lost+added_failures+native_failures))
+         # Smoke all native benchmark paths on this compiler/server too. These
+@@ -141,6 +141,9 @@ def main():
+                 command([binary, 'stage4-bench', f'reuse.{transport}.{mode}', '1',
+                          '+RTS', '-N4', '-T', '-RTS'], env=native_env)
+         command([binary, 'stage4-bench', 'session.snapshot', '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
++        for profile in ['cdc.decode.single-table', 'cdc.decode.interleaved', 'cdc.decode.compressed',
++                        'cdc.decode.sparse-update', 'cdc.framing.crc32', 'cdc.live.rows', 'cdc.live.checkpoints', 'cdc.retention']:
++            command([binary, 'stage5-bench', profile, '1000', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
+         print('Linux correctness profile passed; frozen timings were not compared.', flush=True)
+     finally:
+         process.terminate()
+diff --git a/validation/publish_results.py b/validation/publish_results.py
+index ba3d0d2..e8ffe2a 100644
+--- a/validation/publish_results.py
++++ b/validation/publish_results.py
+@@ -42,7 +42,10 @@ def is_input(path):
+                         "validation/baselines/macos-arm64-native-statements/SHA256SUMS",
+                         "validation/baselines/macos-arm64-session-reuse/results.json",
+                         "validation/baselines/macos-arm64-session-reuse/SUMMARY.md",
+-                        "validation/baselines/macos-arm64-session-reuse/SHA256SUMS"}
++                        "validation/baselines/macos-arm64-session-reuse/SHA256SUMS",
++                        "validation/baselines/macos-arm64-cdc/results.json",
++                        "validation/baselines/macos-arm64-cdc/SUMMARY.md",
++                        "validation/baselines/macos-arm64-cdc/SHA256SUMS"}
+             or path.startswith(".github/workflows/"))
+ 
+ 
+@@ -297,6 +300,24 @@ def render(document, baseline):
+         comparison = reuse['baseline_comparison']
+         lines += ["", f"Public snapshot read: **{snapshot['median_elapsed_ns_per_unit']:,.1f} ns/call**, **{snapshot['median_allocated_bytes_per_unit']:,.1f} allocated bytes/call**, no SQL. Seven or more independent processes per profile, with two warmups; raw samples and checksums are embedded in [current.json](results/current.json).", "",
+                   f"Immutable reuse baseline comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [First reuse baseline](baselines/macos-arm64-session-reuse/results.json).", ""]
++    cdc = attempt.get('cdc')
++    if cdc and cdc.get('complete') and cdc.get('inputs', {}).get('sha256') == attempt['inputs']['sha256']:
++        comparison = cdc['baseline_comparison']
++        baseline_cdc = json.loads((HERE / 'baselines/macos-arm64-cdc/results.json').read_text())
++        lines += ["### MariaDB CDC", "",
++            "Separate immutable first CDC capture; no equivalent CDC throughput measurement exists in the unchanged-driver baseline. Units are rows, except framing/CRC uses events. Live profiles include source connection/setup and checkpoint observation; source log creation is outside timing. Retention timing includes four forced major collections and is a memory workload.", "",
++            "| Workload | Baseline ns/unit | Current ns/unit | Change vs baseline | Current allocated B/unit |",
++            "| --- | ---: | ---: | ---: | ---: |"]
++        for ident, profile in cdc['profiles'].items():
++            old = baseline_cdc['profiles'][ident]['median_elapsed_ns_per_unit']
++            new = profile['median_elapsed_ns_per_unit']
++            delta = comparison['profiles'].get(ident, {}).get('elapsed_ns')
++            change = f"{delta:+.1f}%" if delta is not None else 'different profile'
++            lines.append(f"| `{ident}` | {old:,.1f} | {new:,.1f} | {change} | {profile['median_allocated_bytes_per_unit']:,.1f} |")
++        retained = cdc['profiles']['cdc.retention']['samples']
++        last = [sample['retained_heap'][-1][1] for sample in retained]
++        lines += ["", f"Streaming retained heap at 1,000,000 rows: **{min(last):,}–{max(last):,} bytes** after major GC across the measured processes. All warmup/measured checkpoints are retained in [current.json](results/current.json). This is live heap, not a process high-water mark.", "",
++            f"CDC comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [First CDC capture](baselines/macos-arm64-cdc/results.json).", ""]
+     engines = sorted({ident.partition("/")[0] for ident in data["benchmarks"]}, key=lambda engine: (engine != "haskell", engine))
+     for engine in engines:
+         title = {"haskell": "Haskell driver", "connector-c": "MariaDB Connector/C control"}.get(engine, engine)
+@@ -374,6 +395,9 @@ def verify(document, snapshot, *, allow_working_tree=False):
+     if any(case['id'].startswith('stage4.') for case in data['correctness']):
+         from stage4_benchmarks import verify_evidence as verify_reuse
+         verify_reuse(attempt.get('session_reuse', {}), attempt['inputs'])
++    if any(case['id'].startswith('stage5.') for case in data['correctness']):
++        from stage5_benchmarks import verify_evidence as verify_cdc
++        verify_cdc(attempt.get('cdc', {}), attempt['inputs'])
+     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
+         raise ValueError("recorder and report disagree about the tested commit")
+ 
+diff --git a/validation/results/previous-stage.json b/validation/results/previous-stage.json
+index cb524f6..116533a 100644
+--- a/validation/results/previous-stage.json
++++ b/validation/results/previous-stage.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": 1,
+-  "reference": "references/stage3-publication-1.json",
+-  "sha256": "d577035b8cd4b851bf234776162025cebfdd6d1cec61927f31a280e208bffe56",
+-  "tested_commit": "ef4e52b234187435d1ea464834df629cea5f267a",
+-  "purpose": "Preserve every published Stage 3 PASS, including all prior stages, while measuring incremental costs. Original, accepted and first-native performance baselines remain unchanged."
++  "reference": "references/stage4-publication-1.json",
++  "sha256": "519c49879d475e26473a8561c366c8899f2bb1d02f60f2cec09c29af6904dfa0",
++  "tested_commit": "f2835647de4b650a8755d0216d384159a6b858e5",
++  "purpose": "Preserve all 535 published Stage 4 passes during CDC development. Original, accepted, native and reuse performance references remain unchanged."
+ }
+diff --git a/validation/stage1_gates.py b/validation/stage1_gates.py
+index 8e2bf30..89e4ffc 100644
+--- a/validation/stage1_gates.py
++++ b/validation/stage1_gates.py
+@@ -34,6 +34,9 @@ STATEMENT_TARGETS = [
+ ]
+ 
+ SESSION_TARGETS = ['capability.session-tracking', 'capability.reset-connection']
++CDC_TARGETS = ['cdc.multiple-table-maps', 'cdc.repeated-row-events', 'cdc.table-id-mismatch',
++               'cdc.crc32-corruption-rejected', *['cdc.native-event-'+str(n) for n in range(160,172)],
++               'cdc.gtid-resume', 'cdc.durable-ack-control']
+ 
+ def results(document):
+     """Accept either a portable raw run or the live publication envelope."""
+@@ -133,6 +136,11 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
+             if new.get(ident, {}).get("status") != "PASS":
+                 failures.append("required session target not passing: " + ident)
+ 
++    if require_targets and previous_stage is not None:
++        for ident in CDC_TARGETS:
++            if new.get(ident, {}).get('status') != 'PASS':
++                failures.append('required CDC target not passing: '+ident)
++
+     for ident, benchmark in candidate.get("benchmarks", {}).items():
+         prior_status = original.get("benchmarks", {}).get(ident, {}).get("status")
+         if benchmark["status"] not in statuses:
+@@ -178,6 +186,8 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
+         "statement_target_count": len(STATEMENT_TARGETS),
+         "session_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in SESSION_TARGETS),
+         "session_target_count": len(SESSION_TARGETS),
++        "cdc_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in CDC_TARGETS),
++        "cdc_target_count": len(CDC_TARGETS),
+         "correctness_accepted": not failures,
+         "performance_requires_confirmation": bool(timing or allocation),
+     }
+diff --git a/src/Database/MySQL/BinLogProtocol/CDC.hs b/src/Database/MySQL/BinLogProtocol/CDC.hs
+new file mode 100644
+index 0000000..49b372c
+--- /dev/null
++++ b/src/Database/MySQL/BinLogProtocol/CDC.hs
+@@ -0,0 +1,449 @@
++{-# LANGUAGE BangPatterns #-}
++-- | Stateful MariaDB event decoding. The decoder retains table metadata, never
++-- transactions or row history; consumers control backpressure by reading once.
++module Database.MySQL.BinLogProtocol.CDC
++    ( Gtid(..), GtidSet, gtidSet, parseGtidSet, renderGtidSet, gtidSetEntries
++    , BinLogPosition(..), DecodeLimits(..), defaultDecodeLimits
++    , CDCCheckpoint, checkpointPosition, checkpointGtids
++    , CDCEvent(..), CDCPayload(..), newCDCDecoder, validCheckpoint
++    ) where
++
++import Control.Exception (throwIO, catch, SomeException)
++import Control.Monad
++import qualified Codec.Compression.Zlib.Internal as Z
++import Data.Binary.Get
++import Data.Bits
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Char8 as C
++import qualified Data.ByteString.Lazy as L
++import Data.IORef
++import qualified Data.Map.Strict as M
++import Data.Unique
++import Data.Word
++import Database.MySQL.BinLogProtocol.BinLogEvent
++import Database.MySQL.Protocol.Packet (getLenEncInt)
++import Database.MySQL.Query (fromQuery)
++import qualified System.IO.Streams as S
++import Text.Read (readMaybe)
++
++-- | MariaDB identity, domain-server-sequence (not a UUID interval).
++data Gtid = Gtid
++    { gtidDomainId :: !Word32, gtidServerId :: !Word32, gtidSequence :: !Word64
++    } deriving (Eq, Show)
++
++-- | One last completed transaction per replication domain. Construction rejects
++-- duplicate domains: silently picking one can skip a different primary's work.
++newtype GtidSet = GtidSet (M.Map Word32 Gtid) deriving (Eq, Show)
++
++gtidSet :: [Gtid] -> Either String GtidSet
++gtidSet entries
++    | length entries > 4096 = Left "GTID set exceeds 4096 domains"
++    | any ((== 0) . gtidSequence) entries = Left "GTID sequence must be positive"
++    | M.size result /= length entries = Left "duplicate GTID domain"
++    | otherwise = Right (GtidSet result)
++  where result = M.fromList [(gtidDomainId g, g) | g <- entries]
++
++-- | Parse a bounded MariaDB connect-state string. Empty means start at the
++-- beginning of available history; negative, overflowing or ambiguous IDs fail.
++parseGtidSet :: B.ByteString -> Either String GtidSet
++parseGtidSet bytes
++    | B.length bytes > 65535 = Left "GTID set exceeds 65535 bytes"
++    | B.null bytes = gtidSet []
++    | otherwise = traverse parseOne (C.split ',' bytes) >>= gtidSet
++  where
++    number :: B.ByteString -> Maybe Integer
++    number part | B.length part > 20 || B.null part || B.any (\c -> c < 48 || c > 57) part = Nothing
++                | otherwise = readMaybe (C.unpack part)
++    parseOne part = case C.split '-' part of
++        [d,s,n] -> case (number d, number s, number n) of
++            (Just domain,Just server,Just sequenceNo)
++                | domain <= 0xffffffff && server <= 0xffffffff && sequenceNo <= 0xffffffffffffffff ->
++                    Right (Gtid (fromInteger domain) (fromInteger server) (fromInteger sequenceNo))
++            _ -> Left "invalid/overflowing MariaDB GTID"
++        _ -> Left "expected domain-server-sequence"
++
++-- | Canonical ascending-domain representation suitable for @slave_connect_state@.
++renderGtidSet :: GtidSet -> B.ByteString
++renderGtidSet = C.intercalate "," . map render . gtidSetEntries
++  where render (Gtid d s n) = C.pack (show d ++ "-" ++ show s ++ "-" ++ show n)
++
++-- | Inspect completed domain positions in canonical order.
++gtidSetEntries :: GtidSet -> [Gtid]
++gtidSetEntries (GtidSet entries) = M.elems entries
++
++-- | Binlog coordinates retain 64 bits. Traditional COM_BINLOG_DUMP accepts only
++-- 32 bits; the connection API checks that boundary rather than truncating it.
++data BinLogPosition = BinLogPosition
++    { binlogFile :: !B.ByteString, binlogNextPosition :: !Word64
++    } deriving (Eq, Show)
++
++-- | Independent retained-metadata and event expansion budgets. Exceeding a
++-- budget fails the stream; eviction would make later row images ambiguous.
++data DecodeLimits = DecodeLimits
++    { maxTableMaps :: !Int, maxTableMapBytes :: !Int
++    , maxExpandedEventBytes :: !Int
++    } deriving (Eq, Show)
++
++-- | 4096 maps, 16 MiB retained metadata and 64 MiB expanded/reassembled events.
++defaultDecodeLimits :: DecodeLimits
++defaultDecodeLimits = DecodeLimits 4096 (16 * 1024 * 1024) (64 * 1024 * 1024)
++
++-- The unique decoder identity and delivery sequence cannot be manufactured by a
++-- caller. Only completed transaction boundaries produce a checkpoint.
++data CDCCheckpoint = CDCCheckpoint !Unique !Word64 !BinLogPosition !(Maybe GtidSet)
++instance Show CDCCheckpoint where
++    show token = "CDCCheckpoint " ++ show (checkpointPosition token) ++ " " ++ show (checkpointGtids token)
++instance Eq CDCCheckpoint where
++    CDCCheckpoint u n p g == CDCCheckpoint v m q h = u == v && n == m && p == q && g == h
++
++-- | Next event coordinate after a complete delivered transaction/group.
++checkpointPosition :: CDCCheckpoint -> BinLogPosition
++checkpointPosition (CDCCheckpoint _ _ position _) = position
++
++-- | Complete GTID resume state when the stream started from GTIDs. A file
++-- position start has no proven initial GTID state, so returns Nothing; resume
++-- it using the file coordinate. Persist the checkpoint atomically with
++-- destination writes before acknowledging. This value alone proves no durability.
++checkpointGtids :: CDCCheckpoint -> Maybe GtidSet
++checkpointGtids (CDCCheckpoint _ _ _ gtids) = gtids
++
++-- | Decoded event plus an optional complete-group checkpoint. Row images retain
++-- present-column bitmaps; a missing column is distinct from 'BinLogNull'.
++data CDCEvent = CDCEvent
++    { cdcEventPosition :: !BinLogPosition, cdcEventTimestamp :: !Word32
++    , cdcEventPayload :: !CDCPayload, cdcEventCheckpoint :: !(Maybe CDCCheckpoint)
++    , cdcEventAckRequested :: !Bool
++    } deriving (Eq, Show)
++
++-- | Events needed to reproduce the change stream. Unsupported non-ignorable
++-- events fail instead of silently crossing an unsafe checkpoint boundary.
++data CDCPayload
++    = CDCBegin !Gtid !Word8
++    | CDCQuery !QueryEvent
++    | CDCAnnotate !B.ByteString
++    | CDCRowQuery !QueryEvent'
++    | CDCWrite !TableMapEvent !WriteRowsEvent
++    | CDCUpdate !TableMapEvent !UpdateRowsEvent
++    | CDCDelete !TableMapEvent !DeleteRowsEvent
++    | CDCCommit !(Maybe Word64)
++    | CDCRollback
++    | CDCRotate !RotateEvent
++    | CDCFormat !FormatDescription
++    | CDCGtidList !GtidSet
++    | CDCBinlogCheckpoint !B.ByteString
++    | CDCHeartbeat
++    | CDCStop
++    | CDCIgnorable !BinLogPacket
++    deriving (Eq, Show)
++
++data Decoder = Decoder
++    { format :: !FormatDescription, filename :: !B.ByteString
++    , maps :: !(M.Map Word64 (Int,TableMapEvent)), mapBytes :: !Int
++    , active :: !(Maybe (Gtid,Word8)), transactionOpen :: !Bool
++    , completed :: !GtidSet, delivery :: !Word64
++    }
++
++-- | Verify that an acknowledgement refers to this decoder and advances its
++-- delivered checkpoint sequence. Single-owner connection code serializes calls.
++validCheckpoint :: CDCCheckpoint -> CDCCheckpoint -> Bool
++validCheckpoint (CDCCheckpoint owner current _ _) (CDCCheckpoint candidate sequenceNo _ _) =
++    owner == candidate && sequenceNo <= current
++
++-- | Construct a single-consumer decoder and latest-boundary observer. No read
++-- ahead or background worker is used. Live callers must wrap reads with their connection
++-- ownership/error guard; standalone decoders propagate failures to the caller.
++newCDCDecoder :: DecodeLimits -> Maybe GtidSet -> FormatDescription -> B.ByteString
++              -> S.InputStream BinLogPacket
++              -> IO (S.InputStream CDCEvent, IO (Maybe CDCCheckpoint))
++newCDCDecoder limits initialGtids initialFormat initialFile input = do
++    when (maxTableMaps limits <= 0 || maxTableMapBytes limits <= 0 || maxExpandedEventBytes limits <= 0)
++        (bad "positive CDC budgets required")
++    inputEvents <- assembleEvents limits input
++    owner <- newUnique
++    let initialState = maybe (GtidSet M.empty) id initialGtids
++    state <- newIORef (Decoder initialFormat (B.copy initialFile) M.empty 0 Nothing False initialState 0)
++    latest <- newIORef Nothing
++    ended <- newIORef False
++    let step = do
++            done <- readIORef ended
++            if done then pure Nothing else do
++                event <- S.read inputEvents
++                current <- readIORef state
++                case event of
++                    Nothing -> do
++                        writeIORef ended True
++                        when (transactionOpen current || active current /= Nothing)
++                            (bad "binlog ended inside an event group")
++                        pure Nothing
++                    Just packet -> do
++                        expanded <- expandEvent limits (format current) packet
++                        decode owner latest state current expanded
++        decode ownerId latestRef stateRef current packet = do
++            let typ = blEventType packet
++                position = BinLogPosition (filename current) (blLogPos packet)
++                emit next payload boundary = do
++                    when (boundary && (blLogPos packet < 4 || B.null (filename current)))
++                        (bad "transaction boundary has no resumable file position")
++                    let sequenceNo = delivery current + 1
++                        token = if boundary then Just (CDCCheckpoint ownerId sequenceNo position (completed next <$ initialGtids)) else Nothing
++                    writeIORef stateRef next { delivery = sequenceNo }
++                    forM_ token (writeIORef latestRef . Just)
++                    pure (Just (CDCEvent position (blTimestamp packet) payload token (blSemiAck packet)))
++                clear next = next { maps = M.empty, mapBytes = 0 }
++                finish = do
++                    newGtids <- case active current of
++                        Nothing -> pure (completed current)
++                        Just (g,_) -> advance g (completed current)
++                    pure (clear current { active = Nothing, transactionOpen = False, completed = newGtids })
++                row parser payload flags = do
++                    tid <- getFromBinLogPacket (getTableId (format current) typ) packet
++                    table <- maybe (bad "rows reference an unknown/stale table ID") (pure . snd) (M.lookup tid (maps current))
++                    value <- getFromBinLogPacket' (parser (format current) table) packet
++                    let endStatement = flags value .&. 1 /= 0
++                        standalone = maybe False (\(_,f) -> f .&. 1 /= 0) (active current)
++                    next <- if endStatement && standalone then finish
++                            else pure (if endStatement then clear current else current)
++                    emit next (payload table value) (endStatement && standalone)
++            case typ of
++                BINLOG_TABLE_MAP_EVENT -> do
++                    when (toInteger (L.length (blBody packet)) > toInteger (maxTableMapBytes limits))
++                        (bad "CDC table metadata wire budget exceeded")
++                    table <- getFromBinLogPacket (getTableMapEvent (format current)) packet
++                    let key = tmTableId table
++                        -- Account the complete wire metadata plus conservative
++                        -- list/constructor overhead; copy only retained slices.
++                        charge = toInteger (L.length (blBody packet)) + 512
++                            + 128 * toInteger (tmColumnCnt table + length (tmOptionalMetadata table))
++                        bytes = fromInteger charge
++                        old = maybe 0 fst (M.lookup key (maps current))
++                        total = toInteger (mapBytes current) - toInteger old + charge
++                        count = M.size (maps current) + if M.member key (maps current) then 0 else 1
++                    when (count > maxTableMaps limits || total > toInteger (maxTableMapBytes limits))
++                        (bad "CDC table metadata budget exceeded")
++                    writeIORef stateRef current { maps = M.insert key (bytes,table) (maps current), mapBytes = fromInteger total }
++                    step
++                BINLOG_WRITE_ROWS_EVENTv1 -> row getWriteRowEvent CDCWrite writeFlags
++                BINLOG_WRITE_ROWS_EVENTv2 -> row getWriteRowEvent CDCWrite writeFlags
++                BINLOG_UPDATE_ROWS_EVENTv1 -> row getUpdateRowEvent CDCUpdate updateFlags
++                BINLOG_UPDATE_ROWS_EVENTv2 -> row getUpdateRowEvent CDCUpdate updateFlags
++                BINLOG_DELETE_ROWS_EVENTv1 -> row getDeleteRowEvent CDCDelete deleteFlags
++                BINLOG_DELETE_ROWS_EVENTv2 -> row getDeleteRowEvent CDCDelete deleteFlags
++                MARIADB_GTID_EVENT -> do
++                    when (active current /= Nothing || transactionOpen current) (bad "nested/incomplete GTID group")
++                    (g,flags) <- getFromBinLogPacket (getGtid (blServerId packet)) packet
++                    when (flags .&. 0xc0 /= 0) (bad "XA GTID groups require an XA-aware consumer")
++                    emit (clear current { active = Just (g,flags) }) (CDCBegin g flags) False
++                BINLOG_XID_EVENT -> do
++                    xid <- getFromBinLogPacket getWord64le packet
++                    next <- finish
++                    emit next (CDCCommit (Just xid)) True
++                BINLOG_QUERY_EVENT -> do
++                    query <- getFromBinLogPacket getQueryEvent packet
++                    let sql = C.map upper (B.dropWhile (==32) (L.toStrict (fromQuery (qQuery query))))
++                    case sql of
++                        "BEGIN" -> emit (clear current { transactionOpen = True }) (CDCQuery query) False
++                        "COMMIT" -> finish >>= \next -> emit next (CDCCommit Nothing) True
++                        "ROLLBACK" -> finish >>= \next -> emit next CDCRollback True
++                        _ -> do
++                            let standalone = maybe (not (transactionOpen current)) (\(_,f) -> f .&. 1 /= 0) (active current)
++                            next <- if standalone then finish else pure (clear current)
++                            emit next (CDCQuery query) standalone
++                MARIADB_ANNOTATE_ROWS_EVENT -> emit current (CDCAnnotate (L.toStrict (blBody packet))) False
++                BINLOG_ROWS_QUERY_EVENT -> do
++                    query <- getFromBinLogPacket getQueryEvent' packet
++                    emit current (CDCRowQuery query) False
++                BINLOG_ROTATE_EVENT -> do
++                    rotation <- getFromBinLogPacket getRotateEvent packet
++                    when (transactionOpen current || active current /= Nothing) (bad "rotation inside event group")
++                    emit (clear current { filename = B.copy (rFileName rotation) }) (CDCRotate rotation) False
++                BINLOG_FORMAT_DESCRIPTION_EVENT -> do
++                    fd <- getFromBinLogPacket getFormatDescription packet
++                    when (transactionOpen current || active current /= Nothing) (bad "format change inside event group")
++                    emit (clear current { format = fd }) (CDCFormat fd) False
++                MARIADB_GTID_LIST_EVENT -> do
++                    entries <- getFromBinLogPacket getGtidList packet
++                    emit current (CDCGtidList entries) False
++                MARIADB_BINLOG_CHECKPOINT_EVENT -> do
++                    name <- getFromBinLogPacket (getWord32le >>= getByteString . fromIntegral) packet
++                    emit current (CDCBinlogCheckpoint name) False
++                BINLOG_HEARTBEAT_EVENT -> emit current CDCHeartbeat False
++                BINLOG_STOP_EVENT -> do
++                    when (active current /= Nothing || transactionOpen current) (bad "STOP inside event group")
++                    emit (clear current) CDCStop False
++                -- INTVAR/RAND/USER_VAR carry statement context. Expose the raw
++                -- event so statement-based consumers cannot lose that context.
++                _ | typ `elem` [BINLOG_INTVAR_EVENT,BINLOG_RAND_EVENT,BINLOG_USER_VAR_EVENT,BINLOG_IGNORABLE_EVENT]
++                      || blFlags packet .&. 0x80 /= 0 -> emit current (CDCIgnorable packet) False
++                  | otherwise -> bad ("unsupported non-ignorable binlog event: " ++ show typ)
++    failed <- newIORef Nothing
++    let guarded = do
++            failure <- readIORef failed
++            case failure of
++                Just err -> throwIO (err :: SomeException)
++                Nothing -> step `catch` \err -> writeIORef failed (Just err) >> throwIO (err :: SomeException)
++    output <- S.makeInputStream guarded
++    pure (output, readIORef latest)
++  where
++    upper c | c >= 'a' && c <= 'z' = toEnum (fromEnum c - 32)
++            | otherwise = c
++
++-- A row's table ID can be inspected without decoding its image. Post-header 6
++-- is the old four-byte table ID; ordinary MariaDB headers contain six bytes.
++getTableId :: FormatDescription -> BinLogEventType -> Get Word64
++getTableId fd typ = do
++    tid <- if eventHeaderLen fd typ == 6 then fromIntegral <$> getWord32le else do
++        lo <- getWord32le
++        hi <- getWord16le
++        pure (fromIntegral lo .|. (fromIntegral hi `shiftL` 32))
++    void getRemainingLazyByteString
++    pure tid
++
++getGtid :: Word32 -> Get (Gtid,Word8)
++getGtid server = do
++    sequenceNo <- getWord64le
++    domain <- getWord32le
++    flags <- getWord8
++    when (sequenceNo == 0) (fail "zero GTID sequence")
++    when (flags .&. 2 /= 0) (void getWord64le)
++    -- New MariaDB releases append optional dependency/engine fields. Retain
++    -- the flags and accept their bounded extension without inventing semantics.
++    void getRemainingLazyByteString
++    pure (Gtid domain server sequenceNo, flags)
++
++getGtidList :: Get GtidSet
++getGtidList = do
++    count <- (.&. 0x0fffffff) <$> getWord32le
++    when (count > 4096) (fail "GTID list exceeds domain budget")
++    entries <- replicateM (fromIntegral count) (Gtid <$> getWord32le <*> getWord32le <*> getWord64le)
++    either fail pure (gtidSet entries)
++
++advance :: Gtid -> GtidSet -> IO GtidSet
++advance g (GtidSet entries) = do
++    when (maybe False ((>= gtidSequence g) . gtidSequence) (M.lookup (gtidDomainId g) entries))
++        (bad "non-advancing GTID sequence")
++    when (M.size entries >= 4096 && M.notMember (gtidDomainId g) entries) (bad "GTID domain budget exceeded")
++    pure (GtidSet (M.insert (gtidDomainId g) g entries))
++
++bad :: String -> IO a
++bad = throwIO . userError . ("MariaDB CDC: " ++)
++
++-- Compressed events leave their post-header and bitmaps uncompressed. Only
++-- the row/query payload has MariaDB's algorithm/length prefix followed by zlib.
++-- Incremental inflation enforces both the advertised length and our expansion
++-- budget before retaining output, including on a deliberately tiny zip bomb.
++expandEvent :: DecodeLimits -> FormatDescription -> BinLogPacket -> IO BinLogPacket
++expandEvent limits fd packet
++    | L.length (blBody packet) > fromIntegral (maxExpandedEventBytes limits) = bad "event byte budget exceeded"
++    | Just normal <- lookup (blEventType packet) compressedTypes = do
++        (prefix, compressed) <- getFromBinLogPacket (splitCompressed normal) packet
++        (size, payload) <- getFromBinLogPacket compressedHeader packet { blBody = compressed }
++        when (size <= 0 || toInteger size + toInteger (L.length prefix) > toInteger (maxExpandedEventBytes limits))
++            (bad "compressed event expansion budget exceeded")
++        inflated <- inflateBounded size payload
++        pure packet { blEventType = normal, blBody = prefix <> inflated }
++    | otherwise = pure packet
++  where
++    splitCompressed normal = do
++        start <- bytesRead
++        if normal == BINLOG_QUERY_EVENT then do
++            skip 8
++            schemaLength <- getWord8
++            skip 2
++            statusLength <- getWord16le
++            skip (fromIntegral statusLength + fromIntegral schemaLength + 1)
++          else do
++            skip (if eventHeaderLen fd normal == 6 then 6 else 8)
++            when (normal `elem` [BINLOG_WRITE_ROWS_EVENTv2,BINLOG_UPDATE_ROWS_EVENTv2,BINLOG_DELETE_ROWS_EVENTv2]) $ do
++                extra <- getWord16le
++                when (extra < 2) (fail "compressed rows: invalid extra header")
++                skip (fromIntegral extra - 2)
++            columns <- getLenEncInt
++            when (columns <= 0 || columns > 4096) (fail "compressed rows: invalid column count")
++            skip (((columns + 7) `div` 8) * if normal `elem` [BINLOG_UPDATE_ROWS_EVENTv1,BINLOG_UPDATE_ROWS_EVENTv2] then 2 else 1)
++        end <- bytesRead
++        remainder <- getRemainingLazyByteString
++        pure (L.take (end - start) (blBody packet), remainder)
++    compressedHeader = do
++        header <- getWord8
++        let width = fromIntegral (header .&. 7)
++        unless (header .&. 0xf8 == 0x80 && width >= 1 && width <= 4)
++            (fail "unsupported MariaDB binlog compression header")
++        bytes <- getByteString width
++        let size = B.foldl' (\n b -> n * 256 + fromIntegral b) (0 :: Word64) bytes
++        when (size > fromIntegral (maxBound :: Int)) (fail "compressed length overflow")
++        payload <- getRemainingLazyByteString
++        pure (fromIntegral size, payload)
++
++compressedTypes :: [(BinLogEventType,BinLogEventType)]
++compressedTypes = [(MARIADB_QUERY_COMPRESSED_EVENT,BINLOG_QUERY_EVENT),
++    (MARIADB_WRITE_ROWS_COMPRESSED_EVENTv1,BINLOG_WRITE_ROWS_EVENTv1),
++    (MARIADB_UPDATE_ROWS_COMPRESSED_EVENTv1,BINLOG_UPDATE_ROWS_EVENTv1),
++    (MARIADB_DELETE_ROWS_COMPRESSED_EVENTv1,BINLOG_DELETE_ROWS_EVENTv1),
++    (MARIADB_WRITE_ROWS_COMPRESSED_EVENTv2,BINLOG_WRITE_ROWS_EVENTv2),
++    (MARIADB_UPDATE_ROWS_COMPRESSED_EVENTv2,BINLOG_UPDATE_ROWS_EVENTv2),
++    (MARIADB_DELETE_ROWS_COMPRESSED_EVENTv2,BINLOG_DELETE_ROWS_EVENTv2)]
++
++inflateBounded :: Int -> L.ByteString -> IO L.ByteString
++inflateBounded expected input = go 0 [] (L.toChunks input) (Z.decompressIO Z.zlibFormat Z.defaultDecompressParams)
++  where
++    go !size chunks pending stream = case stream of
++        Z.DecompressInputRequired next -> case pending of
++            [] -> next B.empty >>= go size chunks []
++            chunk:rest -> next chunk >>= go size chunks rest
++        Z.DecompressOutputAvailable chunk next -> do
++            let total = size + B.length chunk
++            when (total > expected) (bad "inflated event exceeds advertised length")
++            next >>= go total (chunk:chunks) pending
++        Z.DecompressStreamEnd trailing -> do
++            unless (size == expected && B.null trailing && all B.null pending)
++                (bad "compressed event length/trailing data mismatch")
++            pure (L.fromChunks (reverse chunks))
++        Z.DecompressStreamError err -> bad ("invalid zlib event: " ++ show err)
++
++-- MariaDB 13.2 can split one row event into type-172 fragments. All physical
++-- fragments have already passed CRC validation. Reassemble only the one bounded
++-- event; reject interleaving, missing/repeated fragments and false size claims.
++assembleEvents :: DecodeLimits -> S.InputStream BinLogPacket -> IO (S.InputStream BinLogPacket)
++assembleEvents limits input = S.makeInputStream $ do
++    next <- S.read input
++    case next of
++        Just packet | blEventType packet == MARIADB_PARTIAL_ROW_DATA_EVENT -> do
++            (total, sequenceNo, flags, size, first) <- getFromBinLogPacket fragment packet
++            unless (total >= 2 && total <= 65536 && sequenceNo == 1 && flags == 1
++                    && size >= 19 && size <= fromIntegral (maxExpandedEventBytes limits))
++                (bad "invalid first row fragment/expansion budget")
++            gather total 2 size (L.length first) [first] (blSemiAck packet) packet
++        other -> pure other
++  where
++    fragment = do
++        total <- getWord32le
++        sequenceNo <- getWord32le
++        flags <- getWord8
++        size <- if flags .&. 1 /= 0 then getWord64le else pure 0
++        body <- getRemainingLazyByteString
++        pure (total, sequenceNo, flags, size, body)
++    gather total expected size used chunks ack previous
++        | used > fromIntegral size = bad "row fragments exceed advertised event size"
++        | expected > total = do
++            unless (used == fromIntegral size) (bad "incomplete reassembled row event")
++            let body = L.concat (reverse chunks)
++            -- The embedded event's on-disk size may still include its checksum;
++            -- fragments carry their own checksums instead. Decode the common
++            -- header directly and require an ordinary row event.
++            embedded <- getFromBinLogPacket embeddedRow previous { blBody = body }
++            unless (fromIntegral (blEventSize embedded) == used || fromIntegral (blEventSize embedded) == used + 4)
++                (bad "embedded row event size mismatch")
++            unless (blEventType embedded `elem` [BINLOG_WRITE_ROWS_EVENTv1,BINLOG_UPDATE_ROWS_EVENTv1,
++                    BINLOG_DELETE_ROWS_EVENTv1,BINLOG_WRITE_ROWS_EVENTv2,BINLOG_UPDATE_ROWS_EVENTv2,BINLOG_DELETE_ROWS_EVENTv2])
++                (bad "fragmented payload is not a supported row event")
++            pure (Just embedded { blLogPos = blLogPos previous, blSemiAck = ack })
++        | otherwise = do
++            packet <- S.read input >>= maybe (bad "binlog ended inside fragmented row event") pure
++            unless (blEventType packet == MARIADB_PARTIAL_ROW_DATA_EVENT && blServerId packet == blServerId previous) (bad "interleaved row fragment stream")
++            (count, sequenceNo, flags, _, chunk) <- getFromBinLogPacket fragment packet
++            unless (count == total && sequenceNo == expected && flags == 0 && not (L.null chunk))
++                (bad "out-of-order/invalid row fragment")
++            gather total (expected + 1) size (used + L.length chunk) (chunk:chunks) (ack || blSemiAck packet) packet
++    embeddedRow = BinLogPacket <$> getWord32le <*> (toEnum . fromIntegral <$> getWord8)
++        <*> getWord32le <*> getWord32le <*> (fromIntegral <$> getWord32le)
++        <*> getWord16le <*> getRemainingLazyByteString <*> pure False
+diff --git a/validation/cdc_fixture.py b/validation/cdc_fixture.py
+new file mode 100644
+index 0000000..73a82bd
+--- /dev/null
++++ b/validation/cdc_fixture.py
+@@ -0,0 +1,109 @@
++#!/usr/bin/env python3
++"""Run one CDC check on a disposable, socket-only semisynchronous MariaDB.
++
++The managed server and its settings are untouched. The child has a deadline,
++cleanup always waits for the owned server, and no network listener is exposed.
++Only the temporary datadir is removed; existing server data is never opened.
++"""
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import sys
++import tempfile
++import time
++
++
++def main(arguments):
++    if not arguments:
++        raise ValueError('expected validation executable and arguments')
++    required = ('mariadbd', 'mariadb-install-db', 'mariadb')
++    programs = {name: shutil.which(name) for name in required}
++    if not all(programs.values()):
++        raise RuntimeError('installed MariaDB server binaries are required for the CDC fixture')
++    with tempfile.TemporaryDirectory(prefix='mb-cdc-', dir='/tmp') as name:
++        directory = Path(name)
++        datadir = directory/'data'
++        sock = directory/'server.sock'
++        with (directory/'server.log').open('w+') as log:
++            subprocess.run([programs['mariadb-install-db'], '--no-defaults', '--datadir='+str(datadir),
++                            '--auth-root-authentication-method=normal', '--skip-test-db'],
++                           stdout=log, stderr=subprocess.STDOUT, check=True, timeout=45)
++            command = [programs['mariadbd'], '--no-defaults', '--datadir='+str(datadir),
++                       '--socket='+str(sock), '--pid-file='+str(directory/'server.pid'),
++                       '--skip-networking', '--server-id=610129', '--log-bin='+str(directory/'bin'),
++                       '--binlog-format=ROW', '--binlog-row-image=FULL', '--binlog-checksum=CRC32',
++                       '--plugin-load-add=semisync_master', '--rpl-semi-sync-master-timeout=5000',
++                       '--default-time-zone=+00:00']
++            if os.geteuid() == 0:
++                command.append('--user=root')
++            server = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
++            child = None
++            try:
++                def sql(statement):
++                    return subprocess.run([programs['mariadb'], '--no-defaults', '--protocol=socket',
++                        '--socket='+str(sock), '--user=root', '--batch', '--skip-column-names'],
++                        input=statement, text=True, capture_output=True, timeout=8)
++                deadline = time.monotonic()+30
++                while time.monotonic() < deadline:
++                    ready = sql('SELECT VERSION()')
++                    if ready.returncode == 0:
++                        break
++                    if server.poll() is not None:
++                        raise RuntimeError('disposable CDC server stopped before readiness')
++                    time.sleep(0.1)
++                else:
++                    raise RuntimeError('disposable CDC server readiness deadline')
++                setup = sql('CREATE DATABASE cdc_validation; '
++                            'CREATE TABLE cdc_validation.changes(id INT PRIMARY KEY); '
++                            'SET GLOBAL rpl_semi_sync_master_enabled=1;')
++                if setup.returncode:
++                    raise RuntimeError('semisync fixture setup failed: '+setup.stderr)
++                print('Disposable CDC MariaDB:', ready.stdout.strip(), flush=True)
++                child = subprocess.Popen(arguments, env={**os.environ, 'MB_CDC_SOCKET': str(sock),
++                                                        'MB_CDC_CONTROL': str(directory)})
++                child_deadline = time.monotonic()+40
++                while child.poll() is None:
++                    if time.monotonic() >= child_deadline:
++                        raise RuntimeError('CDC fixture child deadline exceeded')
++                    request = directory/'restart.request'
++                    if request.exists():
++                        request.unlink()
++                        server.terminate()
++                        server.wait(timeout=10)
++                        server = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
++                        ready_deadline = time.monotonic()+10
++                        while time.monotonic() < ready_deadline:
++                            if sql('SELECT 1').returncode == 0:
++                                break
++                            if server.poll() is not None:
++                                raise RuntimeError('CDC fixture failed to restart')
++                            time.sleep(0.05)
++                        else:
++                            raise RuntimeError('CDC restart readiness deadline')
++                        (directory/'restart.done').touch()
++                    time.sleep(0.02)
++                return child.returncode
++            except BaseException:
++                log.flush()
++                log.seek(0)
++                print(log.read()[-4000:], file=sys.stderr)
++                raise
++            finally:
++                if child is not None and child.poll() is None:
++                    child.terminate()
++                    try:
++                        child.wait(timeout=5)
++                    except subprocess.TimeoutExpired:
++                        child.kill()
++                        child.wait(timeout=5)
++                server.terminate()
++                try:
++                    server.wait(timeout=10)
++                except subprocess.TimeoutExpired:
++                    server.kill()
++                    server.wait(timeout=10)
++
++
++if __name__ == '__main__':
++    raise SystemExit(main(sys.argv[1:]))
+diff --git a/validation/hs/Validation/Stage5.hs b/validation/hs/Validation/Stage5.hs
+new file mode 100644
+index 0000000..bea2d73
+--- /dev/null
++++ b/validation/hs/Validation/Stage5.hs
+@@ -0,0 +1,550 @@
++{-# LANGUAGE ScopedTypeVariables #-}
++-- | Independent literal events plus real MariaDB transactions. Fixtures encode
++-- bytes directly rather than serializing through the decoder under test.
++module Validation.Stage5 (cases, gtidResumeFeature, manualAckFeature,
++    fixtureFormat, tableMap, writeRow, packet, transaction, decode) where
++
++import Control.Concurrent
++import Control.Exception hiding (assert)
++import Control.Monad
++import qualified Codec.Compression.Zlib as Z
++import Data.Binary.Put
++import Data.Bits
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Lazy as L
++import Data.IORef
++import Data.Maybe (mapMaybe)
++import qualified Data.Text.Encoding as TE
++import Data.Word
++import Database.MySQL.Base
++import Database.MySQL.BinLog
++import qualified Database.MySQL.Connection as C
++import qualified System.IO.Streams as S
++import System.Environment (lookupEnv, getExecutablePath)
++import System.Directory (doesFileExist)
++import System.FilePath ((</>))
++import System.Process (callProcess)
++import System.Timeout
++import Validation.Common
++import Validation.FaultTransport (scripted, okPacket)
++
++case5 :: String -> IO () -> Case
++case5 name = Case ("stage5." ++ name) "stage5"
++
++fixtureFormat :: FormatDescription
++fixtureFormat = FormatDescription 4 "12.3.3-MariaDB" 0 (B.replicate 172 8)
++
++packet :: BinLogEventType -> Put -> BinLogPacket
++packet typ body = BinLogPacket 0 typ 610123 (fromIntegral (19 + L.length bytes)) 100 0 bytes False
++  where bytes = runPut body
++
++tableMap :: Word64 -> [Word8] -> BinLogPacket
++tableMap tid types = packet BINLOG_TABLE_MAP_EVENT $ do
++    putWord48le tid >> putWord16le 0
++    putWord8 1 >> putByteString "d" >> putWord8 0
++    putWord8 1 >> putByteString "t" >> putWord8 0
++    putLenEncInt (length types) >> mapM_ putWord8 types
++    putLenEncInt 0 >> putByteString (B.replicate ((length types + 7) `div` 8) 0)
++
++writeRow :: Word64 -> Word16 -> Int -> BinLogPacket
++writeRow tid flags value = packet BINLOG_WRITE_ROWS_EVENTv1 $ do
++    putWord48le tid >> putWord16le flags >> putLenEncInt 1
++    putWord8 1 >> putWord8 0 >> putWord32le (fromIntegral value)
++
++gtid :: Word32 -> Word64 -> Word8 -> BinLogPacket
++gtid domain sequenceNo flags = packet MARIADB_GTID_EVENT
++    (putWord64le sequenceNo >> putWord32le domain >> putWord8 flags)
++
++queryEvent :: B.ByteString -> BinLogPacket
++queryEvent statement = packet BINLOG_QUERY_EVENT $ do
++    putWord32le 0 >> putWord32le 0 >> putWord8 0 >> putWord16le 0 >> putWord16le 0 >> putWord8 0 >> putByteString statement
++
++transaction :: Word64 -> Int -> [BinLogPacket]
++transaction sequenceNo value = [gtid 0 sequenceNo 4, tableMap 1 [3], writeRow 1 1 value,
++    packet BINLOG_XID_EVENT (putWord64le sequenceNo)]
++
++emptyGtids :: GtidSet
++emptyGtids = either error id (gtidSet [])
++
++decode :: DecodeLimits -> [BinLogPacket] -> IO [CDCEvent]
++decode limits events = do
++    input <- S.fromList events
++    (output, _) <- newCDCDecoder limits (Just emptyGtids) fixtureFormat "bin.000001" input
++    S.toList output
++
++wireEvent :: Bool -> BinLogPacket -> Packet
++wireEvent crc p = Packet (L.length bytes) 1 bytes
++  where
++    raw = runPut $ do
++        putWord32le (blTimestamp p) >> putWord8 (fromIntegral (fromEnum (blEventType p)))
++        putWord32le (blServerId p) >> putWord32le (fromIntegral (19 + L.length (blBody p) + if crc then 4 else 0))
++        putWord32le (fromIntegral (blLogPos p)) >> putWord16le (blFlags p) >> putLazyByteString (blBody p)
++    bytes = runPut $ putWord8 0 >> putLazyByteString raw >> when crc (putWord32le (binLogCRC32 raw))
++
++writes :: [CDCEvent] -> [[BinLogValue]]
++writes events = concat [writeRowData row | event <- events, CDCWrite _ row <- [cdcEventPayload event]]
++
++cases :: [Case]
++cases =
++    [ case5 "event-id-roundtrip" $ forM_ [0..255] $ \n -> equal "wire event ID" n (fromEnum (toEnum n :: BinLogEventType))
++    , case5 "crc32-known-vector" $ equal "IEEE CRC32" 0xcbf43926 (binLogCRC32 "123456789")
++    , case5 "crc32-valid" $ do
++        result <- getFromPacket (getBinLogPacket True False) (wireEvent True (writeRow 1 0 7))
++        equal "validated body" (blBody (writeRow 1 0 7)) (blBody result)
++    , case5 "crc32-every-truncation" $ do
++        let p = wireEvent True (writeRow 1 0 7)
++        forM_ [0..L.length (pBody p)-1] $ \size -> expectRejection
++            (getFromPacket (getBinLogPacket True False) p {pBody=L.take size (pBody p)})
++    , case5 "wire-trailing-byte" $ do
++        let p = wireEvent False (writeRow 1 0 7)
++        expectRejection (getFromPacket (getBinLogPacket False False) p {pBody=pBody p <> "x"})
++    , case5 "wire-small-event-size" $ expectRejection $ getFromPacket (getBinLogPacket False False)
++        (putToPacket 1 (putWord8 0 >> putWord32le 0 >> putWord8 16 >> putWord32le 1 >> putWord32le 18 >> putWord32le 4 >> putWord16le 0))
++    , case5 "unknown-critical-rejected" $ expectRejection (decode defaultDecodeLimits [packet (UnrecognizedBinLogEvent 200) (pure ())])
++    , case5 "unknown-ignorable-preserved" $ do
++        let original=(packet (UnrecognizedBinLogEvent 200) (putByteString "future")) {blFlags=0x80}
++        result <- decode defaultDecodeLimits [original]
++        equal "unknown bytes retained" [CDCIgnorable original] (map cdcEventPayload result)
++    , case5 "table-map-replacement" $ do
++        events <- decode defaultDecodeLimits [tableMap 1 [1],tableMap 1 [3],writeRow 1 0 7]
++        equal "new schema metadata" [[BinLogLong 7]] (writes events)
++    , case5 "table-map-count-limit" $ expectRejection (decode defaultDecodeLimits {maxTableMaps=1} [tableMap 1 [3],tableMap 2 [3]])
++    , case5 "table-map-byte-limit" $ expectRejection (decode defaultDecodeLimits {maxTableMapBytes=1} [tableMap 1 [3]])
++    , case5 "table-map-replacement-budget" $ do
++        events <- decode defaultDecodeLimits {maxTableMaps=1,maxTableMapBytes=1000} [tableMap 1 [3],tableMap 1 [3],writeRow 1 0 7]
++        equal "replacement releases metadata" [[BinLogLong 7]] (writes events)
++    , case5 "statement-end-invalidates-maps" $ expectRejection (decode defaultDecodeLimits [tableMap 1 [3],writeRow 1 1 7,writeRow 1 0 8])
++    , case5 "query-invalidates-maps" $ expectRejection (decode defaultDecodeLimits [tableMap 1 [3],queryEvent "ALTER TABLE t ADD n INT",writeRow 1 0 8])
++    , case5 "rotate-invalidates-maps" $ expectRejection (decode defaultDecodeLimits
++        [tableMap 1 [3],packet BINLOG_ROTATE_EVENT (putWord64le 4 >> putByteString "bin.000002"),writeRow 1 0 8])
++    , case5 "row-column-count-mismatch" $ expectRejection (decode defaultDecodeLimits [tableMap 1 [3,3],writeRow 1 0 7])
++    , case5 "row-extra-header-underflow" $ expectRejection (decode defaultDecodeLimits
++        [tableMap 1 [3],packet BINLOG_WRITE_ROWS_EVENTv2 (putWord48le 1 >> putWord16le 0 >> putWord16le 1)])
++    , case5 "row-zero-progress" $ expectRejection (decode defaultDecodeLimits
++        [tableMap 1 [3],packet BINLOG_WRITE_ROWS_EVENTv1 (putWord48le 1 >> putWord16le 0 >> putLenEncInt 1 >> putWord8 0 >> putWord8 0)])
++    , case5 "row-null-unused-bits-allowed" $ do
++        let original=writeRow 1 0 7
++            bytes=blBody original
++            rowWithUnusedBits=original {blBody=L.take 10 bytes <> L.singleton 0xfe <> L.drop 11 bytes}
++        events <- decode defaultDecodeLimits [tableMap 1 [3],rowWithUnusedBits]
++        equal "server NULL padding is ignored" [[BinLogLong 7]] (writes events)
++    , case5 "table-map-optional-metadata" $ do
++        let original=tableMap 1 [3]
++            withMetadata=original {blBody=blBody original <> runPut (putWord8 238 >> putLenEncBytes "abc")}
++        events <- decode defaultDecodeLimits [withMetadata,writeRow 1 0 7]
++        case map cdcEventPayload events of
++            [CDCWrite table _] -> equal "unknown TLV preserved" [(238,"abc")] (tmOptionalMetadata table)
++            _ -> fail "missing optional metadata"
++    , case5 "table-map-invalid-optional-length" $ do
++        let original=tableMap 1 [3]
++        expectRejection (decode defaultDecodeLimits [original {blBody=blBody original <> L.pack [238,10,1,2,3]}])
++    , case5 "file-checkpoint-resumes-by-file" $ do
++        input <- S.fromList (transaction 1 7)
++        (events,_) <- newCDCDecoder defaultDecodeLimits Nothing fixtureFormat "bin.1" input
++        output <- S.toList events
++        token <- only "file checkpoint" (mapMaybe cdcEventCheckpoint output)
++        equal "unknown initial GTIDs are explicit" Nothing (checkpointGtids token)
++        equal "resume preserves file origin" (FromBinLog (BinLogTracker "bin.1" 100)) (resumeFromCheckpoint token)
++    , case5 "row-padding-bits-rejected" $ expectRejection (decode defaultDecodeLimits
++        [tableMap 1 [3],packet BINLOG_WRITE_ROWS_EVENTv1 (putWord48le 1 >> putWord16le 0 >> putLenEncInt 1 >> putWord8 0x81 >> putWord8 0 >> putWord32le 7)])
++    , case5 "sparse-update-images" $ do
++        let row = packet BINLOG_UPDATE_ROWS_EVENTv1 $ do
++                putWord48le 1 >> putWord16le 1 >> putLenEncInt 3
++                putWord8 1 >> putWord8 6
++                putWord8 0 >> putWord32le 7
++                putWord8 1 >> putWord32le 9
++        result <- decode defaultDecodeLimits [tableMap 1 [3,3,3],row]
++        case map cdcEventPayload result of
++            [CDCUpdate _ value] -> do
++                equal "omitted differs from NULL" [([BinLogLong 7],[BinLogNull,BinLogLong 9])] (updateRowData value)
++                equal "both sparse maps retained" (BitMap (B.pack [1]),BitMap (B.pack [6])) (updatePresentMap value)
++            _ -> fail "missing sparse update"
++    , case5 "checkpoint-only-after-commit" $ do
++        events <- decode defaultDecodeLimits (transaction 1 7)
++        equal "only commit checkpoint" [False,False,True] (map (maybe False (const True) . cdcEventCheckpoint) events)
++        let tokens = mapMaybe cdcEventCheckpoint events
++        equal "completed GTID" [Just [Gtid 0 610123 1]] (map (fmap gtidSetEntries . checkpointGtids) tokens)
++    , case5 "checkpoint-rollback-boundary" $ do
++        events <- decode defaultDecodeLimits [gtid 0 1 4,queryEvent "BEGIN",queryEvent "ROLLBACK"]
++        equal "rollback emitted" CDCRollback (cdcEventPayload (last events))
++        equal "one complete boundary" 1 (length (mapMaybe cdcEventCheckpoint events))
++    , case5 "checkpoint-standalone-ddl" $ do
++        events <- decode defaultDecodeLimits [gtid 0 1 1,queryEvent "CREATE TABLE t(n INT)"]
++        equal "DDL boundary" 1 (length (mapMaybe cdcEventCheckpoint events))
++    , case5 "checkpoint-standalone-rows" $ do
++        events <- decode defaultDecodeLimits [gtid 0 1 1,tableMap 1 [3],writeRow 1 1 7]
++        equal "nontransactional statement boundary" 1 (length (mapMaybe cdcEventCheckpoint events))
++    , case5 "checkpoint-cross-domain" $ do
++        events <- decode defaultDecodeLimits (transaction 1 7 ++ [gtid 2 9 4,packet BINLOG_XID_EVENT (putWord64le 2)])
++        equal "both completed domains" (Just [Gtid 0 610123 1,Gtid 2 610123 9])
++            (fmap gtidSetEntries (checkpointGtids (last (mapMaybe cdcEventCheckpoint events))))
++    , case5 "checkpoint-incomplete-eof" $ expectRejection (decode defaultDecodeLimits [gtid 0 1 4,tableMap 1 [3],writeRow 1 1 7])
++    , case5 "checkpoint-nested-gtid" $ expectRejection (decode defaultDecodeLimits [gtid 0 1 4,gtid 0 2 4])
++    , case5 "checkpoint-nonadvancing-gtid" $ expectRejection (decode defaultDecodeLimits (transaction 2 7 ++ transaction 1 8))
++    , case5 "checkpoint-xa-rejected" $ expectRejection (decode defaultDecodeLimits [gtid 0 1 64])
++    , case5 "checkpoint-stream-identity" $ do
++        first <- decode defaultDecodeLimits (transaction 1 7)
++        second <- decode defaultDecodeLimits (transaction 1 7)
++        a <- only "first checkpoint" (mapMaybe cdcEventCheckpoint first)
++        b <- only "second checkpoint" (mapMaybe cdcEventCheckpoint second)
++        assert (not (validCheckpoint a b)) "foreign token rejected"
++    , case5 "gtid-parser-valid" $ do
++        entries <- either fail pure (parseGtidSet "2-9-18446744073709551615,0-1-7")
++        equal "canonical ordered state" "0-1-7,2-9-18446744073709551615" (renderGtidSet entries)
++    , case5 "gtid-parser-invalid" $ forM_ ["0-1-0","0-1-1,0-2-2","-1-2-3","0-1-18446744073709551616","4294967296-1-2","0-1-2,"," 0-1-2"] $ \text ->
++        case parseGtidSet text of Left _ -> pure (); Right _ -> fail "invalid GTID accepted"
++    , case5 "backpressure-no-read-ahead" $ do
++        count <- newIORef (0::Int)
++        source <- S.fromList (transaction 1 7 ++ transaction 2 8)
++        observed <- S.makeInputStream (modifyIORef' count (+1) >> S.read source)
++        (events,latest) <- newCDCDecoder defaultDecodeLimits (Just emptyGtids) fixtureFormat "bin.1" observed
++        void (S.read events)
++        equal "one raw event per GTID read" 1 =<< readIORef count
++        equal "no premature checkpoint" Nothing =<< latest
++    , case5 "compressed-write" $ do
++        let row = writeRow 1 0 7
++        result <- decode defaultDecodeLimits [tableMap 1 [3], compressRow row]
++        equal "inflated row" [[BinLogLong 7]] (writes result)
++    , case5 "compressed-expansion-limit" $ expectRejection (decode defaultDecodeLimits {maxExpandedEventBytes=32}
++        [tableMap 1 [3], (compressRow (writeRow 1 0 7)) {blBody= L.take 10 (blBody (writeRow 1 0 7)) <> L.pack [0x84,0x7f,0xff,0xff,0xff]}])
++    , case5 "compressed-truncated" $ do
++        let row=compressRow (writeRow 1 0 7)
++        expectRejection (decode defaultDecodeLimits [tableMap 1 [3],row {blBody=L.init (blBody row)}])
++    , case5 "compressed-length-mismatch" $ do
++        let row=compressRow (writeRow 1 0 7)
++            bytes=blBody row
++        expectRejection (decode defaultDecodeLimits [tableMap 1 [3],row {blBody=L.take 11 bytes <> L.singleton 4 <> L.drop 12 bytes}])
++    , case5 "fragmented-row" $ do
++        events <- decode defaultDecodeLimits (tableMap 1 [3] : fragments (writeRow 1 0 7))
++        equal "fragmented image" [[BinLogLong 7]] (writes events)
++    , case5 "fragment-out-of-order" $ do
++        let parts=fragments (writeRow 1 0 7)
++        expectRejection (decode defaultDecodeLimits (tableMap 1 [3] : reverse parts))
++    , case5 "fragment-missing" $ case fragments (writeRow 1 0 7) of
++        first:_ -> expectRejection (decode defaultDecodeLimits [tableMap 1 [3],first])
++        _ -> fail "invalid fragment fixture"
++    , case5 "fragment-interleaved" $ case fragments (writeRow 1 0 7) of
++        first:rest -> expectRejection (decode defaultDecodeLimits ([tableMap 1 [3],first,queryEvent "COMMIT"] ++ rest))
++        _ -> fail "invalid fragment fixture"
++    , case5 "fragment-expansion-budget" $ expectRejection
++        (decode defaultDecodeLimits {maxExpandedEventBytes=32} (tableMap 1 [3] : fragments (writeRow 1 0 7)))
++    , case5 "compressed-query" $ do
++        let original=queryEvent "CREATE TABLE t(n INT)"
++            prefix=L.take 14 (blBody original)
++            sqlBytes=L.drop 14 (blBody original)
++            compressed=original {blEventType=MARIADB_QUERY_COMPRESSED_EVENT,
++                blBody=prefix <> L.pack [0x81,fromIntegral (L.length sqlBytes)] <> Z.compress sqlBytes}
++        result <- decode defaultDecodeLimits [gtid 0 1 1,compressed]
++        equal "compressed DDL checkpoint" 1 (length (mapMaybe cdcEventCheckpoint result))
++    , case5 "set-little-endian" $ do
++        value <- getFromBinLogPacket (getBinLogField (BINLOG_TYPE_SET 16 2)) (packet BINLOG_UNKNOWN_EVENT (putWord8 1 >> putWord8 2))
++        equal "two-byte SET mask" (BinLogSet 513) value
++    , case5 "enum-little-endian" $ do
++        value <- getFromBinLogPacket (getBinLogField (BINLOG_TYPE_ENUM 2)) (packet BINLOG_UNKNOWN_EVENT (putWord8 1 >> putWord8 2))
++        equal "two-byte ENUM index" (BinLogEnum 513) value
++    , case5 "metadata-invalid-precision" $ expectRejection
++        (getFromBinLogPacket (getBinLogMeta mySQLTypeNewDecimal) (packet BINLOG_UNKNOWN_EVENT (putWord8 0 >> putWord8 0)))
++    , case5 "metadata-invalid-fsp" $ expectRejection
++        (getFromBinLogPacket (getBinLogMeta mySQLTypeTimestamp2) (packet BINLOG_UNKNOWN_EVENT (putWord8 7)))
++    , case5 "crc32-off-format-still-checked" $ do
++        let fd=packet BINLOG_FORMAT_DESCRIPTION_EVENT $ do
++                putWord16le 4 >> putByteString ("12.3.3-MariaDB" <> B.replicate 36 0)
++                putWord32le 0 >> putWord8 19 >> putByteString (B.replicate 172 8) >> putWord8 0
++        parsed <- getFromPacket (getBinLogPacket False False) (wireEvent True fd)
++        format <- getFromBinLogPacket getFormatDescription parsed
++        equal "descriptor excluded from event vector" 172 (B.length (fdEventHeaderLenVector format))
++    , case5 "live-transaction-resume" gtidResumeFeature
++    , case5 "manual-ack-wire-order" manualAckFeature
++    , case5 "manual-ack-foreign-token" $ do
++        (conn,_,_) <- ackFixture (transaction 1 7)
++        stream <- openManual conn
++        foreignEvents <- decode defaultDecodeLimits (transaction 1 7)
++        token <- only "foreign token" (mapMaybe cdcEventCheckpoint foreignEvents)
++        expectRejection (cdcAcknowledge stream token)
++        equal "misuse preserves replication" Replicating =<< connectionStatus conn
++        cdcClose stream
++    , case5 "manual-ack-backwards" $ do
++        (conn,_,_) <- ackFixture (transaction 1 7 ++ map (\p -> p {blLogPos=200}) (transaction 2 8))
++        stream <- openManual conn
++        first <- readCheckpoint stream
++        second <- readCheckpoint stream
++        cdcAcknowledge stream second
++        expectRejection (cdcAcknowledge stream first)
++        equal "backwards rejection preserves replication" Replicating =<< connectionStatus conn
++        cdcClose stream
++    , case5 "manual-ack-write-cancellation" $ do
++        (original,_,closed) <- ackFixture (transaction 1 7)
++        blocked <- newEmptyMVar
++        let conn=original {C.mysqlWrite = \p -> if not (L.null (pBody p)) && L.head (pBody p)==0xef
++                then takeMVar blocked else C.mysqlWrite original p}
++        stream <- openManual conn
++        token <- readCheckpoint stream
++        equal "ACK write deadline" Nothing =<< timeout 20000 (cdcAcknowledge stream token)
++        equal "interrupted ACK retires connection" Broken =<< connectionStatus conn
++        equal "ACK cancellation releases once" 1 =<< closed
++    , case5 "decoded-error-retires" $ do
++        (conn,_,closed) <- ackFixture [tableMap 1 [3],writeRow 2 0 7]
++        stream <- openManual conn
++        expectRejection (S.read (cdcEvents stream))
++        equal "semantic error retires connection" Broken =<< connectionStatus conn
++        equal "semantic error releases transport" 1 =<< closed
++    , case5 "decoded-error-cannot-be-skipped" $ do
++        input <- S.fromList [packet (UnrecognizedBinLogEvent 200) (pure ()),queryEvent "COMMIT"]
++        (events,latest) <- newCDCDecoder defaultDecodeLimits (Just emptyGtids) fixtureFormat "bin.1" input
++        expectRejection (S.read events)
++        expectRejection (S.read events)
++        equal "no checkpoint after ignored exception" Nothing =<< latest
++    , case5 "foreign-thread-read-rejected" $ do
++        (conn,_,_) <- ackFixture (transaction 1 7)
++        stream <- openManual conn
++        done <- newEmptyMVar
++        _ <- forkFinally (S.read (cdcEvents stream)) (putMVar done)
++        outcome <- takeMVar done
++        case outcome of
++            Left err | Just ConcurrentConnectionUse <- fromException err -> pure ()
++            _ -> fail "foreign thread accessed replication stream"
++        equal "ownership violation preserves stream" Replicating =<< connectionStatus conn
++        void (readCheckpoint stream)
++        cdcClose stream
++    , case5 "live-semisync-ack" liveSemiAck
++    , case5 "live-rotation-schema-sparse" liveRotation
++    , case5 "live-server-restart-resume" liveRestart
++    , case5 "file-position-overflow-rejected" $ withConn $ \conn -> do
++        expectRejection (openCDC conn 610126 (defaultCDCOptions (FromBinLog (BinLogTracker "bin.1" 0x100000000))))
++        equal "pre-send validation leaves Ready" Ready =<< connectionStatus conn
++    , case5 "live-query-excluded-during-cdc" $ withConn $ \conn -> do
++        tracker <- getLastBinLogTracker conn >>= maybe (fail "no binlog") pure
++        stream <- openCDC conn 610126 (defaultCDCOptions (FromBinLog tracker))
++        expectRejection (query_ conn "SELECT 1")
++        equal "replication lease intact" Replicating =<< connectionStatus conn
++        cdcClose stream
++    , case5 "live-read-cancellation-retires" $ withConn $ \conn -> do
++        tracker <- getLastBinLogTracker conn >>= maybe (fail "no binlog") pure
++        stream <- openCDC conn 610126 (defaultCDCOptions (FromBinLog tracker))
++        -- Drain any injected GTID_LIST first, then block on a quiet source.
++        result <- timeout 100000 (forever (void (S.read (cdcEvents stream))) :: IO ())
++        equal "deadline reached" Nothing result
++        equal "cancelled replication retired" Broken =<< connectionStatus conn
++    ] ++ [case5 ("bitmap-width-" ++ show width) $ do
++        let row=packet BINLOG_WRITE_ROWS_EVENTv1 $ do
++                putWord48le 1 >> putWord16le 0 >> putLenEncInt width
++                putByteString (B.pack (replicate (width `div` 8) 255 ++ [fromIntegral ((1 `shiftL` (width `mod` 8)) - 1 :: Int) | width `mod` 8 /= 0]))
++                putByteString (B.replicate ((width+7) `div` 8) 0)
++                replicateM_ width (putWord32le 7)
++        events <- decode defaultDecodeLimits [tableMap 1 (replicate width 3),row]
++        equal "all columns survive bitmap" [replicate width (BinLogLong 7)] (writes events)
++    | width <- [1,7,8,9,15,16,17]]
++
++compressRow :: BinLogPacket -> BinLogPacket
++compressRow row = row { blEventType=MARIADB_WRITE_ROWS_COMPRESSED_EVENTv1,
++    blBody=L.take 10 (blBody row) <> L.pack [0x81,5] <> Z.compress (L.drop 10 (blBody row)) }
++
++-- Real source transactions are committed before a nonblocking dump. Resume from
++-- the first delivered checkpoint must return the second transaction exactly once
++-- in this controlled log (application crash recovery may legitimately replay).
++gtidResumeFeature :: IO ()
++gtidResumeFeature = withConn $ \writer -> do
++    exec writer "DROP TABLE IF EXISTS mb_stage5_resume"
++    exec writer "CREATE TABLE mb_stage5_resume(id INT PRIMARY KEY,n INT) ENGINE=InnoDB"
++    (_,stateRows) <- query_ writer "SELECT @@global.gtid_binlog_pos"
++    state <- S.toList stateRows
++    start <- case state of
++        [[MySQLText text]] -> either fail pure (parseGtidSet (TE.encodeUtf8 text))
++        _ -> fail "missing GTID position"
++    withTransaction writer $ exec writer "INSERT INTO mb_stage5_resume VALUES(1,7)"
++    withTransaction writer $ exec writer "INSERT INTO mb_stage5_resume VALUES(2,8)"
++    withConn $ \source -> do
++        stream <- openCDC source 610126 (defaultCDCOptions (FromGtid start)) {cdcNonBlocking=True}
++        first <- untilCheckpoint stream
++        equal "first complete transaction" [[BinLogLong 1,BinLogLong 7]] (writes first)
++        checkpoint <- maybe (fail "missing first checkpoint") pure (cdcEventCheckpoint (last first))
++        cdcClose stream
++        withConn $ \resumed -> do
++            next <- openCDC resumed 610127 (defaultCDCOptions (resumeFromCheckpoint checkpoint)) {cdcNonBlocking=True}
++            result <- S.toList (cdcEvents next)
++            equal "GTID resume returns only unprocessed transaction" [[BinLogLong 2,BinLogLong 8]] (writes result)
++  where
++    untilCheckpoint stream = do
++        value <- S.read (cdcEvents stream) >>= maybe (fail "EOF before checkpoint") pure
++        if maybe False (const True) (cdcEventCheckpoint value) then pure [value]
++        else (value:) <$> untilCheckpoint stream
++
++-- Literal semisync transcript observes actual client writes. Neither GTID nor
++-- row delivery may send an ACK; only a completed consumer checkpoint may do so.
++manualAckFeature :: IO ()
++manualAckFeature = do
++    (conn,sent,_) <- ackFixture (transaction 1 7)
++    stream <- openCDC conn 610126 (defaultCDCOptions (FromBinLog (BinLogTracker "bin.000001" 4))) {cdcAcknowledgements=AcknowledgeManually}
++    let ackPackets = filter (\p -> not (L.null (pBody p)) && L.head (pBody p)==0xef)
++    equal "no bootstrap ACK" 0 . length . ackPackets =<< sent
++    begin <- S.read (cdcEvents stream)
++    assert (maybe False (const True) begin) "GTID delivered"
++    void (S.read (cdcEvents stream))
++    equal "no row ACK before durability checkpoint" 0 . length . ackPackets =<< sent
++    committed <- S.read (cdcEvents stream) >>= maybe (fail "missing commit") pure
++    token <- maybe (fail "missing checkpoint") pure (cdcEventCheckpoint committed)
++    cdcAcknowledge stream token
++    acks <- ackPackets <$> sent
++    equal "one explicit ACK" 1 (length acks)
++    acknowledgement <- only "one ACK packet" acks
++    equal "exact ACK wire bytes" (runPut (putWord8 0xef >> putWord64le 100 >> putByteString "bin.000001")) (pBody acknowledgement)
++    cdcAcknowledge stream token
++    equal "repeat acknowledgement is idempotent" 1 . length . ackPackets =<< sent
++    cdcClose stream
++
++
++-- This one check owns a disposable socket-only server. Its semisync counter
++-- independently proves that a writer waits until our consumer acknowledges.
++liveSemiAck :: IO ()
++liveSemiAck = do
++    fixture <- lookupEnv "MB_CDC_SOCKET"
++    case fixture of
++        Nothing -> do
++            binary <- getExecutablePath
++            callProcess "python3" ["validation/cdc_fixture.py",binary,"case","stage5.live-semisync-ack"]
++        Just path -> do
++            let open = connectUnixSocket path defaultConnectInfo {ciUser="root",ciPassword="",ciDatabase="cdc_validation"}
++            withConnect open $ \source -> do
++                tracker <- getLastBinLogTracker source >>= maybe (fail "no fixture binlog") pure
++                stream <- openCDC source 610128 (defaultCDCOptions (FromBinLog tracker)) {cdcAcknowledgements=AcknowledgeManually}
++                done <- newEmptyMVar
++                bracket (forkFinally (withConnect open (\writer -> exec writer "INSERT INTO changes VALUES(1)")) (putMVar done))
++                    killThread $ \_ -> do
++                        let nextCommit = do
++                                event <- S.read (cdcEvents stream) >>= maybe (fail "EOF before live commit") pure
++                                maybe nextCommit pure (cdcEventCheckpoint event)
++                        token <- timeout 2000000 nextCommit >>= maybe (fail "no semisync transaction") pure
++                        pending <- tryReadMVar done
++                        case pending of
++                            Nothing -> pure ()
++                            Just (Left err) -> throwIO err
++                            Just (Right ()) -> fail "writer completed before explicit acknowledgement"
++                        cdcAcknowledge stream token
++                        result <- timeout 2000000 (takeMVar done) >>= maybe (fail "writer did not resume after ACK") pure
++                        either throwIO pure result
++                        cdcClose stream
++                withConnect open $ \observer -> do
++                    (_,statusRows) <- query_ observer "SHOW GLOBAL STATUS LIKE 'Rpl_semi_sync_master_yes_tx'"
++                    result <- S.toList statusRows
++                    case result of
++                        [[_,MySQLText "1"]] -> pure ()
++                        _ -> fail ("server did not confirm semisync ACK: " ++ show result)
++
++
++only :: String -> [a] -> IO a
++only _ [value] = pure value
++only label _ = fail (label ++ ": expected one value")
++
++fragments :: BinLogPacket -> [BinLogPacket]
++fragments event =
++    [packet MARIADB_PARTIAL_ROW_DATA_EVENT (putWord32le 2 >> putWord32le 1 >> putWord8 1 >> putWord64le (fromIntegral (L.length raw)) >> putLazyByteString (L.take 21 raw)),
++     packet MARIADB_PARTIAL_ROW_DATA_EVENT (putWord32le 2 >> putWord32le 2 >> putWord8 0 >> putLazyByteString (L.drop 21 raw))]
++  where raw=L.drop 1 (pBody (wireEvent False event))
++
++
++ackFixture :: [BinLogPacket] -> IO (MySQLConn,IO [Packet],IO Int)
++ackFixture events = do
++    let variable name value =
++            [putToPacket 1 (putLenEncInt 2)] ++
++            [encodeToPacket n (ColumnDef "" "" "" "v" "" 33 100 mySQLTypeVarString 0 0) | n <- [2,3]] ++
++            [encodeToPacket 4 (EOF 0 2),putToPacket 5 (putLenEncBytes name >> putLenEncBytes value),encodeToPacket 6 (EOF 0 2)]
++        fd = packet BINLOG_FORMAT_DESCRIPTION_EVENT $ do
++            putWord16le 4 >> putByteString ("12.3.3-MariaDB" <> B.replicate 36 0)
++            putWord32le 0 >> putWord8 19 >> putByteString (B.replicate 172 8) >> putWord8 1
++        asSemi event =
++            let base = wireEvent True event
++                body = L.take 1 (pBody base) <> L.pack [0xef,1] <> L.drop 1 (pBody base)
++            in base {pLen=L.length body,pBody=body}
++        transcript = variable "rpl_semi_sync_master_enabled" "ON"
++            ++ [okPacket 1]
++            ++ map asSemi ([packet BINLOG_ROTATE_EVENT (putWord64le 4 >> putByteString "bin.000001"),fd] ++ events)
++    scripted defaultConnectionOptions transcript
++
++openManual :: MySQLConn -> IO CDCStream
++openManual conn = openCDC conn 610126 (defaultCDCOptions (FromBinLog (BinLogTracker "bin.000001" 4)))
++    {cdcAcknowledgements=AcknowledgeManually}
++
++readCheckpoint :: CDCStream -> IO CDCCheckpoint
++readCheckpoint stream = do
++    event <- S.read (cdcEvents stream) >>= maybe (fail "EOF before expected checkpoint") pure
++    maybe (readCheckpoint stream) pure (cdcEventCheckpoint event)
++
++
++withIsolated :: String -> (IO MySQLConn -> IO ()) -> IO ()
++withIsolated ident action = do
++    path <- lookupEnv "MB_CDC_SOCKET"
++    case path of
++        Nothing -> do
++            binary <- getExecutablePath
++            callProcess "python3" ["validation/cdc_fixture.py",binary,"case",ident]
++        Just socket -> action (connectUnixSocket socket defaultConnectInfo
++            {ciUser="root",ciPassword="",ciDatabase="cdc_validation"})
++
++sourceGtids :: MySQLConn -> IO GtidSet
++sourceGtids conn = do
++    (_,input) <- query_ conn "SELECT @@global.gtid_binlog_pos"
++    result <- S.toList input
++    case result of
++        [[MySQLText value]] -> either fail pure (parseGtidSet (TE.encodeUtf8 value))
++        _ -> fail "missing source GTID state"
++
++-- Cross a real rotation and CRC32->NONE transition, change schema, and decode
++-- minimal before/after/delete images without interpreting omitted fields as NULL.
++liveRotation :: IO ()
++liveRotation = withIsolated "stage5.live-rotation-schema-sparse" $ \open -> withConnect open $ \writer -> do
++    exec writer "SET GLOBAL rpl_semi_sync_master_enabled=0"
++    start <- sourceGtids writer
++    exec writer "INSERT INTO changes VALUES(1)"
++    exec writer "SET GLOBAL binlog_checksum='NONE'"
++    exec writer "FLUSH LOGS"
++    exec writer "INSERT INTO changes VALUES(2)"
++    exec writer "ALTER TABLE changes ADD n INT NOT NULL DEFAULT 7"
++    exec writer "SET SESSION binlog_row_image='MINIMAL'"
++    exec writer "UPDATE changes SET n=8 WHERE id=2"
++    exec writer "DELETE FROM changes WHERE id=2"
++    finalPosition <- getLastBinLogTracker writer >>= maybe (fail "no final binlog position") pure
++    withConnect open $ \source -> do
++        stream <- openCDC source 610128 (defaultCDCOptions (FromGtid start)) {cdcNonBlocking=True}
++        result <- S.toList (cdcEvents stream)
++        equal "rows across rotation" [[BinLogLong 1],[BinLogLong 2]] (writes result)
++        let updates=[updateRowData value | event <- result,CDCUpdate _ value <- [cdcEventPayload event]]
++            deletes=[deleteRowData value | event <- result,CDCDelete _ value <- [cdcEventPayload event]]
++            rotations=[value | event <- result,CDCRotate value <- [cdcEventPayload event]]
++        equal "minimal update images" [[([BinLogLong 2],[BinLogLong 8])]] updates
++        equal "minimal delete image" [[[BinLogLong 2]]] deletes
++        assert (not (null rotations)) "real rotation delivered"
++        case reverse (mapMaybe cdcEventCheckpoint result) of
++            token:_ -> equal "checkpoint moved to rotated file" (btFileName finalPosition) (binlogFile (checkpointPosition token))
++            _ -> fail "no final checkpoint across rotation"
++
++-- Restart the owned server with the same datadir after a complete checkpoint.
++-- The old transport must become terminal and GTID resume must yield only the
++-- subsequent transaction. The Python fixture owns every server process.
++liveRestart :: IO ()
++liveRestart = withIsolated "stage5.live-server-restart-resume" $ \open -> do
++    start <- withConnect open $ \writer -> do
++        exec writer "SET GLOBAL rpl_semi_sync_master_enabled=0"
++        state <- sourceGtids writer
++        exec writer "INSERT INTO changes VALUES(1)"
++        pure state
++    saved <- withConnect open $ \source -> do
++        stream <- openCDC source 610128 (defaultCDCOptions (FromGtid start))
++        token <- readCheckpoint stream
++        directory <- lookupEnv "MB_CDC_CONTROL" >>= maybe (fail "missing fixture control directory") pure
++        writeFile (directory </> "restart.request") "restart owned fixture\n"
++        let ready = do
++                done <- doesFileExist (directory </> "restart.done")
++                unless done (threadDelay 20000 >> ready)
++        timeout 15000000 ready >>= maybe (fail "server restart deadline") pure
++        let untilFailure = do
++                event <- S.read (cdcEvents stream)
++                case event of Nothing -> fail "old replication ended"; Just _ -> untilFailure
++        expectRejection (timeout 2000000 untilFailure >>= maybe (fail "old transport did not terminate") pure)
++        status <- connectionStatus source
++        assert (status `elem` [Broken,Closed]) "old transport is terminal after server restart"
++        pure token
++    withConnect open $ \writer -> exec writer "INSERT INTO changes VALUES(2)"
++    withConnect open $ \source -> do
++        stream <- openCDC source 610128 (defaultCDCOptions (resumeFromCheckpoint saved)) {cdcNonBlocking=True}
++        result <- S.toList (cdcEvents stream)
++        equal "restart resumes after saved transaction" [[BinLogLong 2]] (writes result)
+diff --git a/validation/hs/Validation/Stage5Bench.hs b/validation/hs/Validation/Stage5Bench.hs
+new file mode 100644
+index 0000000..b9b884f
+--- /dev/null
++++ b/validation/hs/Validation/Stage5Bench.hs
+@@ -0,0 +1,168 @@
++{-# LANGUAGE BangPatterns #-}
++-- | Streaming CDC workloads. Fixture encoding is outside decoder timing; the
++-- framing/CRC profile deliberately includes encoding fresh, varying messages.
++-- Live profiles include connect/setup, decoding and checkpoint observation, with
++-- source log creation outside timing. All row values contribute to a checksum.
++module Validation.Stage5Bench (run) where
++
++import Control.Exception (evaluate)
++import Control.Monad
++import qualified Codec.Compression.Zlib as Z
++import Data.Binary.Put
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Lazy as L
++import Data.IORef
++import Data.List (intercalate)
++import qualified Data.Text.Encoding as TE
++import Data.Word
++import Database.MySQL.Base
++import Database.MySQL.BinLog
++import GHC.Clock
++import GHC.Stats
++import System.Mem
++import qualified System.IO.Streams as S
++import Validation.Common
++
++run :: String -> Int -> IO ()
++run ident count
++    | count <= 0 = fail "positive CDC benchmark count required"
++    | ident == "cdc.decode.single-table" = measure ident count $ decodeRows
++        (mapping 1 : [row 1 n | n <- [1..count]])
++    | ident == "cdc.decode.interleaved" = measure ident count $ decodeRows
++        ([mapping tid | tid <- [1..64]] ++ [row (fromIntegral (n `mod` 64 + 1)) n | n <- [1..count]])
++    | ident == "cdc.decode.sparse-update" = measure ident count $ do
++        let metadata=make BINLOG_TABLE_MAP_EVENT $ do
++                putWord48le 1 >> putWord16le 0
++                putWord8 1 >> putByteString "d" >> putWord8 0
++                putWord8 1 >> putByteString "t" >> putWord8 0
++                putLenEncInt 64 >> putByteString (B.replicate 64 3) >> putLenEncInt 0 >> putWord64le 0
++            update n = make BINLOG_UPDATE_ROWS_EVENTv1 $ do
++                putWord48le 1 >> putWord16le 0 >> putLenEncInt 64
++                putWord64le 1 >> putWord64le 0x8000000000000000
++                putWord8 0 >> putWord32le (fromIntegral (negate n))
++                putWord8 0 >> putWord32le (fromIntegral n)
++        decodeRows (metadata : map update [1..count])
++    | ident == "cdc.decode.compressed" = measure ident count $ decodeRows
++        (mapping 1 : [compressedRow n | n <- [1..count]])
++    | ident == "cdc.framing.crc32" = measure ident count $ do
++        total <- foldM (\ !acc n -> do
++            let event=row 1 n
++                raw=runPut $ do
++                    putWord32le 0 >> putWord8 23 >> putWord32le 1
++                    putWord32le (fromIntegral (23 + L.length (blBody event))) >> putWord32le 100 >> putWord16le 0
++                    putLazyByteString (blBody event)
++                framed=putToPacket 1 (putWord8 0 >> putLazyByteString raw >> putWord32le (binLogCRC32 raw))
++            checked <- getFromPacket (getBinLogPacket True False) framed
++            unless (blBody checked == blBody event) (fail "CRC fixture roundtrip")
++            pure (acc + 1)) (0 :: Integer) [1..count]
++        pure total
++    | ident == "cdc.retention" = measure ident count $ do
++        cursor <- newIORef (0 :: Int)
++        input <- S.makeInputStream $ do
++            n <- atomicModifyIORef' cursor (\value -> (value+1,value))
++            pure (if n==0 then Just (mapping 1) else if n<=count then Just (row 1 n) else Nothing)
++        gtids <- either fail pure (gtidSet [])
++        (events,_) <- newCDCDecoder defaultDecodeLimits (Just gtids) fixtureFormat "bin.1" input
++        let loop :: Int -> Integer -> IO Integer
++            loop !n !total = do
++                event <- S.read events
++                case event of
++                    Nothing -> pure total
++                    Just value -> do
++                        addition <- case cdcEventPayload value of
++                            CDCWrite _ image -> case writeRowData image of
++                                [[BinLogLong valueNumber]] -> pure (toInteger valueNumber)
++                                _ -> fail "retention image mismatch"
++                            _ -> fail "retention event mismatch"
++                        let next=n+1
++                        when (next `elem` [1000,10000,100000,1000000]) $ do
++                            performGC
++                            stats <- getRTSStats
++                            putStrLn (intercalate "\t" ["STAGE5_HEAP",show next,show (gcdetails_live_bytes (gc stats))])
++                        loop next (total+addition)
++        loop 0 0
++    | ident == "cdc.live.rows" || ident == "cdc.live.checkpoints" = withConn $ \writer -> do
++        exec writer "DROP TABLE IF EXISTS mb_stage5_bench"
++        exec writer "CREATE TABLE mb_stage5_bench(id INT PRIMARY KEY,n INT) ENGINE=InnoDB"
++        (_,stateStream) <- query_ writer "SELECT @@global.gtid_binlog_pos"
++        state <- S.toList stateStream
++        start <- case state of
++            [[MySQLText value]] -> either fail pure (parseGtidSet (TE.encodeUtf8 value))
++            _ -> fail "CDC benchmark GTID state"
++        if ident == "cdc.live.rows" then withTransaction writer $ insertRows writer count
++        else forM_ [1..count] $ \n -> withTransaction writer $ void $ execute writer
++            "INSERT INTO mb_stage5_bench VALUES(?,1)" [MySQLInt32 (fromIntegral n)]
++        measure ident count $ withConn $ \source -> do
++            stream <- openCDC source 610130 (defaultCDCOptions (FromGtid start)) {cdcNonBlocking=True}
++            (checksum,checkpoints) <- consume (cdcEvents stream)
++            equal "live checkpoint count" (if ident=="cdc.live.rows" then 1 else count) checkpoints
++            pure checksum
++    | otherwise = fail "unknown CDC benchmark profile"
++  where
++    insertRows conn n = forM_ [1..n] $ \key -> void $ execute conn
++        "INSERT INTO mb_stage5_bench VALUES(?,1)" [MySQLInt32 (fromIntegral key)]
++
++fixtureFormat :: FormatDescription
++fixtureFormat = FormatDescription 4 "12.3.3-MariaDB" 0 (B.replicate 172 8)
++
++make :: BinLogEventType -> Put -> BinLogPacket
++make typ builder = BinLogPacket 0 typ 1 (fromIntegral (19+L.length body)) 100 0 body False
++  where body=runPut builder
++
++mapping :: Word64 -> BinLogPacket
++mapping tid = make BINLOG_TABLE_MAP_EVENT $ do
++    putWord48le tid >> putWord16le 0
++    putWord8 1 >> putByteString "d" >> putWord8 0
++    putWord8 1 >> putByteString "t" >> putWord8 0
++    putLenEncInt 1 >> putWord8 3 >> putLenEncInt 0 >> putWord8 0
++
++row :: Word64 -> Int -> BinLogPacket
++row tid n = make BINLOG_WRITE_ROWS_EVENTv1 $ do
++    putWord48le tid >> putWord16le 0 >> putLenEncInt 1 >> putWord8 1 >> putWord8 0
++    putWord32le (fromIntegral n)
++
++compressedRow :: Int -> BinLogPacket
++compressedRow n = let event=row 1 n in event {blEventType=MARIADB_WRITE_ROWS_COMPRESSED_EVENTv1,
++    blBody=L.take 10 (blBody event) <> L.pack [0x81,5] <> Z.compress (L.drop 10 (blBody event))}
++
++decodeRows :: [BinLogPacket] -> IO Integer
++decodeRows packets = do
++    input <- S.fromList packets
++    gtids <- either fail pure (gtidSet [])
++    (events,_) <- newCDCDecoder defaultDecodeLimits (Just gtids) fixtureFormat "bin.1" input
++    fst <$> consume events
++
++consume :: S.InputStream CDCEvent -> IO (Integer,Int)
++consume input = loop 0 0
++  where
++    loop !total !checkpoints = do
++        value <- S.read input
++        case value of
++            Nothing -> pure (total,checkpoints)
++            Just event -> do
++                let count=case cdcEventPayload event of
++                        CDCWrite _ rowsEvent -> sum [toInteger n | image <- writeRowData rowsEvent,
++                            BinLogLong n <- [last image]]
++                        CDCUpdate _ updateEvent -> sum [toInteger after | ([BinLogLong before],[BinLogLong after]) <- updateRowData updateEvent,
++                            before == negate after]
++                        _ -> 0
++                    commits=maybe 0 (const 1) (cdcEventCheckpoint event)
++                loop (total+count) (checkpoints+commits)
++
++measure :: String -> Int -> IO Integer -> IO ()
++measure ident units operation = do
++    void operation
++    void operation
++    performGC
++    before <- getRTSStats
++    start <- getMonotonicTimeNSec
++    checksum <- operation >>= evaluate
++    end <- getMonotonicTimeNSec
++    performGC
++    after <- getRTSStats
++    let expected | ident `elem` ["cdc.decode.single-table","cdc.decode.interleaved","cdc.decode.compressed","cdc.decode.sparse-update","cdc.retention"] = toInteger units*(toInteger units+1) `div` 2
++                 | otherwise = toInteger units
++    equal "CDC benchmark checksum" expected checksum
++    putStrLn (intercalate "\t" ["STAGE5",ident,show units,show (end-start),
++        show (allocated_bytes after-allocated_bytes before),show (cpu_ns after-cpu_ns before),
++        show (gc_cpu_ns after-gc_cpu_ns before),show checksum])
+diff --git a/validation/stage5_benchmarks.py b/validation/stage5_benchmarks.py
+new file mode 100644
+index 0000000..23a56d4
+--- /dev/null
++++ b/validation/stage5_benchmarks.py
+@@ -0,0 +1,27 @@
++#!/usr/bin/env python3
++"""CDC decoding, checked framing, live delivery and retained streaming heap."""
++from pathlib import Path
++import feature_benchmarks as features
++
++PROFILES = {'cdc.decode.single-table': 10000, 'cdc.decode.interleaved': 10000,
++            'cdc.decode.sparse-update': 10000, 'cdc.decode.compressed': 2000, 'cdc.framing.crc32': 20000,
++            'cdc.live.rows': 1000, 'cdc.live.checkpoints': 100, 'cdc.retention': 1000000}
++BASELINE_DIRECTORY = Path('baselines/macos-arm64-cdc')
++WORKLOAD_PATHS = ('validation/hs/Validation/Stage5Bench.hs', 'validation/hs/Validation/Common.hs')
++
++
++def specification():
++    return features.FeatureSpec(marker='STAGE5', command='stage5-bench', label='CDC',
++        profiles=PROFILES, units=PROFILES,
++        checksums={name: n*(n+1)//2 if name.startswith('cdc.decode.') or name=='cdc.retention' else n
++                   for name,n in PROFILES.items()}, pairs={},
++        baseline_directory=BASELINE_DIRECTORY, workload_paths=WORKLOAD_PATHS,
++        heap_profiles={'cdc.retention': (1000,10000,100000,1000000)})
++
++
++def verify_evidence(data, inputs):
++    features.verify_evidence(specification(), data, inputs)
++
++
++if __name__ == '__main__':
++    features.main(specification())
+diff --git a/validation/test_stage5.py b/validation/test_stage5.py
+new file mode 100644
+index 0000000..b03dd7e
+--- /dev/null
++++ b/validation/test_stage5.py
+@@ -0,0 +1,48 @@
++"""CDC measurements require complete work, bounded heap and all new targets."""
++import copy
++import unittest
++
++import feature_benchmarks as features
++import publish_results as live
++import stage5_benchmarks as cdc
++import stage1_gates as gates
++
++
++class CDCEvidenceTests(unittest.TestCase):
++    def setUp(self):
++        self.spec = cdc.specification()
++        self.heap = [[n,100000] for n in (1000,10000,100000,1000000)]*3
++
++    def test_heap_complete(self):
++        features.verify_heap(self.spec, 'cdc.retention', self.heap)
++
++    def test_heap_missing_warmup(self):
++        with self.assertRaisesRegex(ValueError, 'incomplete'):
++            features.verify_heap(self.spec, 'cdc.retention', self.heap[4:])
++
++    def test_heap_wrong_count(self):
++        self.heap = copy.deepcopy(self.heap)
++        self.heap[-1][0] = 999999
++        with self.assertRaisesRegex(ValueError, 'incomplete'):
++            features.verify_heap(self.spec, 'cdc.retention', self.heap)
++
++    def test_heap_growth(self):
++        self.heap = copy.deepcopy(self.heap)
++        self.heap[-1][1] += 3*1024*1024
++        with self.assertRaisesRegex(ValueError, 'grows'):
++            features.verify_heap(self.spec, 'cdc.retention', self.heap)
++
++    def test_crc_workload_uses_event_checksum(self):
++        line='STAGE5\tcdc.framing.crc32\t20000\t100000\t200000\t100000\t1000\t20000'
++        features.sample(self.spec, line, 'cdc.framing.crc32')
++        with self.assertRaisesRegex(ValueError, 'checksum'):
++            features.sample(self.spec, line[:-5]+'10000', 'cdc.framing.crc32')
++
++    def test_cdc_baselines_are_inputs(self):
++        for name in ('results.json','SUMMARY.md','SHA256SUMS'):
++            self.assertTrue(live.is_input('validation/baselines/macos-arm64-cdc/'+name))
++
++    def test_required_cdc_targets(self):
++        self.assertEqual(18, len(gates.CDC_TARGETS))
++        self.assertIn('cdc.gtid-resume', gates.CDC_TARGETS)
++        self.assertIn('cdc.durable-ack-control', gates.CDC_TARGETS)

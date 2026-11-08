@@ -13,6 +13,7 @@ import Database.MySQL.Base
 import Database.MySQL.BinLog
 import qualified System.IO.Streams as S
 import Validation.Common
+import qualified Validation.Stage5 as Stage5
 
 format :: FormatDescription
 format=FormatDescription 4 "12.3.3-MariaDB" 0 (B.replicate 171 8)
@@ -73,8 +74,8 @@ cases =
         case event of
             Just (RowWriteEvent _ _ _ row) -> equal "live insert image" [[BinLogLong 1,BinLogLong 7]] (writeRowData row)
             _ -> throwIO (userError ("missing live row event: " ++ show event))
-    , Case "cdc.gtid-resume" "cdc" $ throwIO (Unsupported "BinLogTracker only exposes filename/32-bit position; MariaDB GTID resume is absent")
-    , Case "cdc.durable-ack-control" "cdc" $ throwIO (Unsupported "semisync acknowledgements happen in the reader, before a consumer durability checkpoint")
+    , Case "cdc.gtid-resume" "cdc" $ Stage5.gtidResumeFeature
+    , Case "cdc.durable-ack-control" "cdc" $ Stage5.manualAckFeature
     ] ++
     [ Case ("cdc.native-event-" ++ show typ) "cdc" $ do
         let body=runPut $ do

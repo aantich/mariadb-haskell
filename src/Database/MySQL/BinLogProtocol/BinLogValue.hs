@@ -30,27 +30,19 @@ import           GHC.Generics                             (Generic)
 
 -- | Data type for representing binlog values.
 --
--- This data type DOES NOT try to parse binlog values into detailed haskell values,
--- because you may not want to waste performance in situations like database middleware.
+-- Values preserve storage-level numeric and temporal representations. Text and
+-- binary columns both use bytes: decoding a character set requires the relevant
+-- table metadata, which can differ from the connection's current character set.
 --
--- Due to the lack of signedness infomation in binlog meta, we cannot distinguish,
--- for example, between unsigned tiny 255 and tiny -1, so we use int to present
--- @TINY,SHORT,INT,LONG@. If you have unsigned columns, use 'fromIntegral' to convert it
--- to word to get real unsigned value back, for example, @fromIntegral (-1 :: Int) == 255 :: Word@
+-- Base column types do not encode signedness. Optional table-map metadata can
+-- supply it, but this value decoder leaves integral bits in their inherited
+-- signed-width constructors. For an unsigned TINYINT, for example,
+-- @fromIntegral (-1 :: Int8) :: Word8@ recovers 255; use the matching width.
+-- INT24 similarly converts through the package's Word24 type.
 --
--- For above reason, we use 'Int24' to present MySQL's @INT24@ type, you can get back the
--- unsigned value using @word24@ package's 'Word24' type.
---
--- Timestamp types('BinLogTimeStamp' and 'BinLogTimeStamp2') are values converted into UTC already,
--- see 'MySQLVaule' 's note.
---
--- There's also no infomation about charset, so we use 'ByteString' to present both text
--- and blob types, if you want to get text representation back, you have to query column charset
--- infomation, and use icu or iconv to decode. IT MAY NOT BE UTF-8.
---
--- The @SET@ and @ENUM@ values are presented by their index's value and bitmap respectively,
--- if you need get the string value back, you have to perform a 'DESC tablename' to get the
--- set or enum table.
+-- Timestamps represent server UTC fields; zero retains MariaDB's zero timestamp
+-- rather than becoming the Unix epoch. ENUM is its stored index and SET its
+-- stored bitmap. Their labels and text collations belong to table metadata.
 --
 data BinLogValue
     = BinLogTiny       !Int8
@@ -204,7 +196,7 @@ getBinLogField BINLOG_TYPE_YEAR                = do
 -- following a simple lookup table.
 --
 getBinLogField (BINLOG_TYPE_NEWDECIMAL precision scale)
-    | precision < scale = fail "NEWDECIMAL: precision must be >= scale"
+    | precision == 0 || precision > 65 || scale > 38 || precision < scale = fail "NEWDECIMAL: invalid precision/scale"
     | otherwise = do
     let i = (precision - scale)
         (ucI, cI) = i `quotRem` digitsPerInteger
@@ -254,12 +246,14 @@ getBinLogField (BINLOG_TYPE_NEWDECIMAL precision scale)
 
 getBinLogField (BINLOG_TYPE_ENUM size) =
     if  | size == 1 -> BinLogEnum . fromIntegral <$> getWord8
-        | size == 2 -> BinLogEnum <$> getWord16be
+        | size == 2 -> BinLogEnum <$> getWord16le
         | otherwise -> fail $ "Database.MySQL.BinLogProtocol.BinLogValue: wrong \
                               \BINLOG_TYPE_ENUM size: " ++ show size
 
 
-getBinLogField (BINLOG_TYPE_SET _ bytes) = BinLogSet <$> getBits' bytes
+getBinLogField (BINLOG_TYPE_SET _ bytes)
+    | bytes == 0 || bytes > 8 = fail "invalid SET storage width"
+    | otherwise = BinLogSet . B.foldr (\byte rest -> fromIntegral byte .|. (rest `shiftL` 8)) 0 <$> getByteString (fromIntegral bytes)
 getBinLogField (BINLOG_TYPE_BLOB lensize) = do
     len <- if  | lensize == 1 -> fromIntegral <$> getWord8
                | lensize == 2 -> fromIntegral <$> getWord16le
@@ -291,7 +285,7 @@ getMicroSecond 3 = (* 1000) . fromIntegral <$> getInt16be
 getMicroSecond 4 = (* 100) . fromIntegral <$> getInt16be
 getMicroSecond 5 = (* 10) . fromIntegral <$> getInt24be
 getMicroSecond 6 = fromIntegral <$> getInt24be
-getMicroSecond _ = pure 0
+getMicroSecond _ = fail "invalid fractional-second precision"
 
 getBits' :: Word8 -> Get Word64
 getBits' bytes = if bytes <= 8
@@ -303,23 +297,21 @@ getBits' bytes = if bytes <= 8
 -- | BinLog row decoder
 --
 getBinLogRow :: [BinLogMeta] -> BitMap -> Get [BinLogValue]
-getBinLogRow metas pmap = do
-    let plen = B.foldl' (\acc word8 -> acc + popCount word8) 0 (fromBitMap pmap)
-        maplen = (plen + 7) `shiftR` 3
-    nullmap <- getByteString maplen
-    go metas (BitMap nullmap) 0 pmap 0
+getBinLogRow metas pmap =
+    -- Construct this Get once per event/image and reuse it for every row. The
+    -- selected metadata list is shared, so sparse images do not rescan every
+    -- omitted column for every row in a large event.
+    let selected = [meta | (index,meta) <- zip [0..] metas, isColumnSet pmap index]
+        maplen = (length selected + 7) `shiftR` 3
+    in do
+        nullmap <- getByteString maplen
+        -- MariaDB initializes this bitmap to 0xff and clears non-NULL bits;
+        -- unused high bits are allowed to remain set (sql/rpl_record.cc).
+        go selected (BitMap nullmap) 0
   where
-    go :: [BinLogMeta] -> BitMap -> Int -> BitMap -> Int -> Get [BinLogValue]
-    go []     _       _       _     _    = pure []
-    go (f:fs) nullmap nullpos pmap' ppos = do
-        let ppos' = ppos + 1
-        if isColumnSet pmap' ppos
-        then do
-            r <- if isColumnSet nullmap nullpos
-                    then return BinLogNull
-                    else getBinLogField f
-            let nullpos' = nullpos + 1
-            rest <- nullpos' `seq` ppos' `seq` go fs nullmap nullpos' pmap' ppos'
-            return (rest `seq` (r : rest))
-        else ppos' `seq` go fs nullmap nullpos pmap' ppos'
-
+    go :: [BinLogMeta] -> BitMap -> Int -> Get [BinLogValue]
+    go [] _ _ = pure []
+    go (meta:rest) nullmap index = do
+        value <- if isColumnSet nullmap index then pure BinLogNull else getBinLogField meta
+        values <- go rest nullmap (index + 1)
+        pure (value : values)

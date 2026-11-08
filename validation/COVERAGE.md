@@ -123,3 +123,22 @@ identity when a latin1 result charset collapses distinct Unicode names, temporar
 UTF-8 restoration with the original narrow charset restored afterward, and binary
 result settings. A third dedicated role account and two Unicode roles provide
 these fixtures; provisioning remains separate from the benchmark account.
+
+## Stage 5 CDC
+
+83 additive cases and both converted inventory entries cover total event IDs,
+known/checksummed/truncated packets, exact event lengths, owned optional TLVs,
+interleaved/repeated/replaced/stale maps and budgets, bitmap boundaries and sparse
+NULL/omitted fields, complete/incomplete/standalone/rollback/multidomain GTIDs,
+overflow and checkpoint origin, backpressure, compressed queries/rows, fragmented
+rows, foreign/backwards/idempotent ACKs, ACK cancellation, decode retirement and
+ownership. Real disposable servers test actual semisync wait/release, CRC-mode
+changes, rotation, DDL/minimal images and persisted-data server restart followed
+by GTID resume. The managed-server fixture also tests GTID resume and cancellation.
+
+Eight new benchmark profiles preserve all 39 previous profiles. They check actual
+row values and separate pure decoding, framing/CRC, live delivery/checkpoints and
+retention timing. The million-row streaming workload records post-major-GC live
+heap at four checkpoints in both warmups and the measured region. Advanced XA
+checkpointing and storage-engine-binlog GTID semisync are explicitly unsupported
+by the transaction-aware API; new non-ignorable events fail closed.

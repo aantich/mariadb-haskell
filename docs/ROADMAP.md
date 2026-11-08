@@ -28,11 +28,12 @@ Stage 2 `e12462a`, on `codex/stage3-native-statements`.
    processed internally and add `COM_RESET_CONNECTION` for clean sessions.
    Invalidate prepared handles/caches and restore required session settings.
    Resetting a session does not recover a desynchronized transport.
-4. **Complete CDC — future stage.** First fix the 16 existing event/table-map/
-   checksum failures. Design GTID resume and explicit acknowledgement/checkpoint
-   controls alongside the event model, then implement them on the corrected
-   decoder. Test rotation, transaction boundaries, corruption and recovery using
-   real MariaDB logs. Move this stage earlier if the first application needs CDC.
+4. **Complete CDC — implemented and validated locally, awaiting review.** The 16
+   event/table-map/checksum failures now pass. GTID resume, transaction checkpoints
+   and explicit acknowledgement controls use the corrected, bounded decoder.
+   Literal and real-server tests cover rotation, transaction boundaries,
+   corruption and recovery. See the Stage 5 continuation checkpoint below for
+   supported contracts and explicit limitations.
 5. **Workload-specific features — future stage.** Cursor fetch, long-data upload,
    compression, progress callbacks and PAM/GSSAPI fixtures, ordered by actual
    workloads and measured benefit. These are separate API/environment gaps.
@@ -142,3 +143,22 @@ investigations appear in this capture; six stricter ordinary timing signals
 remain open. The [publication evidence](STAGE4_IMPLEMENTATION.md#committed-publication--8-november-2026)
 supersedes the live working-tree status without altering historical captures.
 The next step remains CDC planning after separate approval.
+
+
+## Stage 5 continuation checkpoint — 8 November 2026
+
+Anton approved the CDC implementation proposal. Work starts from `733183a` on
+`codex/stage5-cdc` and remains uncommitted for review. Read the
+[API/contracts and evolving evidence](STAGE5_IMPLEMENTATION.md).
+
+- [x] Correct event framing/checksums, metadata lifetime and MariaDB event IDs.
+- [x] Implement transaction checkpoints, GTID resume and explicit acknowledgements.
+- [x] Add bounded sparse/compressed/fragmented decoding and real recovery fixtures.
+- [x] Capture a separate immutable eight-profile CDC baseline with exact sources.
+- [x] Complete Linux and full Mac correctness/benchmark confirmation.
+- [ ] Review and publish only after Anton authorizes commit/push.
+
+Next development after CDC review is workload-specific APIs, prioritized by actual
+application demand. XA-aware CDC and the new storage-engine-binlog semisync
+extension remain explicit limitations. Deferred ordinary performance work stays
+open; no performance reference advances.

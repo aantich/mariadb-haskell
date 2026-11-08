@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "reference": "references/stage3-publication-1.json",
-  "sha256": "d577035b8cd4b851bf234776162025cebfdd6d1cec61927f31a280e208bffe56",
-  "tested_commit": "ef4e52b234187435d1ea464834df629cea5f267a",
-  "purpose": "Preserve every published Stage 3 PASS, including all prior stages, while measuring incremental costs. Original, accepted and first-native performance baselines remain unchanged."
+  "reference": "references/stage4-publication-1.json",
+  "sha256": "519c49879d475e26473a8561c366c8899f2bb1d02f60f2cec09c29af6904dfa0",
+  "tested_commit": "f2835647de4b650a8755d0216d384159a6b858e5",
+  "purpose": "Preserve all 535 published Stage 4 passes during CDC development. Original, accepted, native and reuse performance references remain unchanged."
 }

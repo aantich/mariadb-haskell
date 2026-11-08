@@ -191,3 +191,21 @@ the other reaches the reserved database through its configured default role only
 They test restoration order and quoted Unicode role names without altering the
 ordinary benchmark user's role settings. Run provisioning before the new role
 checks when updating an existing validation installation.
+
+## Stage 5 CDC
+
+[CDC API, migration, bounds and evidence](../docs/STAGE5_IMPLEMENTATION.md)
+cover transaction-aware streaming, MariaDB GTID resume and manual semisync ACKs.
+The two original CDC API inventory entries now execute real checks. A disposable
+socket-only MariaDB fixture uses the installed binaries to test ACK waiting,
+rotation, CRC32/NONE transitions, sparse images, schema change and actual restart.
+It leaves the managed server's data/configuration unchanged and cleans up its
+owned child processes and datadir.
+
+Full runs require eight additional CDC profiles (47 profiles total), seven
+process repetitions and two warmups per process. The separate first CDC capture
+under `baselines/macos-arm64-cdc` is immutable; it does not replace an earlier
+reference. Streaming retained heap checkpoints are mandatory, including warmups.
+Use `python3 validation/stage5_benchmarks.py --output NEW_DIRECTORY` for a separate
+complete CDC measurement. The full wrapper and publication guard independently
+require current CDC evidence and verify all baseline deltas and heap checkpoints.
