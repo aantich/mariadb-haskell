@@ -300,6 +300,7 @@ executable mariadb-validation
     Validation.Stage4
     Validation.Stage4Bench
     Validation.Stage5
+    Validation.Stage5Review
     Validation.Stage5Bench
     Validation.FaultTransport
   build-depends:

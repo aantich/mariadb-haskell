@@ -171,3 +171,25 @@ Next development is workload-specific APIs, prioritized by actual
 application demand. XA-aware CDC and the new storage-engine-binlog semisync
 extension remain explicit limitations. Deferred ordinary performance work stays
 open; no performance reference advances.
+
+## Stage 5 follow-up review — 8 November 2026
+
+Anton requested checking the published stage and fixing all findings, and set
+the default to developing directly on **main** unless he requests a new branch.
+The [review and fixes](STAGE5_CODE_REVIEW.md) remain uncommitted on main. They
+correct temporal values, full GTID history, unsafe/truncated extensions, sparse
+value accounting, wire-limit overflow/continuations and large-query copies.
+`CDCGtidList` now exposes `GtidList` history/flags rather than resume state.
+Two-phase ALTER joins XA and the storage-engine-binlog extension as an explicitly
+unsupported transaction-aware lifecycle.
+
+Final Mac and matching Linux runs record **694 PASS / 1 known FAIL /
+4 UNSUPPORTED / 2 unavailable**, including 58 review regressions and all 636
+published passes. All 143 policy tests pass; Base/BinLog Haddock coverage is
+91/91 and 41/41. Each of 47 runnable profiles has seven repetitions. Two CDC
+confirmations and the final full capture have no >5% CDC timing/allocation
+signals. The final capture has two deferred ordinary timing/reference signals;
+the earlier full timing alarm remains retained. See the
+[confirmation record](../validation/results/stage5-review-confirmation.json).
+Original/accepted/feature baselines are unchanged. Later APIs remain future work;
+publication follows separate authorization.

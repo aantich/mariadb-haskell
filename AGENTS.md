@@ -1,5 +1,10 @@
 # MariaDB driver development
 
+User instruction, 8 November 2026: develop directly on `main` unless Anton
+explicitly requests a new branch. Inspect and preserve the working tree first.
+The current Stage 5 follow-up review authorizes finding and fixing code errors,
+with regression coverage and refreshed validation results.
+
 This fork targets MariaDB only. Preserve protocol identifiers that MariaDB uses;
 do not add a MySQL server support target.
 
@@ -132,3 +137,8 @@ into main, commit and push it to GitHub. Use the committed-input publication
 workflow above, retaining the review captures and immutable baselines. Keep
 deferred timing investigations and explicit CDC limitations visible. Later
 workload-specific APIs remain outside this publication authorization.
+
+Superseding user instruction, 8 November 2026 after the Stage 5 follow-up review:
+commit and push all reviewed CDC fixes and retained evidence directly on main.
+Use the committed-input publication workflow above, preserve immutable references
+and earlier unsuccessful attempts, and keep deferred timing investigations visible.

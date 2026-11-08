@@ -3,13 +3,13 @@
 <rect x="1" y="1" width="1038" height="298" rx="18" fill="#0f172a" stroke="#334155"/>
 <g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
 <text x="30" y="35" font-size="12" font-weight="700" letter-spacing="2" fill="#94a3b8">MARIADB / VALIDATION</text>
-<desc id="description">636 passing records, 1 failures, 0 timeouts, 4 unsupported APIs and 2 environment gaps. No comparison regressions.</desc>
+<desc id="description">694 passing records, 1 failures, 0 timeouts, 4 unsupported APIs and 2 environment gaps. No comparison regressions.</desc>
 <text x="30" y="70" font-size="25" font-weight="700" fill="#f8fafc">CURRENT COMPLETE RUN</text>
 <text x="1008" y="68" text-anchor="end" font-size="15" font-weight="600" fill="#34d399">No comparison regressions</text>
 <rect x="30" y="94" width="234" height="128" rx="11" fill="#172338" stroke="#334155"/>
 <rect x="30" y="109" width="3" height="32" rx="1" fill="#34d399"/>
 <text x="46" y="120" font-size="11" font-weight="700" letter-spacing="0.7" fill="#cbd5e1">PASSING RECORDS</text>
-<text x="46" y="171" font-size="43" font-weight="700" fill="#34d399">636</text>
+<text x="46" y="171" font-size="43" font-weight="700" fill="#34d399">694</text>
 <text x="46" y="201" font-size="10.5" fill="#94a3b8">Including inherited suite summaries</text>
 <rect x="278" y="94" width="234" height="128" rx="11" fill="#172338" stroke="#334155"/>
 <rect x="278" y="109" width="3" height="32" rx="1" fill="#fb7185"/>
@@ -26,7 +26,7 @@
 <text x="790" y="120" font-size="11" font-weight="700" letter-spacing="0.7" fill="#cbd5e1">ENVIRONMENT GAPS</text>
 <text x="790" y="171" font-size="43" font-weight="700" fill="#fbbf24">2</text>
 <text x="790" y="201" font-size="10.5" fill="#94a3b8">Fixtures not available on this host</text>
-<text x="30" y="258" font-size="13" fill="#cbd5e1">12.3.3-MariaDB-log  /  7 benchmark repetitions  /  commit 9d0eedc6ee47</text>
+<text x="30" y="258" font-size="13" fill="#cbd5e1">12.3.3-MariaDB-log  /  7 benchmark repetitions  /  working tree fcf5026a5b1e</text>
 <text x="30" y="281" font-size="11" fill="#94a3b8">Counts include two inherited suite summaries. Missing APIs and environment gaps are not passes.</text>
 </g>
 </svg>

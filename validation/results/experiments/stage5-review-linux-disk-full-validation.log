@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/workspace/validation/linux/verify.py", line 159, in <module>
+    main()
+  File "/workspace/validation/linux/verify.py", line 101, in main
+    raise RuntimeError('Linux MariaDB stopped; inspect server.log')
+RuntimeError: Linux MariaDB stopped; inspect server.log

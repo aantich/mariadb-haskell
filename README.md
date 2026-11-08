@@ -54,6 +54,10 @@ implementation report and live results identify the exact tested source,
 measurements and remaining limits; historical review captures retain their
 working-tree fingerprints.
 
+The [Stage 5 follow-up review](docs/STAGE5_CODE_REVIEW.md) records temporal-value,
+GTID-history, extension and resource-limit corrections, with independent
+reproductions and a migration note for the `CDCGtidList` payload.
+
 ## A first query
 
 ```haskell

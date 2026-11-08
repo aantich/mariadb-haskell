@@ -62,9 +62,9 @@ data BinLogTracker = BinLogTracker
     , btNextPos  :: {-# UNPACK #-} !Word64
     } deriving (Show, Eq, Generic)
 
--- | Register a pesudo slave to master, although MySQL document suggests you should call this
--- before calling 'dumpBinLog', but it seems it's not really necessary.
---
+-- | Register a replica with MariaDB using COM_REGISTER_SLAVE. The historical
+-- function name is retained for API compatibility. Registration is optional
+-- for a dump connection; choose a unique nonzero replica ID either way.
 registerPesudoSlave :: MySQLConn -> SlaveID -> IO OK
 registerPesudoSlave conn sid = command conn (COM_REGISTER_SLAVE sid "" "" "" 0 0 0)
 
@@ -228,15 +228,19 @@ openPackets conn sid options = do
         -- checksummed. Subsequent files choose their mode in their own FDE,
         -- which can differ from the server's current global setting.
         checksumState <- newIORef True
+        -- Apply the CDC ceiling while assembling a logical message, so an
+        -- oversized first fragment cannot make us read more continuations.
+        -- Word64 arithmetic also permits maxBound Int without signed overflow.
+        -- Physical bodies remain bounded before reading by ConnectionOptions.
+        let wireLimit = min (maximumMessageBytes (connectionOptions conn))
+                (fromIntegral (maxExpandedEventBytes limits) + 1024)
         withCommand conn $ do
             let flags = (if cdcNonBlocking options then 1 else 0) .|. 2
             sendCommand conn (COM_BINLOG_DUMP initialPosition flags sid initialFile)
             generation <- markResponseStream conn Replicating
             setExchangeSequence conn 256
             let readEvent = do
-                    packet <- readConnPacket conn
-                    when (pLen packet > fromIntegral (maxExpandedEventBytes limits) + 1024)
-                        (throwIO (userError "CDC wire event byte budget exceeded"))
+                    packet <- readPacketWithLimit wireLimit (mysqlRead conn)
                     if | isOK packet -> do
                            checksum <- readIORef checksumState
                            event <- getFromPacket (getBinLogPacket checksum needAck) packet

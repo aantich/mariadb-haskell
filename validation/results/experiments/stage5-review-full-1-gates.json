@@ -1,0 +1,198 @@
+{
+  "schema": 1,
+  "correctness_failures": [],
+  "evidence_failures": [],
+  "evidence_accepted": true,
+  "timing_investigations": [
+    {
+      "reference": "original",
+      "id": "connector-c/latency.text",
+      "percent": 5.9244203553146635
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.prepared.narrow",
+      "percent": 9.784474537478548
+    },
+    {
+      "reference": "original",
+      "id": "haskell/latency.text",
+      "percent": 9.09691518015958
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.parallel-4",
+      "percent": 24.11868597668669
+    },
+    {
+      "reference": "original",
+      "id": "haskell/write.text",
+      "percent": 10.228577392756488
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/read.text.narrow",
+      "percent": 8.782414910859003
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.tls.narrow",
+      "percent": 6.1147390576933525
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/write.text",
+      "percent": 6.426013062715086
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.text.narrow",
+      "percent": 5.407882676443632
+    },
+    {
+      "reference": "accepted",
+      "id": "connector-c/read.text.wide",
+      "percent": 9.656551073104369
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/blob.text",
+      "percent": 5.603010572845113
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.prepared.narrow",
+      "percent": 11.738061343341544
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/latency.text",
+      "percent": 7.035301156761076
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.parallel-4",
+      "percent": 46.274248605445
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.tls.narrow",
+      "percent": 6.091836184104027
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/write.prepared",
+      "percent": 5.981631838147217
+    },
+    {
+      "reference": "previous_stage",
+      "id": "connector-c/read.text.wide",
+      "percent": 13.788930824858102
+    },
+    {
+      "reference": "previous_stage",
+      "id": "connector-c/latency.text",
+      "percent": 7.832017779140155
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/blob.text",
+      "percent": 5.351290149573917
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.prepared.narrow",
+      "percent": 7.26798360044727
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.parallel-4",
+      "percent": 25.537692032868886
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/write.execute-many",
+      "percent": 13.804589193190232
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.text.wide",
+      "percent": 6.245610514698496
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.vector.narrow",
+      "percent": 6.420781048434399
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.parallel-16",
+      "percent": 11.389570684235451
+    },
+    {
+      "reference": "previous_stage",
+      "id": "connector-c/write.text",
+      "percent": 5.979439121616892
+    }
+  ],
+  "allocation_investigations": [],
+  "target_passes": 23,
+  "target_count": 23,
+  "native_target_passes": 14,
+  "native_target_count": 14,
+  "statement_target_passes": 5,
+  "statement_target_count": 5,
+  "session_target_passes": 2,
+  "session_target_count": 2,
+  "cdc_target_passes": 18,
+  "cdc_target_count": 18,
+  "correctness_accepted": true,
+  "performance_requires_confirmation": true,
+  "previous_stage_reference": {
+    "schema": 1,
+    "reference": "references/stage5-publication-1.json",
+    "sha256": "bf2741c054e4c94a721e17944432d187f39ed488ababdafbbf34fa0440d5e3eb",
+    "tested_commit": "9d0eedc6ee47ac7316658c00d7825ba8f1faafa7",
+    "purpose": "Preserve all 636 published Stage 5 passes during the follow-up CDC review. Original, accepted, native, reuse and CDC performance baselines remain unchanged."
+  },
+  "accepted_reference": {
+    "schema": 1,
+    "reference": "references/pre-stage1.json",
+    "sha256": "da103068ef554a3bd122419d0fc2cea218a40131501d4230aaa7602c5ecef9b8",
+    "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
+    "note": "Last accepted main before Stage 1; not advanced by failing attempts."
+  },
+  "tested_input_sha256": "8e03addd136b421c34ac50bf6265264fa11c825f6d991e1233afe050bad1f82d",
+  "native_timing_investigations": [],
+  "native_allocation_investigations": [],
+  "reuse_timing_investigations": [
+    {
+      "id": "reuse.tcp.reset",
+      "percent": 11.024904214559395
+    },
+    {
+      "id": "reuse.tls.reset",
+      "percent": 5.647891658971993
+    },
+    {
+      "id": "reuse.socket.reset",
+      "percent": 11.162674024833796
+    },
+    {
+      "id": "reuse.socket.reconnect",
+      "percent": 8.180147058823529
+    }
+  ],
+  "reuse_allocation_investigations": [],
+  "cdc_timing_investigations": [
+    {
+      "id": "cdc.decode.single-table",
+      "percent": 5.143987689602114
+    },
+    {
+      "id": "cdc.decode.sparse-update",
+      "percent": 6.956521739130439
+    }
+  ],
+  "cdc_allocation_investigations": []
+}

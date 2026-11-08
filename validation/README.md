@@ -209,3 +209,9 @@ reference. Streaming retained heap checkpoints are mandatory, including warmups.
 Use `python3 validation/stage5_benchmarks.py --output NEW_DIRECTORY` for a separate
 complete CDC measurement. The full wrapper and publication guard independently
 require current CDC evidence and verify all baseline deltas and heap checkpoints.
+
+The [follow-up review](../docs/STAGE5_CODE_REVIEW.md) adds 58 regressions and
+corrects temporal values, full GTID history and resource accounting. `CDCGtidList`
+now exposes `GtidList` history and flags, separately from `GtidSet` resume state.
+Two-phase ALTER and unknown GTID extension semantics fail before checkpoints;
+they are not treated as ordinary transaction groups.

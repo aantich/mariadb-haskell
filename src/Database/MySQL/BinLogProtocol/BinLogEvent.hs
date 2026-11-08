@@ -449,7 +449,8 @@ getDeleteRowEvent fd tme typ = do
     unless (colCnt > 0 && colCnt <= 4096 && colCnt == tmColumnCnt tme) (fail "rows: column count does not match metadata")
     let (plen, poffset) = (colCnt + 7) `quotRem` 8
     pmap <- getPresentMap plen poffset
-    DeleteRowsEvent tid flgs colCnt pmap <$> getNonemptyRows (min 65536 (1048576 `div` colCnt)) (getBinLogRow (tmColumnMeta tme) pmap)
+    DeleteRowsEvent tid flgs colCnt pmap <$>
+        getNonemptyRows length (getBinLogRow (tmColumnMeta tme) pmap)
 
 data WriteRowsEvent = WriteRowsEvent
     { writeTableId    :: !Word64
@@ -481,7 +482,8 @@ getWriteRowEvent fd tme typ = do
     unless (colCnt > 0 && colCnt <= 4096 && colCnt == tmColumnCnt tme) (fail "rows: column count does not match metadata")
     let (plen, poffset) = (colCnt + 7) `quotRem` 8
     pmap <- getPresentMap plen poffset
-    WriteRowsEvent tid flgs colCnt pmap <$> getNonemptyRows (min 65536 (1048576 `div` colCnt)) (getBinLogRow (tmColumnMeta tme) pmap)
+    WriteRowsEvent tid flgs colCnt pmap <$>
+        getNonemptyRows length (getBinLogRow (tmColumnMeta tme) pmap)
 
 data UpdateRowsEvent = UpdateRowsEvent
     { updateTableId    :: !Word64
@@ -515,15 +517,26 @@ getUpdateRowEvent fd tme typ = do
     pmap <- getPresentMap plen poffset
     pmap' <- getPresentMap plen poffset
     UpdateRowsEvent tid flgs colCnt (pmap, pmap') <$>
-        getNonemptyRows (min 65536 (1048576 `div` (2 * colCnt))) ((,) <$> getBinLogRow (tmColumnMeta tme) pmap <*> getBinLogRow (tmColumnMeta tme) pmap')
+        getNonemptyRows (\(before,after) -> length before + length after)
+            ((,) <$> getBinLogRow (tmColumnMeta tme) pmap <*> getBinLogRow (tmColumnMeta tme) pmap')
+
+rowBudget :: Int -> Int
+rowBudget columns = min 65536 (1048576 `div` max 1 columns)
 
 -- Each row event must contain at least one image; accepting an empty event
 -- could expose a transaction checkpoint after silently losing its changes.
-getNonemptyRows :: Int -> Get a -> Get [a]
-getNonemptyRows budget row = do
+getNonemptyRows :: (a -> Int) -> Get a -> Get [a]
+getNonemptyRows valueCount row = do
     empty <- isEmpty
     when empty (fail "rows: event contains no row images")
-    getRows budget row
+    first <- progressingRow row
+    -- Every change uses the same event bitmaps. The first decoded image gives
+    -- the exact value count, including NULLs, without another bitmap scan or
+    -- any work for omitted columns. One change has at most 8192 values, below
+    -- the global value budget; calculate the remaining allowance before a
+    -- second change is decoded. Update before/after images both count.
+    rest <- getRows (rowBudget (valueCount first) - 1) row
+    pure (first : rest)
 
 -- Empty images must still consume their null bitmap/values. A zero-progress
 -- parser is rejected instead of looping forever on a corrupt present bitmap.
@@ -532,11 +545,16 @@ getRows budget row = do
     empty <- isEmpty
     if empty then pure [] else do
         when (budget <= 0) (fail "rows: decoded row/value budget exceeded")
-        before <- bytesRead
-        value <- row
-        after <- bytesRead
-        unless (after > before) (fail "rows: zero-length row image")
+        value <- progressingRow row
         (value :) <$> getRows (budget - 1) row
+
+progressingRow :: Get a -> Get a
+progressingRow row = do
+    before <- bytesRead
+    value <- row
+    after <- bytesRead
+    unless (after > before) (fail "rows: zero-length row image")
+    pure value
 
 getPresentMap :: Int -> Int -> Get BitMap
 getPresentMap plen poffset = do

@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-08T15:09:26.891140+00:00",
+  "scope": "Four exact, reclaimable, unshared prior MariaDB Haskell validation RUN cache IDs; no images, containers or volumes removed.",
+  "records": [
+    {
+      "id": "m89mpacla7h4kce8a32uele0l",
+      "cache_record": "ID:\t\tm89mpacla7h4kce8a32uele0l\nParent:\t\tpnx7d9ni9r32x0ypiidvhk4va\nCreated at:\t2026-11-07 15:03:50.733845295 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t144.9MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, subprocess\nout = pathlib.Path('/tmp/stage3-review-evidence')\nout.mkdir()\nwith (out / 'validation.log').open('w') as log:\n    result = subprocess.run(['python3', 'validation/linux/verify.py'], stdout=log, stderr=subprocess.STDOUT,\n        env={**os.environ, 'MB_LINUX_OUTPUT': str(out / 'linux')})\n(out / 'status.json').write_text(json.dumps({'exit_code': result.returncode}) + '\\n')\nPYRUN\nUsage count:\t1\nLast used:\t24 hours ago\nType:\t\tregular",
+      "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nm89mpacla7h4kce8a32uele0l*              \ttrue \t\t144.9MB   \t24 hours ago\nTotal:\t144.9MB\n"
+    },
+    {
+      "id": "2q2okhojb1g229oaaozrt9tw8",
+      "cache_record": "ID:\t\t2q2okhojb1g229oaaozrt9tw8\nParent:\t\tpnx7d9ni9r32x0ypiidvhk4va\nCreated at:\t2026-11-07 15:05:56.02620759 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t572MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, subprocess\nattempt = 'retry-after-task-cache-cleanup'\nout = pathlib.Path('/tmp/stage3-review-evidence')\nout.mkdir()\nwith (out / 'validation.log').open('w') as log:\n    result = subprocess.run(['python3', 'validation/linux/verify.py'], stdout=log, stderr=subprocess.STDOUT,\n        env={**os.environ, 'MB_LINUX_OUTPUT': str(out / 'linux')})\n(out / 'status.json').write_text(json.dumps({'exit_code': result.returncode}) + '\\n')\nPYRUN\nUsage count:\t1\nLast used:\t24 hours ago\nType:\t\tregular",
+      "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\n2q2okhojb1g229oaaozrt9tw8*              \ttrue \t\t572MB     \t24 hours ago\nTotal:\t572MB\n"
+    },
+    {
+      "id": "ptuh3anw9nzn28vnfjc2bu0gs",
+      "cache_record": "ID:\t\tptuh3anw9nzn28vnfjc2bu0gs\nParent:\t\t9847dsz93h5dn54ljyabxg3sc\nCreated at:\t2026-11-08 09:54:31.135162887 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t578.1MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, subprocess\nattempt = 'stage4-review-fixes-2026-11-08'\nout = pathlib.Path('/tmp/stage4-review-evidence')\nout.mkdir()\nwith (out / 'validation.log').open('w') as log:\n    result = subprocess.run(['python3', 'validation/linux/verify.py'], stdout=log, stderr=subprocess.STDOUT,\n        env={**os.environ, 'MB_LINUX_OUTPUT': str(out / 'linux')})\n(out / 'status.json').write_text(json.dumps({'exit_code': result.returncode}) + '\\n')\nPYRUN\nUsage count:\t1\nLast used:\t5 hours ago\nType:\t\tregular",
+      "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nptuh3anw9nzn28vnfjc2bu0gs*              \ttrue \t\t578.1MB   \t5 hours ago\nTotal:\t578.1MB\n"
+    },
+    {
+      "id": "uczfk2oldhsqakgmffev34q5x",
+      "cache_record": "ID:\t\tuczfk2oldhsqakgmffev34q5x\nParent:\t\tzmba22mn8yx73ftko7rgvbpbs\nCreated at:\t2026-11-08 10:05:06.056676583 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t578.3MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, subprocess\nattempt = 'stage4-review-fixes-unicode-2026-11-08'\nout = pathlib.Path('/tmp/stage4-review-evidence')\nout.mkdir()\nwith (out / 'validation.log').open('w') as log:\n    result = subprocess.run(['python3', 'validation/linux/verify.py'], stdout=log, stderr=subprocess.STDOUT,\n        env={**os.environ, 'MB_LINUX_OUTPUT': str(out / 'linux')})\n(out / 'status.json').write_text(json.dumps({'exit_code': result.returncode}) + '\\n')\nPYRUN\nUsage count:\t1\nLast used:\t5 hours ago\nType:\t\tregular",
+      "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nuczfk2oldhsqakgmffev34q5x*              \ttrue \t\t578.3MB   \t5 hours ago\nTotal:\t578.3MB\n"
+    }
+  ]
+}

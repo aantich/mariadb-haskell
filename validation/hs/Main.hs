@@ -22,10 +22,11 @@ import qualified Validation.Stage3Bench as Stage3Bench
 import qualified Validation.Stage4 as Stage4
 import qualified Validation.Stage4Bench as Stage4Bench
 import qualified Validation.Stage5 as Stage5
+import qualified Validation.Stage5Review as Stage5Review
 import qualified Validation.Stage5Bench as Stage5Bench
 
 allCases :: [Case]
-allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases ++ Stage5.cases
+allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases ++ Stage5.cases ++ Stage5Review.cases
 
 main :: IO ()
 main=do

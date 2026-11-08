@@ -6,43 +6,13 @@
   "timing_investigations": [
     {
       "reference": "original",
-      "id": "haskell/latency.text",
-      "percent": 5.3768358997814625
-    },
-    {
-      "reference": "original",
       "id": "haskell/write.text",
-      "percent": 8.107191316146544
-    },
-    {
-      "reference": "original",
-      "id": "connector-c/read.text.narrow",
-      "percent": 7.769448946515389
-    },
-    {
-      "reference": "original",
-      "id": "connector-c/blob.text",
-      "percent": 7.360040122876299
+      "percent": 5.920571965348076
     },
     {
       "reference": "accepted",
       "id": "haskell/read.parallel-4",
-      "percent": 16.518191657647165
-    },
-    {
-      "reference": "accepted",
-      "id": "connector-c/blob.text",
-      "percent": 6.957716569858219
-    },
-    {
-      "reference": "previous_stage",
-      "id": "connector-c/read.text.narrow",
-      "percent": 8.130907612562254
-    },
-    {
-      "reference": "previous_stage",
-      "id": "connector-c/blob.text",
-      "percent": 9.229493557851765
+      "percent": 13.021397052701689
     }
   ],
   "allocation_investigations": [],
@@ -60,10 +30,10 @@
   "performance_requires_confirmation": true,
   "previous_stage_reference": {
     "schema": 1,
-    "reference": "references/stage4-publication-1.json",
-    "sha256": "519c49879d475e26473a8561c366c8899f2bb1d02f60f2cec09c29af6904dfa0",
-    "tested_commit": "f2835647de4b650a8755d0216d384159a6b858e5",
-    "purpose": "Preserve all 535 published Stage 4 passes during CDC development. Original, accepted, native and reuse performance references remain unchanged."
+    "reference": "references/stage5-publication-1.json",
+    "sha256": "bf2741c054e4c94a721e17944432d187f39ed488ababdafbbf34fa0440d5e3eb",
+    "tested_commit": "9d0eedc6ee47ac7316658c00d7825ba8f1faafa7",
+    "purpose": "Preserve all 636 published Stage 5 passes during the follow-up CDC review. Original, accepted, native, reuse and CDC performance baselines remain unchanged."
   },
   "accepted_reference": {
     "schema": 1,
@@ -72,7 +42,7 @@
     "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
     "note": "Last accepted main before Stage 1; not advanced by failing attempts."
   },
-  "tested_input_sha256": "c8266d02f0496188400dea1f6929346217f44b321a7c5927f6ee149cfe9ca5e6",
+  "tested_input_sha256": "fcf5026a5b1e70ef66e2f60e0e2e20b611dcf34eb838672f9c59514e3211cba6",
   "native_timing_investigations": [],
   "native_allocation_investigations": [],
   "reuse_timing_investigations": [],

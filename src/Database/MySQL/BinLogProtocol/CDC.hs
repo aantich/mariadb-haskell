@@ -3,6 +3,7 @@
 -- transactions or row history; consumers control backpressure by reading once.
 module Database.MySQL.BinLogProtocol.CDC
     ( CDCError(..), Gtid(..), GtidSet, gtidSet, parseGtidSet, renderGtidSet, gtidSetEntries
+    , GtidList(..)
     , BinLogPosition(..), DecodeLimits(..), defaultDecodeLimits
     , CDCCheckpoint, checkpointPosition, checkpointGtids
     , CDCEvent(..), CDCPayload(..), newCDCDecoder, validCheckpoint
@@ -85,6 +86,15 @@ renderGtidSet = C.intercalate "," . map render . gtidSetEntries
 gtidSetEntries :: GtidSet -> [Gtid]
 gtidSetEntries (GtidSet entries) = M.elems entries
 
+-- | Binlog history advertised by a GTID_LIST event. A domain can contain
+-- several originating servers after failover; collapsing it into 'GtidSet'
+-- would discard history or guess a resume position. This informational event
+-- does not advance a transaction checkpoint.
+data GtidList = GtidList
+    { gtidListFlags :: !Word32 -- ^ Original upper four bits of the count word.
+    , gtidListEntries :: ![Gtid] -- ^ All domain/server entries, in wire order.
+    } deriving (Eq, Show)
+
 -- | Binlog coordinates retain 64 bits. Traditional COM_BINLOG_DUMP accepts only
 -- 32 bits; the connection API checks that boundary rather than truncating it.
 data BinLogPosition = BinLogPosition
@@ -146,7 +156,7 @@ data CDCPayload
     | CDCRollback
     | CDCRotate !RotateEvent
     | CDCFormat !FormatDescription
-    | CDCGtidList !GtidSet
+    | CDCGtidList !GtidList
     | CDCBinlogCheckpoint !B.ByteString
     | CDCHeartbeat
     | CDCStop
@@ -255,8 +265,12 @@ newCDCDecoder limits initialGtids initialFormat initialFile input = do
                 BINLOG_DELETE_ROWS_EVENTv2 -> row getDeleteRowEvent CDCDelete deleteFlags
                 MARIADB_GTID_EVENT -> do
                     when (active current /= Nothing || transactionOpen current) (bad "nested/incomplete GTID group")
-                    (g,flags) <- getFromBinLogPacket (getGtid (blServerId packet)) packet
+                    (g,flags,extraFlags) <- getFromBinLogPacket (getGtid (blServerId packet)) packet
                     when (flags .&. 0xc0 /= 0) (throwIO (CDCUnsupportedFeature "XA groups require an XA-aware consumer"))
+                    when (extraFlags .&. 0x0e /= 0)
+                        (throwIO (CDCUnsupportedFeature "two-phase ALTER requires an ALTER-aware consumer"))
+                    when (extraFlags .&. complement 0x1f /= 0)
+                        (throwIO (CDCUnsupportedFeature "unknown MariaDB GTID extension flags"))
                     emit (clear current { active = Just (g,flags) }) (CDCBegin g flags) False
                 BINLOG_XID_EVENT -> do
                     xid <- getFromBinLogPacket getWord64le packet
@@ -264,7 +278,12 @@ newCDCDecoder limits initialGtids initialFormat initialFile input = do
                     emit next (CDCCommit (Just xid)) True
                 BINLOG_QUERY_EVENT -> do
                     query <- getFromBinLogPacket getQueryEvent packet
-                    let sql = C.map upper (B.dropWhile (==32) (L.toStrict (fromQuery (qQuery query))))
+                    -- Control statements are at most eight bytes. A ninth byte
+                    -- proves this is ordinary SQL, so classification need not
+                    -- flatten and uppercase a potentially 64 MiB query body.
+                    -- Keep the complete original query in the emitted payload.
+                    let sql = C.map upper (L.toStrict (L.take 9
+                            (L.dropWhile (==32) (fromQuery (qQuery query)))))
                     case sql of
                         "BEGIN" -> emit (clear current { transactionOpen = True }) (CDCQuery query) False
                         "COMMIT" -> finish >>= \next -> emit next (CDCCommit Nothing) True
@@ -323,24 +342,49 @@ getTableId fd typ = do
     void getRemainingLazyByteString
     pure tid
 
-getGtid :: Word32 -> Get (Gtid,Word8)
+-- MariaDB pads short GTIDs to 19 body bytes, or appends a group-commit ID and
+-- typed extensions. Known neutral engine/thread metadata may be skipped only
+-- after its complete layout is validated. XA/two-phase DDL are rejected by the
+-- caller before delivery; unknown extension flags must never imply safety.
+getGtid :: Word32 -> Get (Gtid,Word8,Word8)
 getGtid server = do
+    start <- bytesRead
     sequenceNo <- getWord64le
     domain <- getWord32le
     flags <- getWord8
     when (sequenceNo == 0) (fail "zero GTID sequence")
     when (flags .&. 2 /= 0) (void getWord64le)
-    -- New MariaDB releases append optional dependency/engine fields. Retain
-    -- the flags and accept their bounded extension without inventing semantics.
-    void getRemainingLazyByteString
-    pure (Gtid domain server sequenceNo, flags)
+    extraFlags <- if flags .&. 0xc0 /= 0 then do
+        -- The XA layout is intentionally not interpreted as ordinary metadata.
+        void getRemainingLazyByteString
+        pure 0
+      else do
+        empty <- isEmpty
+        extra <- if empty then pure 0 else getWord8
+        if extra .&. complement 0x1f /= 0 then void getRemainingLazyByteString
+          else do
+            when (extra .&. 1 /= 0) $ do
+                engines <- getWord8
+                when (engines == 0) (fail "zero additional GTID engine count")
+            when (extra .&. 0x0c /= 0) (void getWord64le)
+            when (extra .&. 0x10 /= 0) (void getWord32le)
+            padding <- getRemainingLazyByteString
+            unless (L.all (==0) padding) (fail "nonzero GTID padding")
+        pure extra
+    end <- bytesRead
+    when (end - start < 19) (fail "truncated MariaDB GTID header")
+    pure (Gtid domain server sequenceNo, flags, extraFlags)
 
-getGtidList :: Get GtidSet
+getGtidList :: Get GtidList
 getGtidList = do
-    count <- (.&. 0x0fffffff) <$> getWord32le
-    when (count > 4096) (fail "GTID list exceeds domain budget")
+    countAndFlags <- getWord32le
+    let count = countAndFlags .&. 0x0fffffff
+    when (count > 4096) (fail "GTID list exceeds entry budget")
     entries <- replicateM (fromIntegral count) (Gtid <$> getWord32le <*> getWord32le <*> getWord64le)
-    either fail pure (gtidSet entries)
+    let identities = M.fromList [((gtidDomainId g,gtidServerId g),()) | g <- entries]
+    when (any ((==0) . gtidSequence) entries || M.size identities /= length entries)
+        (fail "invalid/duplicate GTID history entry")
+    pure (GtidList (countAndFlags .&. 0xf0000000) entries)
 
 advance :: Gtid -> GtidSet -> IO GtidSet
 advance g (GtidSet entries) = do

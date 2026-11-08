@@ -2,7 +2,8 @@
 -- | Independent literal events plus real MariaDB transactions. Fixtures encode
 -- bytes directly rather than serializing through the decoder under test.
 module Validation.Stage5 (cases, gtidResumeFeature, manualAckFeature,
-    fixtureFormat, tableMap, writeRow, packet, transaction, decode) where
+    fixtureFormat, tableMap, writeRow, packet, transaction, decode,
+    withIsolated, sourceGtids, ackFixture) where
 
 import Control.Concurrent
 import Control.Exception hiding (assert)
@@ -54,7 +55,8 @@ writeRow tid flags value = packet BINLOG_WRITE_ROWS_EVENTv1 $ do
 
 gtid :: Word32 -> Word64 -> Word8 -> BinLogPacket
 gtid domain sequenceNo flags = packet MARIADB_GTID_EVENT
-    (putWord64le sequenceNo >> putWord32le domain >> putWord8 flags)
+    -- MariaDB's GTID_HEADER_LEN is 19: the 13 mandatory bytes are zero-padded.
+    (putWord64le sequenceNo >> putWord32le domain >> putWord8 flags >> putByteString (B.replicate 6 0))
 
 queryEvent :: B.ByteString -> BinLogPacket
 queryEvent statement = packet BINLOG_QUERY_EVENT $ do

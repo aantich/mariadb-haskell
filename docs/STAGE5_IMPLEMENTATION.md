@@ -7,6 +7,11 @@ pushing the complete stage to main. Full macOS and Linux validation is complete;
 the committed publication record below supersedes the historical working-tree
 status while preserving every review capture.
 
+The [follow-up code review](STAGE5_CODE_REVIEW.md) records subsequent uncommitted
+corrections on main, their real-server reproductions and the `GtidList` payload
+migration. The live report identifies the current source; publication and review
+captures below retain their original identities.
+
 ## Contracts and implementation sequence
 
 1. Validate exact event framing and CRC32 before decoding. Represent all event
@@ -79,6 +84,12 @@ has a new `tmOptionalMetadata` field; positional constructor users must migrate.
 Numeric binlog values retain the inherited raw signed representations; optional
 signedness/charset metadata remains available for consumer interpretation.
 
+After the follow-up review, `CDCGtidList` carries `GtidList`, with raw
+`gtidListFlags` and all `gtidListEntries`. Binlog history can retain multiple
+originating servers in one domain; it is not a `GtidSet` resume state. Callers
+using `gtidSetEntries` on this payload must migrate to `gtidListEntries` and keep
+resuming from proven checkpoints.
+
 Only a complete transaction or standalone group supplies `cdcEventCheckpoint`.
 Apply events within a destination transaction/staging protocol and persist that
 checkpoint atomically with the completed destination changes. Then call
@@ -108,8 +119,8 @@ EOF closes the connection; acknowledge inside consumption, before requesting EOF
   64 MiB expanded/reassembled event bodies and 1024 bootstrap events. Metadata
   charges include wire bytes, per-column and optional-TLV overhead. Replacement
   releases the old charge; eviction cannot silently discard required maps.
-- Row parsers cap each event at 65,536 images and 1,048,576 decoded values
-  (before and after values both count for updates), with at most 4096 columns.
+- Row parsers cap each event at 65,536 row changes and 1,048,576 decoded values
+  (before and after images both count toward the value cap for updates), with at most 4096 columns.
   Empty/zero-progress malformed images cannot loop forever.
 - Maps expire at statement ends, queries/DDL, rotation and format changes.
   Selection of sparse-image metadata is compiled once per event/image and reused
@@ -132,6 +143,11 @@ unsafe ordinary-transaction checkpoint; an XA-aware destination protocol is
 separate future work. Unknown non-ignorable events fail; ignorable events retain
 raw bytes. Native 13.2 fragmentation has literal coverage; real-server profiles
 use installed MariaDB 12.3.3 and do not claim a 13.2 server execution.
+
+The follow-up review also rejects two-phase ALTER groups and unknown GTID
+extension flags before delivery/checkpoint creation. Known engine/thread
+extensions are length-validated. Supporting the two-phase DDL lifecycle remains
+separate future work.
 
 ## First CDC benchmark capture
 

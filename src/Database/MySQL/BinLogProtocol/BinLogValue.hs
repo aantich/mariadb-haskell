@@ -11,8 +11,11 @@ Binlog protocol
 
 -}
 
-module Database.MySQL.BinLogProtocol.BinLogValue where
+module Database.MySQL.BinLogProtocol.BinLogValue
+    ( BinLogValue(..), getBinLogField, getMicroSecond, getBits', getBinLogRow
+    ) where
 
+import           Control.Monad                            (unless)
 import           Data.Binary.Get
 import           Data.Binary.Put                          ()
 import           Data.Bits
@@ -96,7 +99,7 @@ getBinLogField BINLOG_TYPE_DATE = do
 
 getBinLogField (BINLOG_TYPE_TIMESTAMP2  fsp) = do
     s <- getWord32be -- big-endian here!
-    ms <- fromIntegral <$> getMicroSecond fsp
+    ms <- getMicroSecond fsp >>= checkedFraction fsp
     pure (BinLogTimeStamp2 s ms)
 
 -- A integer in @YYYYMMDDhhmmss@, for example:
@@ -137,7 +140,7 @@ getBinLogField (BINLOG_TYPE_DATETIME2 fsp) = do
         h =  fromIntegral $ iPart `shiftR` 12 .&. 0x1F -- 0b00011111
         m =  fromIntegral $ iPart `shiftR` 6 .&. 0x3F  -- 0b00111111
         s =  fromIntegral $ iPart .&. 0x3F             -- 0b00111111
-    ms <- fromIntegral <$> getMicroSecond fsp
+    ms <- getMicroSecond fsp >>= checkedFraction fsp
     pure (BinLogDateTime2 yyyy' mm' dd h m s ms)
 
 -- A integer in @hhmmss@ format(can be negative), for example:
@@ -156,7 +159,7 @@ getBinLogField BINLOG_TYPE_TIME = do
 --
 -- 1 bit sign  (1= non-negative, 0= negative)
 -- 1 bit unused (Reserved for wider hour range, e.g. for intervals)
--- 10 bit hour (0-836)
+-- 10 bit hour (0-838)
 -- 6 bit minute (0-59)
 -- 6 bit second (0-59)
 -- (3 bytes in total)
@@ -164,15 +167,21 @@ getBinLogField BINLOG_TYPE_TIME = do
 -- fractional-seconds storage (size depends on meta)
 --
 getBinLogField (BINLOG_TYPE_TIME2 fsp) = do
-    iPart <- getWord24be
-    let sign = fromIntegral $ iPart `shiftR` 23
-        iPart' = if sign == 0 then 0x800000 - iPart - 1 else iPart
-        h = fromIntegral (iPart' `shiftR` 12) .&. 0x03FF -- 0b0000001111111111
-        m = fromIntegral (iPart' `shiftR` 6) .&. 0x3F    -- 0b00111111
-        s = fromIntegral iPart' .&. 0x3F               -- 0b00111111
-    ms <- abs <$> getMicroSecond fsp
-    let ms' = abs (fromIntegral ms :: Int)
-    pure (BinLogTime2 sign h m s (fromIntegral ms'))
+    raw <- getWord24be
+    fraction <- getMicroSecond fsp
+    let integerPart = fromIntegral raw - 0x800000 :: Int64
+        negative = integerPart < 0
+        -- Binary ordering borrows one integer unit only when a negative time
+        -- has a nonzero fractional part (MariaDB sql/compat56.cc). Whole
+        -- negative seconds must not lose another second during decoding.
+        magnitude = abs (if negative && fraction /= 0 then integerPart + 1 else integerPart)
+        hours = fromIntegral (magnitude `shiftR` 12) .&. 0x03ff
+        minutes = fromIntegral (magnitude `shiftR` 6) .&. 0x3f
+        seconds = fromIntegral magnitude .&. 0x3f
+    unless (if negative then fraction <= 0 else fraction >= 0)
+        (fail "TIME2: inconsistent fractional sign")
+    micros <- checkedFraction fsp (abs fraction)
+    pure (BinLogTime2 (if negative then 0 else 1) hours minutes seconds micros)
 
 getBinLogField BINLOG_TYPE_YEAR                = do
     y <- getWord8
@@ -277,15 +286,27 @@ getBinLogField (BINLOG_TYPE_GEOMETRY lensize) = do
                                         \wrong BINLOG_TYPE_GEOMETRY length size: " ++ show lensize
     BinLogGeometry <$> getByteString len
 
+-- | Decode the signed fractional storage used by TIME2. Adjacent odd/even
+-- precisions share a byte scale; the odd precision's last decimal digit is zero.
+-- TIMESTAMP2 and DATETIME2 additionally require a nonnegative fraction.
 getMicroSecond :: Word8 -> Get Int32
 getMicroSecond 0 = pure 0
-getMicroSecond 1 = (* 100000) . fromIntegral <$> getInt8
+getMicroSecond 1 = (* 10000) . fromIntegral <$> getInt8
 getMicroSecond 2 = (* 10000) . fromIntegral <$> getInt8
-getMicroSecond 3 = (* 1000) . fromIntegral <$> getInt16be
+getMicroSecond 3 = (* 100) . fromIntegral <$> getInt16be
 getMicroSecond 4 = (* 100) . fromIntegral <$> getInt16be
-getMicroSecond 5 = (* 10) . fromIntegral <$> getInt24be
+getMicroSecond 5 = fromIntegral <$> getInt24be
 getMicroSecond 6 = fromIntegral <$> getInt24be
 getMicroSecond _ = fail "invalid fractional-second precision"
+
+-- Validate before converting to Word32: a negative/corrupt fraction must not
+-- wrap to a large microsecond value or imply more precision than the column.
+checkedFraction :: Word8 -> Int32 -> Get Word32
+checkedFraction precision micros = do
+    unless (precision <= 6 && micros >= 0 && micros < 1000000
+            && micros `mod` (10 ^ (6 - precision)) == 0)
+        (fail "invalid binlog fractional seconds")
+    pure (fromIntegral micros)
 
 getBits' :: Word8 -> Get Word64
 getBits' bytes = if bytes <= 8

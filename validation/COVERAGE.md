@@ -142,3 +142,12 @@ retention timing. The million-row streaming workload records post-major-GC live
 heap at four checkpoints in both warmups and the measured region. Advanced XA
 checkpointing and storage-engine-binlog GTID semisync are explicitly unsupported
 by the transaction-aware API; new non-ignorable events fail closed.
+
+The follow-up review adds 58 regressions (141 Stage 5 cases total): every temporal
+fractional precision, negative whole/subsecond times, malformed fractions, full
+GTID history after domain-origin changes, history flags/entry bounds, GTID header
+and extension truncation, two-phase ALTER rejection, actual sparse-value budgets,
+preserved row/value limits, `maxBound` event budgets and early continuation
+rejection, and large queries with control-keyword prefixes. Disposable real servers reproduce temporal values, origin changes
+across rotation and two-phase ALTER. The correctness ratchet protects all 636
+published Stage 5 passes; the benchmark workloads and first captures are unchanged.
