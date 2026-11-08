@@ -1,10 +1,10 @@
 # Stage 4 — clean-session reuse and public session observations
 
 Approved on 7 November 2026, following Stage 3 publication `7b545e8`. This
-implements step 3 of the [roadmap](ROADMAP.md). The implementation was left uncommitted for
-review; publication was subsequently approved on 8 November 2026. All three full Mac confirmations and the matching Linux correctness
-profile pass the incremental acceptance checks. The live report is the declared
-third full run; earlier measurements and the failed development run are retained.
+implements step 3 of the [roadmap](ROADMAP.md). Publication was approved on
+8 November after the review fixes. The live report now identifies the committed
+implementation tested for publication. Earlier review runs retain their original
+working-tree fingerprints, measurements, outliers and failed development evidence.
 
 ## Contracts and implementation
 
@@ -309,3 +309,32 @@ Publication runs the complete suite again after the implementation commit, then
 publishes the generated live report in a separate results-only commit. The live
 report identifies the actual tested revision. All timing investigations and
 immutable/accepted references retain their previous status.
+
+## Committed publication — 8 November 2026
+
+Implementation commit `f2835647de4b650a8755d0216d384159a6b858e5` passed a fresh complete
+committed-input run with exit 0: **535 PASS / 17 FAIL / 6 UNSUPPORTED /
+2 unavailable**. All 71 Stage 4 checks and both inherited suites pass. The
+17 existing CDC/timeout-expectation failures retain their original status.
+All 129 publication/policy tests pass, and the strict committed-results guard
+passes without a working-tree override.
+
+Each of the 24 frozen, eight native and seven reuse profiles has seven process
+repetitions. This run has no original/native/reuse >20% timing alarm or allocation
+investigation. Six stricter ordinary timing/reference signals remain open; native
+and reuse comparisons have no >5% timing signals in this capture. Earlier timing
+outliers and investigations remain retained, and no baseline or accepted
+performance reference advances. Reset request times are 25.1% lower over TCP,
+98.9% lower over TLS and 20.3% lower over Unix sockets than same-build reconnect
+requests. These measurements apply to the ordinary unchanged-role path.
+
+The input fingerprint is `16a2d8939fb7c44241deaa7662391c846af97821b291e177a50887e4d5703365`. Driver, registered
+Haskell harness and normalized library configuration match the final Linux
+535-pass evidence. A trailing-blank-line cleanup in the shared Python recorder
+preceded this publication run; the exact earlier review bytes are archived.
+
+[Publication manifest](../validation/results/stage4-publication.json)
+· [Committed correctness/frozen run](../validation/results/references/stage4-publication-1.json)
+· [Native benchmarks](../validation/results/references/stage4-publication-1-native.json)
+· [Reuse benchmarks](../validation/results/references/stage4-publication-1-reuse.json)
+· [Full process log](../validation/results/experiments/stage4-publication-1.log).

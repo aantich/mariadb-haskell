@@ -10,11 +10,13 @@ Current measured source, compared with the original unchanged-driver baseline. U
 
 Stage 1 targeted failures now passing: **23 / 23**. Original-baseline and last-accepted correctness protection: **PASS**.
 
-Timing investigations above 5%: **9**; allocation investigations above 5%: **0**. These are investigation signals, not automatically accepted costs.
+Timing investigations above 5%: **6**; allocation investigations above 5%: **0**. These are investigation signals, not automatically accepted costs.
 
 The frozen baseline retains its original meaning in all comparison tables. The last-accepted reference separately prevents an improvement being lost. [Acceptance evidence](results/stage1-gates.json) · [Confirmation history](results/stage1-confirmation.json) · [Supplementary evidence](results/references/stage1-after-final.json) · [Review notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).
 
 Confirmation and supplementary files identify their own input fingerprints. Evidence with a different fingerprint is historical and does not confirm the current source.
+
+Stage 4 session/reset targets passing: **2 / 2**. [Session reuse and observations](../docs/STAGE4_IMPLEMENTATION.md).
 
 Stage 3 prepared/native targets passing: **5 / 5**. [Roadmap and continuation](../docs/ROADMAP.md) · [Stage 3 implementation and validation](../docs/STAGE3_IMPLEMENTATION.md).
 
@@ -26,7 +28,7 @@ Stage 2 native-connection targets passing: **14 / 14**. Every PASS from the prev
 > [!CAUTION]
 > **17 failed or timed-out check records remain.** Missing APIs and environment gaps are tracked separately; they are not passing tests.
 
-**Baseline comparison: 🟢 No new regression signals** · 0 regression signals · 42 newly passing checks.
+**Baseline comparison: 🟢 No new regression signals** · 0 regression signals · 44 newly passing checks.
 
 A passing comparison does not mean all functionality passes.
 
@@ -73,6 +75,8 @@ A passing comparison does not mean all functionality passes.
 - `capability.binary-bulk`
 - `capability.metadata-cache`
 - `capability.extended-metadata`
+- `capability.session-tracking`
+- `capability.reset-connection`
 - `auth.mutual-tls-helper-client`
 - `connection.mozilla-ca-store-installed`
 
@@ -81,7 +85,7 @@ A passing comparison does not mean all functionality passes.
 | Reference | Commit |
 | --- | --- |
 | **Baseline** · original unchanged-driver run | `5deb205d5835` |
-| **Current** · latest completed run | `ef4e52b23418` |
+| **Current** · latest completed run | `f2835647de4b` |
 
 Both comparison tables use these same two runs.
 
@@ -91,10 +95,10 @@ Counts include two aggregate records for the inherited unit/property and integra
 
 | Status | Baseline | Current | Change vs baseline |
 | --- | ---: | ---: | ---: |
-| 🟢 PASS | 246 | **462** | 🟢 +216 |
+| 🟢 PASS | 246 | **535** | 🟢 +289 |
 | 🔴 FAIL | 56 | **17** | 🟢 -39 |
 | 🟠 TIMEOUT | 0 | **0** | 0 |
-| 🔵 UNSUPPORTED | 11 | **8** | -3 |
+| 🔵 UNSUPPORTED | 11 | **6** | -5 |
 | 🟡 ENVIRONMENT_UNAVAILABLE | 2 | **2** | 0 |
 
 <details>
@@ -123,12 +127,10 @@ Counts include two aggregate records for the inherited unit/property and integra
 </details>
 
 <details>
-<summary>🔵 Missing driver APIs (8) — expand all findings</summary>
+<summary>🔵 Missing driver APIs (6) — expand all findings</summary>
 
 | Test | Current status | Detail |
 | --- | --- | --- |
-| `capability.session-tracking` | 🔵 UNSUPPORTED | OK/session-state payloads are not exposed |
-| `capability.reset-connection` | 🔵 UNSUPPORTED | no COM_RESET_CONNECTION API |
 | `capability.progress-reporting` | 🔵 UNSUPPORTED | no negotiated MariaDB progress callback |
 | `capability.cursor-fetch` | 🔵 UNSUPPORTED | no COM_STMT_FETCH/cursor API |
 | `capability.long-data` | 🔵 UNSUPPORTED | no COM_STMT_SEND_LONG_DATA API |
@@ -168,51 +170,65 @@ Same-build alternatives below use identical data, transactions and checksums. Th
 
 | Comparison | Baseline ns/unit | Current ns/unit | Change vs baseline | Allocation change |
 | --- | ---: | ---: | ---: | ---: |
-| `native_vs_sequential` | 39,690.2 | 1,786.0 | -95.5% | -91.1% |
-| `native_vs_text_batch` | 9,704.2 | 1,786.0 | -81.6% | -77.7% |
-| `unit_vs_aggregate` | 1,786.0 | 1,998.4 | +11.9% | +49.1% |
-| `cached_vs_uncached_narrow` | 37,636.0 | 36,506.0 | -3.0% | -15.7% |
-| `cached_vs_uncached_wide` | 69,636.0 | 53,460.0 | -23.2% | -73.5% |
+| `native_vs_sequential` | 40,435.0 | 1,844.0 | -95.4% | -91.1% |
+| `native_vs_text_batch` | 10,958.0 | 1,844.0 | -83.2% | -78.1% |
+| `unit_vs_aggregate` | 1,844.0 | 2,045.2 | +10.9% | +49.1% |
+| `cached_vs_uncached_narrow` | 37,252.0 | 36,560.0 | -1.9% | -15.7% |
+| `cached_vs_uncached_wide` | 70,306.0 | 53,708.0 | -23.6% | -73.6% |
 
 Native timing units are rows for bulk inserts and complete queries for cached/uncached reads. Seven or more independent processes per profile each perform two warm-ups; all samples, CPU/GC counters and checksums are embedded in [current.json](results/current.json).
 
 Native feature baseline comparison: **comparable**; timing investigations above 5%: **0**; allocation investigations: **0**. [Immutable native baseline](baselines/macos-arm64-native-statements/results.json).
 
+### Session reuse
+
+Baseline = reconnect, initialize, prepare, execute and close. Current = reset, restore, prepare and execute the same request on one connection. All application settings and absence of prior-request data are verified; preparation and restoration are inside timing. Changes are `(current / baseline - 1) × 100`; lower is better.
+
+| Transport | Baseline ns/request | Current ns/request | Change vs baseline | Allocation change |
+| --- | ---: | ---: | ---: | ---: |
+| `tcp` | 485,833.3 | 363,733.3 | -25.1% | -16.8% |
+| `tls` | 38,316,800.0 | 428,733.3 | -98.9% | -77.1% |
+| `socket` | 328,400.0 | 261,666.7 | -20.3% | -14.6% |
+
+Public snapshot read: **3.5 ns/call**, **0.0 allocated bytes/call**, no SQL. Seven or more independent processes per profile, with two warmups; raw samples and checksums are embedded in [current.json](results/current.json).
+
+Immutable reuse baseline comparison: **comparable**; timing investigations above 5%: **0**; allocation investigations: **0**. [First reuse baseline](baselines/macos-arm64-session-reuse/results.json).
+
 ### Haskell driver
 
 | Workload | Baseline (ns/unit) | Current (ns/unit) | Change vs baseline | Current p95 (ms) | Current status |
 | --- | ---: | ---: | --- | ---: | --- |
-| `blob.prepared` | 3.1 | **3.1** | 🟢 -0.4% faster | 4.158 | 🟢 PASS |
-| `blob.text` | 3.2 | **3.2** | 🟢 -1.1% faster | 4.598 | 🟢 PASS |
-| `latency.prepared` | 41826.0 | **37760.0** | 🟢 -9.7% faster | 0.078 | 🟢 PASS |
-| `latency.text` | 39354.0 | **41318.0** | 🟡 +5.0% slower | 0.075 | 🟢 PASS |
-| `micro.binary-row` | 246.1 | **239.5** | 🟢 -2.7% faster | 24.082 | 🟢 PASS |
-| `micro.text-row` | 313.2 | **290.6** | 🟢 -7.2% faster | 29.531 | 🟢 PASS |
+| `blob.prepared` | 3.1 | **3.1** | 🟢 -1.2% faster | 3.616 | 🟢 PASS |
+| `blob.text` | 3.2 | **3.2** | 🟢 -0.9% faster | 4.044 | 🟢 PASS |
+| `latency.prepared` | 41826.0 | **41424.0** | 🟢 -1.0% faster | 0.078 | 🟢 PASS |
+| `latency.text` | 39354.0 | **40382.0** | 🟡 +2.6% slower | 0.070 | 🟢 PASS |
+| `micro.binary-row` | 246.1 | **243.0** | 🟢 -1.3% faster | 24.658 | 🟢 PASS |
+| `micro.text-row` | 313.2 | **285.4** | 🟢 -8.9% faster | 30.009 | 🟢 PASS |
 | `native.bulk` | — | — | — | — | 🔵 UNSUPPORTED |
 | `native.metadata-cache` | — | — | — | — | 🔵 UNSUPPORTED |
-| `read.parallel-16` | 107.6 | **98.9** | 🟢 -8.1% faster | 18.417 | 🟢 PASS |
-| `read.parallel-4` | 118.0 | **138.2** | 🟡 +17.1% slower | 6.767 | 🟢 PASS |
-| `read.prepared.narrow` | 314.6 | **290.4** | 🟢 -7.7% faster | 4.076 | 🟢 PASS |
-| `read.prepared.wide` | 2425.1 | **2316.6** | 🟢 -4.5% faster | 24.556 | 🟢 PASS |
-| `read.socket.narrow` | 339.2 | **339.0** | 🟢 -0.1% faster | 3.750 | 🟢 PASS |
-| `read.text.narrow` | 305.5 | **322.1** | 🟡 +5.4% slower | 3.549 | 🟢 PASS |
-| `read.text.wide` | 2876.4 | **2696.9** | 🟢 -6.2% faster | 28.026 | 🟢 PASS |
-| `read.tls.narrow` | 370.6 | **396.9** | 🟡 +7.1% slower | 5.721 | 🟢 PASS |
-| `read.vector.narrow` | 365.8 | **350.2** | 🟢 -4.3% faster | 4.160 | 🟢 PASS |
-| `write.execute-many` | 9670.0 | **7881.0** | 🟢 -18.5% faster | 8.492 | 🟢 PASS |
-| `write.prepared` | 39408.0 | **38343.0** | 🟢 -2.7% faster | 38.934 | 🟢 PASS |
-| `write.text` | 38324.0 | **41570.0** | 🟡 +8.5% slower | 42.030 | 🟢 PASS |
+| `read.parallel-16` | 107.6 | **93.4** | 🟢 -13.2% faster | 19.158 | 🟢 PASS |
+| `read.parallel-4` | 118.0 | **138.9** | 🟡 +17.8% slower | 6.412 | 🟢 PASS |
+| `read.prepared.narrow` | 314.6 | **306.8** | 🟢 -2.5% faster | 4.566 | 🟢 PASS |
+| `read.prepared.wide` | 2425.1 | **2293.9** | 🟢 -5.4% faster | 25.167 | 🟢 PASS |
+| `read.socket.narrow` | 339.2 | **349.1** | 🟡 +2.9% slower | 3.868 | 🟢 PASS |
+| `read.text.narrow` | 305.5 | **303.3** | 🟢 -0.7% faster | 3.294 | 🟢 PASS |
+| `read.text.wide` | 2876.4 | **2739.5** | 🟢 -4.8% faster | 29.034 | 🟢 PASS |
+| `read.tls.narrow` | 370.6 | **368.6** | 🟢 -0.5% faster | 5.458 | 🟢 PASS |
+| `read.vector.narrow` | 365.8 | **349.2** | 🟢 -4.5% faster | 4.320 | 🟢 PASS |
+| `write.execute-many` | 9670.0 | **9105.0** | 🟢 -5.8% faster | 9.876 | 🟢 PASS |
+| `write.prepared` | 39408.0 | **38012.0** | 🟢 -3.5% faster | 39.836 | 🟢 PASS |
+| `write.text` | 38324.0 | **41362.0** | 🟡 +7.9% slower | 43.576 | 🟢 PASS |
 
 ### MariaDB Connector/C control
 
 | Workload | Baseline (ns/unit) | Current (ns/unit) | Change vs baseline | Current p95 (ms) | Current status |
 | --- | ---: | ---: | --- | ---: | --- |
-| `blob.text` | 3.0 | **3.2** | 🟡 +3.7% slower | 4.336 | 🟢 PASS |
-| `latency.text` | 26568.0 | **25704.0** | 🟢 -3.3% faster | 0.066 | 🟢 PASS |
-| `read.text.narrow` | 197.4 | **208.9** | 🟡 +5.8% slower | 2.183 | 🟢 PASS |
-| `read.text.wide` | 1261.0 | **1159.2** | 🟢 -8.1% faster | 14.322 | 🟢 PASS |
-| `write.execute-many` | 7635.0 | **7710.0** | 🟡 +1.0% slower | 8.015 | 🟢 PASS |
-| `write.text` | 28478.0 | **27495.0** | 🟢 -3.5% faster | 31.779 | 🟢 PASS |
+| `blob.text` | 3.0 | **3.0** | 🟢 -1.7% faster | 3.356 | 🟢 PASS |
+| `latency.text` | 26568.0 | **26416.0** | 🟢 -0.6% faster | 0.058 | 🟢 PASS |
+| `read.text.narrow` | 197.4 | **196.8** | 🟢 -0.3% faster | 2.178 | 🟢 PASS |
+| `read.text.wide` | 1261.0 | **1149.1** | 🟢 -8.9% faster | 14.220 | 🟢 PASS |
+| `write.execute-many` | 7635.0 | **7474.0** | 🟢 -2.1% faster | 8.621 | 🟢 PASS |
+| `write.text` | 28478.0 | **28827.0** | 🟡 +1.2% slower | 29.093 | 🟢 PASS |
 
 — means no successful measurement is available, or the runs cannot be compared for Change.
 
@@ -226,11 +242,11 @@ Each measured process has two warm-ups; this run has **7 repetitions** per profi
 | Field | Latest attempt |
 | --- | --- |
 | State / exit code | COMPLETED / 0 |
-| Parent commit (working-tree inputs are identified separately) | [`ef4e52b234187435d1ea464834df629cea5f267a`](https://github.com/aantich/mariadb-haskell/commit/ef4e52b234187435d1ea464834df629cea5f267a) |
-| Branch | `main` |
-| Started / finished (UTC) | 2026-11-07T15:54:03.932104+00:00 / 2026-11-07T15:54:54.591064+00:00 |
-| Input fingerprint | `9987450d8d8b8e21ac33e3382edc17dd4186aded7abfb10e23ffe5c9e8f5a6d5` |
-| Local logs and build plan | `validation/results/runs/stage3-publication-1` (ignored by Git) |
+| Parent commit (working-tree inputs are identified separately) | [`f2835647de4b650a8755d0216d384159a6b858e5`](https://github.com/aantich/mariadb-haskell/commit/f2835647de4b650a8755d0216d384159a6b858e5) |
+| Branch | `codex/stage4-session-reuse` |
+| Started / finished (UTC) | 2026-11-08T10:32:08.151526+00:00 / 2026-11-08T10:33:26.265954+00:00 |
+| Input fingerprint | `16a2d8939fb7c44241deaa7662391c846af97821b291e177a50887e4d5703365` |
+| Local logs and build plan | `validation/results/runs/stage4-publication-1` (ignored by Git) |
 | Server of completed run | 12.3.3-MariaDB-log |
 | Host | Apple M4 Max; macOS 26.4 |
 | Compiler / build tool | GHC 9.10.3; Cabal 3.16.1.0 |

@@ -31,7 +31,7 @@ The remaining performance investigations are deferred by project decision on 7 N
 
 Stage 2 adds the native MariaDB handshake, ed25519/PARSEC/SHA-2 authentication, bounded connection establishment, certificate helpers and installed CA data. The [Stage 2 implementation report](docs/STAGE2_IMPLEMENTATION.md) records the retained review measurements, committed publication results and Linux coverage. The live report identifies the actual tested inputs.
 
-The [latest code review report](docs/STAGE1_CODE_REVIEW_2.md) records the subsequent correctness fixes, Haskell readability/comment improvements and remaining performance investigations.
+The [core-query code review report](docs/STAGE1_CODE_REVIEW_2.md) records the subsequent correctness fixes, Haskell readability/comment improvements and remaining performance investigations.
 
 The Cabal package is still named `mysql-haskell`, and public modules still use `Database.MySQL.*`. We are keeping those names while hardening the driver and stabilizing its API. Some protocol identifiers containing `mysql` are also used by MariaDB itself; those names do not imply support for MySQL servers.
 
@@ -44,7 +44,8 @@ or working-tree fingerprint; historical evidence keeps its original identity.
 [Stage 4 session reuse and public session-state APIs](docs/STAGE4_IMPLEMENTATION.md)
 are implemented and validated, including the role/charset/tracker review fixes.
 The live results identify the committed inputs tested for publication.
-The live report identifies the tested working tree and retains open timing signals.
+The [Stage 4 review report](docs/STAGE4_CODE_REVIEW.md) records the resolved findings
+and retained reproductions. Open timing investigations remain visible.
 
 ## A first query
 

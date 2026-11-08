@@ -24,7 +24,7 @@ Stage 2 `e12462a`, on `codex/stage3-native-statements`.
    which does not reset server omission state. Enable only fully implemented
    negotiated capabilities.
    Measure new workloads separately while preserving every frozen workload.
-3. **Safe connection reuse — implemented and validated; publication approved.** Expose session changes already
+3. **Safe connection reuse — implemented and validated.** Expose session changes already
    processed internally and add `COM_RESET_CONNECTION` for clean sessions.
    Invalidate prepared handles/caches and restore required session settings.
    Resetting a session does not recover a desynchronized transport.
@@ -131,3 +131,14 @@ Anton approved commit and push after the review fixes. Publish the reviewed
 implementation and retained evidence, run the complete suite on the committed
 inputs, then publish refreshed live results with that tested commit. Earlier
 uncommitted records above remain historical; no performance reference advances.
+
+### Committed Stage 4 validation — 8 November 2026
+
+Implementation `f283564` passed the full committed-input run with exit 0,
+535 PASS / 17 FAIL / 6 UNSUPPORTED / 2 unavailable, all 71 Stage 4 cases,
+129 policy tests and the strict publication guard. All 39 benchmark profiles
+have seven repetitions. No >20% baseline timing alarms or allocation
+investigations appear in this capture; six stricter ordinary timing signals
+remain open. The [publication evidence](STAGE4_IMPLEMENTATION.md#committed-publication--8-november-2026)
+supersedes the live working-tree status without altering historical captures.
+The next step remains CDC planning after separate approval.

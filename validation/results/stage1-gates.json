@@ -7,47 +7,32 @@
     {
       "reference": "original",
       "id": "haskell/read.parallel-4",
-      "percent": 17.14588484634405
+      "percent": 17.788767220063573
     },
     {
       "reference": "original",
       "id": "haskell/write.text",
-      "percent": 8.469888320634599
-    },
-    {
-      "reference": "original",
-      "id": "connector-c/read.text.narrow",
-      "percent": 5.824554294975681
-    },
-    {
-      "reference": "original",
-      "id": "haskell/read.tls.narrow",
-      "percent": 7.091586162232177
-    },
-    {
-      "reference": "original",
-      "id": "haskell/read.text.narrow",
-      "percent": 5.4340709702762835
+      "percent": 7.927147479386276
     },
     {
       "reference": "accepted",
       "id": "haskell/read.parallel-4",
-      "percent": 38.05678128382317
-    },
-    {
-      "reference": "accepted",
-      "id": "haskell/read.tls.narrow",
-      "percent": 7.068472454540542
+      "percent": 38.814420114894666
     },
     {
       "reference": "previous_stage",
-      "id": "haskell/read.parallel-4",
-      "percent": 16.356746894954743
+      "id": "haskell/read.prepared.narrow",
+      "percent": 5.633220852558352
     },
     {
       "reference": "previous_stage",
-      "id": "haskell/read.tls.narrow",
-      "percent": 5.86885770687724
+      "id": "haskell/write.execute-many",
+      "percent": 15.53102398172821
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/latency.prepared",
+      "percent": 9.703389830508469
     }
   ],
   "allocation_investigations": [],
@@ -57,14 +42,16 @@
   "native_target_count": 14,
   "statement_target_passes": 5,
   "statement_target_count": 5,
+  "session_target_passes": 2,
+  "session_target_count": 2,
   "correctness_accepted": true,
   "performance_requires_confirmation": true,
   "previous_stage_reference": {
     "schema": 1,
-    "reference": "references/stage2-publication-1.json",
-    "sha256": "04ce6d4f5630079798bcd0fe3090aeb2951ddb0d623c2dee947be2377f34fead",
-    "tested_commit": "d5c71bd59902e7350b773a306d93f1947626b1b0",
-    "purpose": "Preserve every published Stage 2 PASS, including all prior Stage 1 improvements, and report incremental costs. The older accepted performance reference remains unchanged."
+    "reference": "references/stage3-publication-1.json",
+    "sha256": "d577035b8cd4b851bf234776162025cebfdd6d1cec61927f31a280e208bffe56",
+    "tested_commit": "ef4e52b234187435d1ea464834df629cea5f267a",
+    "purpose": "Preserve every published Stage 3 PASS, including all prior stages, while measuring incremental costs. Original, accepted and first-native performance baselines remain unchanged."
   },
   "accepted_reference": {
     "schema": 1,
@@ -73,7 +60,9 @@
     "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
     "note": "Last accepted main before Stage 1; not advanced by failing attempts."
   },
-  "tested_input_sha256": "9987450d8d8b8e21ac33e3382edc17dd4186aded7abfb10e23ffe5c9e8f5a6d5",
+  "tested_input_sha256": "16a2d8939fb7c44241deaa7662391c846af97821b291e177a50887e4d5703365",
   "native_timing_investigations": [],
-  "native_allocation_investigations": []
+  "native_allocation_investigations": [],
+  "reuse_timing_investigations": [],
+  "reuse_allocation_investigations": []
 }
