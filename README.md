@@ -56,7 +56,9 @@ working-tree fingerprints.
 
 The [Stage 5 follow-up review](docs/STAGE5_CODE_REVIEW.md) records temporal-value,
 GTID-history, extension and resource-limit corrections, with independent
-reproductions and a migration note for the `CDCGtidList` payload.
+reproductions and a migration note for the `CDCGtidList` payload. The fixes are
+committed on main; the [publication evidence](validation/results/stage5-review-publication.json)
+records the fresh full run on those committed inputs.
 
 ## A first query
 

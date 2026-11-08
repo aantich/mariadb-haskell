@@ -1,9 +1,11 @@
 # Stage 5 CDC follow-up review — 8 November 2026
 
 Anton requested checking the published CDC stage and fixing every finding,
-working directly on `main`. The starting revision is `f981a1c`; these follow-up
-changes remain uncommitted for review. The original assertions, workloads and
-immutable performance references are preserved.
+working directly on `main`. The starting revision was `f981a1c`. After reviewing
+the fixes, Anton authorized commit and push; implementation commit `ba99d8c`
+contains the changes. The original assertions, workloads and immutable
+performance references are preserved. The committed publication below supersedes
+the historical working-tree captures in this report.
 
 ## Findings and fixes
 
@@ -77,10 +79,10 @@ driver correctness. A generic cache prune was not used.
 
 The sole retained failure is the frozen timeout-reuse expectation conflicting
 with safe retirement. [Live results](../validation/RESULTS.md) identify the
-complete current Mac capture, timings and any open investigations. Publication
-remains separate from this uncommitted follow-up review.
+complete current Mac capture, timings and any open investigations. The review
+captures below retain their original working-tree fingerprints.
 
-## Final Mac confirmation and performance
+## Final pre-publication Mac confirmation and performance
 
 The final full Mac capture records **694 PASS / 1 known FAIL / 4 UNSUPPORTED / 2 unavailable**, with all 141 CDC checks, both inherited suites and all 636 published passes protected. All **47 runnable benchmark profiles** have **seven process repetitions and two warmups per process**. The two preceding complete CDC captures use the same final source. All three CDC captures have no >5% timing or allocation investigation.
 
@@ -105,4 +107,31 @@ The first full fixes capture used a separate bitmap population count for resourc
 
 The final full run exits 0, has no >20% original-baseline timing alarms and no allocation investigations. Native/reuse/CDC profiles have no >5% timing signals. **Two deferred ordinary workload/reference signals remain open**: text writes versus the original baseline (+5.92%) and four-reader scans versus the accepted reference (+13.02%). Earlier ordinary timing outliers remain evidence; this CDC optimization does not establish that their causes were fixed. No accepted performance reference advances.
 
-All changes remain uncommitted on **main**, as a follow-up review. The default for future driver development is main unless Anton explicitly requests a new branch. Publishing these fixes requires the usual committed-input run after authorization.
+These measurements preceded implementation commit `ba99d8c` and retain their
+working-tree identity. The default for future driver development is **main**
+unless Anton explicitly requests a new branch. Later API work requires separate
+approval.
+
+## Committed review-fix publication — 8 November 2026
+
+The fresh full run on implementation commit `ba99d8c` completed with exit 0:
+**694 PASS / 1 known FAIL / 4 UNSUPPORTED / 2 unavailable**. All 141 Stage 5
+checks, including 58 review regressions, both inherited suites and every one of
+the 636 previously published passes succeed. All 47 runnable benchmark profiles
+have seven process repetitions and two warmups per process. The executable
+fingerprint is unchanged from the final review capture; all 165 file hashes
+still match the successful Linux profile.
+
+This publication has no >20% original-baseline timing alarms, allocation
+investigations or >5% native/reuse/CDC timing signals. Five deferred ordinary
+timing/reference signals remain: Haskell text latency (+5.36%), Haskell text
+writes (+7.75%) and Connector/C narrow text reads (+6.53%) versus the original
+baseline; Haskell four-reader scans (+19.12%) versus the accepted reference; and
+Haskell sixteen-reader scans (+5.34%) versus the previous publication. Earlier
+measurements remain retained; no performance reference advances.
+
+The [publication manifest](../validation/results/stage5-review-publication.json)
+links the committed inputs, raw results, process log, acceptance checks and
+matching Linux evidence. The [live results](../validation/RESULTS.md) contain the
+current comparison tables. A subsequent results/documentation-only commit
+publishes these measurements without claiming another source execution.

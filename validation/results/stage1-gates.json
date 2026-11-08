@@ -6,13 +6,28 @@
   "timing_investigations": [
     {
       "reference": "original",
+      "id": "haskell/latency.text",
+      "percent": 5.3565075977028975
+    },
+    {
+      "reference": "original",
       "id": "haskell/write.text",
-      "percent": 5.920571965348076
+      "percent": 7.75493163552865
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/read.text.narrow",
+      "percent": 6.533630470016205
     },
     {
       "reference": "accepted",
       "id": "haskell/read.parallel-4",
-      "percent": 13.021397052701689
+      "percent": 19.115810507035214
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.parallel-16",
+      "percent": 5.339534082590536
     }
   ],
   "allocation_investigations": [],

@@ -176,7 +176,8 @@ open; no performance reference advances.
 
 Anton requested checking the published stage and fixing all findings, and set
 the default to developing directly on **main** unless he requests a new branch.
-The [review and fixes](STAGE5_CODE_REVIEW.md) remain uncommitted on main. They
+The [review and fixes](STAGE5_CODE_REVIEW.md) are committed on main as `ba99d8c`.
+Anton authorized publication after the review. They
 correct temporal values, full GTID history, unsafe/truncated extensions, sparse
 value accounting, wire-limit overflow/continuations and large-query copies.
 `CDCGtidList` now exposes `GtidList` history/flags rather than resume state.
@@ -191,5 +192,19 @@ confirmations and the final full capture have no >5% CDC timing/allocation
 signals. The final capture has two deferred ordinary timing/reference signals;
 the earlier full timing alarm remains retained. See the
 [confirmation record](../validation/results/stage5-review-confirmation.json).
-Original/accepted/feature baselines are unchanged. Later APIs remain future work;
-publication follows separate authorization.
+Original/accepted/feature baselines are unchanged. Later APIs remain future work.
+The committed publication record below supersedes the review captures above.
+
+### Follow-up committed publication — 8 November 2026
+
+The fresh full run on `ba99d8c` completes with exit 0, **694 PASS / 1 known FAIL /
+4 UNSUPPORTED / 2 unavailable**, preserving all 636 previously published passes.
+All 141 CDC cases pass, and all 47 runnable benchmark profiles have seven
+repetitions. The exact executable files still match the successful Linux run.
+The strict publication freshness guard passes. Five ordinary timing/reference
+signals remain open; native/reuse/CDC timing signals and all allocation
+investigations are absent in this capture. The
+[publication manifest](../validation/results/stage5-review-publication.json)
+and [review publication record](STAGE5_CODE_REVIEW.md#committed-review-fix-publication--8-november-2026)
+retain the details. No immutable baseline or accepted performance reference
+advances. Later APIs require separate approval.
