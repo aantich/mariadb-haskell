@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "review_date": "2026-11-07",
+  "parent_commit": "7b545e873ea108d9de96cef43a04d771a51341df",
+  "tested_input_sha256": "870add4dff23c16bc4d2acf0529b47f4bead589bad45edfb818948b392879d4a",
+  "server": "12.3.3-MariaDB",
+  "method": "Temporary runghc probes against the current Cabal library; no driver or registered harness edits.",
+  "command": [
+    "cabal",
+    "exec",
+    "-O2",
+    "--enable-tests",
+    "--",
+    "runghc",
+    "-package=mysql-haskell",
+    "-XBangPatterns",
+    "-XOverloadedStrings",
+    "-ivalidation/hs",
+    "PROBE.hs"
+  ],
+  "findings": [
+    {
+      "id": "reset-active-role",
+      "priority": "P1",
+      "initial_role": null,
+      "selected_role": "mb_stage4_review_8ed2d486e0e0",
+      "role_after_reset": "mb_stage4_review_8ed2d486e0e0",
+      "fixture_cleanup": "Temporary role dropped in Python finally block; existing default role unchanged."
+    },
+    {
+      "id": "stale-collation",
+      "priority": "P2",
+      "sql": "SET collation_connection='utf8mb4_bin'",
+      "cached_collation": "utf8mb4_unicode_ci",
+      "server_collation": "utf8mb4_bin",
+      "additional_probe": {
+        "sql": "SET NAMES latin1",
+        "cached_collation": "utf8mb4_bin",
+        "server_collation": "latin1_swedish_ci",
+        "cached_character_set_connection": "latin1"
+      }
+    },
+    {
+      "id": "stale-transaction-characteristics",
+      "priority": "P2",
+      "sql": [
+        "SET session_track_transaction_info='CHARACTERISTICS'",
+        "START TRANSACTION READ ONLY",
+        "SET session_track_transaction_info='STATE'",
+        "ROLLBACK",
+        "START TRANSACTION READ WRITE"
+      ],
+      "cached_characteristics_after_downgrade": "START TRANSACTION READ ONLY;",
+      "cached_characteristics_in_new_transaction": "START TRANSACTION READ ONLY;",
+      "server_in_transaction": 1,
+      "server_tx_read_only": 0,
+      "latest_downgrade_envelope": [
+        [
+          "session_track_transaction_info",
+          "STATE"
+        ]
+      ]
+    }
+  ],
+  "verification": {
+    "python_policy_tests": {
+      "passed": 129,
+      "failed": 0
+    },
+    "working_tree_publication_guard": "PASS",
+    "tracked_diff_whitespace": "PASS",
+    "full_benchmarks_rerun": false
+  },
+  "source_references": {
+    "server_checkout": "b439f350ce3",
+    "reset_dispatch": "sql/sql_parse.cc:1737",
+    "reset_resources": "sql/sql_class.cc:1588",
+    "transaction_tracker": "sql/session_tracker.cc:749"
+  },
+  "probe_files": {
+    "stage4-review-probe2.hs.txt": "3a97524eaa4e6e497a11a7ca5c9675d7e5ff17b1e1e38d1900a4c5692815cb31",
+    "stage4-review-role.hs.txt": "76054aeb62026be82273a59bcd54c716054bb0b8a1673b9d5332393de472445f"
+  }
+}

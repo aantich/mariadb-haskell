@@ -39,7 +39,10 @@ def is_input(path):
                         "validation/results/accepted.json", "validation/results/previous-stage.json",
                         "validation/baselines/macos-arm64-native-statements/results.json",
                         "validation/baselines/macos-arm64-native-statements/SUMMARY.md",
-                        "validation/baselines/macos-arm64-native-statements/SHA256SUMS"}
+                        "validation/baselines/macos-arm64-native-statements/SHA256SUMS",
+                        "validation/baselines/macos-arm64-session-reuse/results.json",
+                        "validation/baselines/macos-arm64-session-reuse/SUMMARY.md",
+                        "validation/baselines/macos-arm64-session-reuse/SHA256SUMS"}
             or path.startswith(".github/workflows/"))
 
 
@@ -182,6 +185,8 @@ def render(document, baseline):
                   f"Timing investigations above 5%: **{len(gate['timing_investigations'])}**; allocation investigations above 5%: **{len(gate['allocation_investigations'])}**. These are investigation signals, not automatically accepted costs.", "",
                   "The frozen baseline retains its original meaning in all comparison tables. The last-accepted reference separately prevents an improvement being lost. [Acceptance evidence](results/stage1-gates.json) · [Confirmation history](results/stage1-confirmation.json) · [Supplementary evidence](results/references/stage1-after-final.json) · [Review notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).", "",
                   "Confirmation and supplementary files identify their own input fingerprints. Evidence with a different fingerprint is historical and does not confirm the current source.", ""]
+        if gate.get('session_target_count'):
+            lines += [f"Stage 4 session/reset targets passing: **{gate['session_target_passes']} / {gate['session_target_count']}**. [Session reuse and observations](../docs/STAGE4_IMPLEMENTATION.md).", ""]
         if gate.get('statement_target_count'):
             lines += [f"Stage 3 prepared/native targets passing: **{gate['statement_target_passes']} / {gate['statement_target_count']}**. [Roadmap and continuation](../docs/ROADMAP.md) · [Stage 3 implementation and validation](../docs/STAGE3_IMPLEMENTATION.md).", ""]
         if gate.get('previous_stage_reference'):
@@ -277,6 +282,21 @@ def render(document, baseline):
         comparison = native.get('baseline_comparison')
         if comparison:
             lines += [f"Native feature baseline comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [Immutable native baseline](baselines/macos-arm64-native-statements/results.json).", ""]
+    reuse = attempt.get('session_reuse')
+    if reuse and reuse.get('complete') and reuse.get('inputs', {}).get('sha256') == attempt['inputs']['sha256']:
+        lines += ["### Session reuse", "",
+                  "Baseline = reconnect, initialize, prepare, execute and close. Current = reset, restore, prepare and execute the same request on one connection. All application settings and absence of prior-request data are verified; preparation and restoration are inside timing. Changes are `(current / baseline - 1) × 100`; lower is better.", "",
+                  "| Transport | Baseline ns/request | Current ns/request | Change vs baseline | Allocation change |",
+                  "| --- | ---: | ---: | ---: | ---: |"]
+        for name, comparison in reuse['comparisons'].items():
+            old = reuse['profiles'][comparison['baseline']]['median_elapsed_ns_per_unit']
+            new = reuse['profiles'][comparison['current']]['median_elapsed_ns_per_unit']
+            changes = comparison['change_percent']
+            lines.append(f"| `{name}` | {old:,.1f} | {new:,.1f} | {changes['elapsed_ns']:+.1f}% | {changes['allocated_bytes']:+.1f}% |")
+        snapshot = reuse['profiles']['session.snapshot']
+        comparison = reuse['baseline_comparison']
+        lines += ["", f"Public snapshot read: **{snapshot['median_elapsed_ns_per_unit']:,.1f} ns/call**, **{snapshot['median_allocated_bytes_per_unit']:,.1f} allocated bytes/call**, no SQL. Seven or more independent processes per profile, with two warmups; raw samples and checksums are embedded in [current.json](results/current.json).", "",
+                  f"Immutable reuse baseline comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [First reuse baseline](baselines/macos-arm64-session-reuse/results.json).", ""]
     engines = sorted({ident.partition("/")[0] for ident in data["benchmarks"]}, key=lambda engine: (engine != "haskell", engine))
     for engine in engines:
         title = {"haskell": "Haskell driver", "connector-c": "MariaDB Connector/C control"}.get(engine, engine)
@@ -351,6 +371,9 @@ def verify(document, snapshot, *, allow_working_tree=False):
     if document.get('stage1_acceptance', {}).get('statement_target_count'):
         from stage3_benchmarks import verify_evidence
         verify_evidence(attempt.get('native_features', {}), attempt['inputs'])
+    if any(case['id'].startswith('stage4.') for case in data['correctness']):
+        from stage4_benchmarks import verify_evidence as verify_reuse
+        verify_reuse(attempt.get('session_reuse', {}), attempt['inputs'])
     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
         raise ValueError("recorder and report disagree about the tested commit")
 

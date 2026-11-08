@@ -100,3 +100,23 @@ commit and push the reviewed prepared/native implementation and retained evidenc
 Publish on main using the committed-input validation workflow above. Preserve
 original, accepted and first-native baselines and the open timing investigations.
 Roadmap steps 3–5 remain future work until separately approved.
+
+User approval, 7 November 2026: proceed with roadmap step 3, clean-session reset
+and public session-state reporting, following the proposed scope. Implement and
+review, exercise real-server isolation/fault cases, measure full reset/restoration/
+preparation versus TCP/TLS/socket reconnection, and refresh the full live report.
+Keep default timeout retirement and all immutable/accepted performance baselines.
+The current implementation pass remains uncommitted for review; later CDC and
+workload-specific stages are outside this authorization.
+
+User approval, 8 November 2026: fix all three Stage 4 follow-up findings: active
+role restoration, charset/collation observation coherence and transaction tracker
+downgrade invalidation. Add real regressions, rerun full correctness/performance
+and refresh the live report. Keep this work uncommitted for review and preserve
+every immutable baseline and deferred timing investigation.
+
+Superseding user instruction, 8 November 2026 after the Stage 4 review fixes:
+commit and push the reviewed session-reset/session-observation implementation
+and retained evidence. Publish on main using the committed-input validation
+workflow above. Preserve original, accepted, native and first-reuse baselines
+and all open timing investigations. Later roadmap stages still require approval.

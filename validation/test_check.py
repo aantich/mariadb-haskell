@@ -194,5 +194,70 @@ class NativeWrapperTests(unittest.TestCase):
                 self.assertTrue((output / 'results.json').exists())
 
 
+class SessionReuseWrapperTests(unittest.TestCase):
+    def test_success_is_attached(self):
+        self.check_reuse(None, 0)
+
+    def test_failure_retains_raw_candidate(self):
+        self.check_reuse(RuntimeError('reuse failed'), 1)
+
+    def test_interruption_is_recorded(self):
+        self.check_reuse(KeyboardInterrupt(), 130)
+
+    def test_large_timing_alarm_keeps_complete_measurements(self):
+        self.check_reuse(None, 1, timing=[{'id': 'reuse.tcp.reset', 'percent': 21}])
+
+    def test_strict_investigation_remains_open(self):
+        self.check_reuse(None, 0, timing=[{'id': 'reuse.tcp.reset', 'percent': 6}])
+
+    def check_reuse(self, failure, status, timing=None):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'results').mkdir()
+            output = root / 'run'
+            config = root / 'config.json'
+            config.write_text('{}')
+            inputs = {'sha256': 'candidate', 'files': {}, 'commit': 'parent'}
+            candidate = {'complete_suite': True, 'correctness': [{'id': 'stage4.fixture', 'status': 'PASS'}]}
+            gate = {'correctness_accepted': True, 'evidence_accepted': True}
+            reuse_data = {'complete': True, 'inputs': inputs,
+                          'baseline_comparison': {'timing_investigations': timing or [], 'allocation_investigations': []}}
+
+            def recorder(*args, **kwargs):
+                output.mkdir()
+                (output / 'results.json').write_text(json.dumps(candidate))
+                return 0
+
+            with (patch('sys.argv', ['check.py', '--working-tree', '--config', str(config), '--output', str(output)]),
+                  patch.object(check.live, 'input_snapshot', return_value=inputs),
+                  patch.object(check.run, 'HERE', root),
+                  patch.object(check.run, 'sql_client', return_value='12.3.3-MariaDB'),
+                  patch.object(check.subprocess, 'run') as build,
+                  patch.object(check.subprocess, 'call', side_effect=recorder),
+                  patch.object(check, 'install_runtime_data', return_value=0),
+                  patch.object(check.stage1_gates, 'reference', return_value=({}, {})),
+                  patch.object(check.stage1_gates, 'compare', return_value=gate),
+                  patch.object(check, 'native_benchmarks', return_value={'complete': True}),
+                  patch('stage3_benchmarks.verify_evidence'),
+                  patch('stage4_benchmarks.verify_evidence'),
+                  patch.object(check, 'session_reuse_benchmarks', return_value=reuse_data, side_effect=failure) as reuse_call,
+                  patch.object(check.live, 'publish') as publish):
+                build.return_value.returncode = 0
+                self.assertEqual(status, check.main())
+            reuse_call.assert_called_once_with(output.resolve(), 7, config)
+            attempt, data = publish.call_args.args
+            if failure is None:
+                self.assertEqual('COMPLETED', attempt['state'])
+                self.assertEqual(candidate, data)
+                self.assertEqual(reuse_data, attempt['session_reuse'])
+                if timing:
+                    self.assertTrue(gate['performance_requires_confirmation'])
+            else:
+                self.assertEqual('FAILED', attempt['state'])
+                self.assertEqual('session reuse benchmarks', attempt['stage'])
+                self.assertIsNone(data)
+                self.assertTrue((output / 'results.json').is_file())
+
+
 if __name__ == "__main__":
     unittest.main()

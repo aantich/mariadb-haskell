@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "reference": "references/stage2-publication-1.json",
-  "sha256": "04ce6d4f5630079798bcd0fe3090aeb2951ddb0d623c2dee947be2377f34fead",
-  "tested_commit": "d5c71bd59902e7350b773a306d93f1947626b1b0",
-  "purpose": "Preserve every published Stage 2 PASS, including all prior Stage 1 improvements, and report incremental costs. The older accepted performance reference remains unchanged."
+  "reference": "references/stage3-publication-1.json",
+  "sha256": "d577035b8cd4b851bf234776162025cebfdd6d1cec61927f31a280e208bffe56",
+  "tested_commit": "ef4e52b234187435d1ea464834df629cea5f267a",
+  "purpose": "Preserve every published Stage 3 PASS, including all prior stages, while measuring incremental costs. Original, accepted and first-native performance baselines remain unchanged."
 }

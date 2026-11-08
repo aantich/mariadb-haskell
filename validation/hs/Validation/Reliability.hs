@@ -11,6 +11,7 @@ import qualified System.IO.Streams as S
 import System.Timeout
 import Validation.Common
 import qualified Validation.Stage3 as Stage3
+import qualified Validation.Stage4 as Stage4
 
 cases :: [Case]
 cases =
@@ -145,8 +146,8 @@ cases =
     , Case "capability.binary-bulk" "capabilities" $ Stage3.bulkFeature
     , Case "capability.metadata-cache" "capabilities" $ Stage3.cacheFeature
     , Case "capability.extended-metadata" "capabilities" $ Stage3.extendedFeature
-    , Case "capability.session-tracking" "capabilities" $ throwIO (Unsupported "OK/session-state payloads are not exposed")
-    , Case "capability.reset-connection" "capabilities" $ throwIO (Unsupported "no COM_RESET_CONNECTION API")
+    , Case "capability.session-tracking" "capabilities" $ Stage4.trackingFeature
+    , Case "capability.reset-connection" "capabilities" $ Stage4.resetFeature
     , Case "capability.progress-reporting" "capabilities" $ throwIO (Unsupported "no negotiated MariaDB progress callback")
     , Case "capability.cursor-fetch" "capabilities" $ throwIO (Unsupported "no COM_STMT_FETCH/cursor API")
     , Case "capability.long-data" "capabilities" $ throwIO (Unsupported "no COM_STMT_SEND_LONG_DATA API")

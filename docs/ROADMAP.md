@@ -5,7 +5,7 @@ work. It records priorities, dependencies and completion evidence; an unchecked
 item is not an implemented feature. The [live validation report](../validation/RESULTS.md)
 and its original frozen baseline remain the source of measured results.
 
-## Current stage: prepared statements and native performance
+## Implementation sequence
 
 Anton approved proceeding with steps 1–2 below. Work started from published
 Stage 2 `e12462a`, on `codex/stage3-native-statements`.
@@ -24,7 +24,7 @@ Stage 2 `e12462a`, on `codex/stage3-native-statements`.
    which does not reset server omission state. Enable only fully implemented
    negotiated capabilities.
    Measure new workloads separately while preserving every frozen workload.
-3. **Safe connection reuse — future stage.** Expose session changes already
+3. **Safe connection reuse — implemented and validated; publication approved.** Expose session changes already
    processed internally and add `COM_RESET_CONNECTION` for clean sessions.
    Invalidate prepared handles/caches and restore required session settings.
    Resetting a session does not recover a desynchronized transport.
@@ -87,8 +87,47 @@ full runs and the 38.2% large-registry diagnostic improvement are recorded in th
       nine stricter ordinary timing investigations and no allocation signals.
       [Publication evidence](STAGE3_IMPLEMENTATION.md#committed-publication--7-november-2026)
       retains the historical timing alarms; performance acceptance remains open.
-- [ ] Resume with **step 3 planning: clean-session reset and public session-state
-      reporting**, after approval. Keep default timeout retirement; never reset
-      an out-of-sync transport or silently replay statements.
+- [x] Step 3 clean-session reset and public session-state reporting approved
+      and implemented in Stage 4 below. Default timeout retirement is preserved;
+      an out-of-sync transport is never reset and statements are never replayed.
 - [ ] Then complete step 4 CDC before adding GTID resume/durable acknowledgement.
 - [ ] Prioritize step 5 features using actual workload demand.
+
+## Stage 4 continuation checkpoint — 7 November 2026
+
+Anton approved clean-session reset and public session-state reporting after Stage
+3 publication. Work is on `codex/stage4-session-reuse`, based on `7b545e8`, and
+remains uncommitted for review. [Contracts and validation record](STAGE4_IMPLEMENTATION.md).
+The initial focused pass covered 38 cases and the two former unsupported
+capabilities. Final Mac/Linux results are **517 PASS / 17 FAIL / 6 UNSUPPORTED /
+2 unavailable**, including all 53 Stage 4 cases and 129 policy tests. Three full
+Mac runs each include 39 profiles with seven repetitions and complete with exit
+0. Full-cycle reset requests improve on reconnects on all three transports;
+strict timing signals remain open, including the hot snapshot microbenchmark.
+The previous-stage correctness reference now protects all 462 published Stage 3
+passes. Original, accepted and first-native performance baselines are unchanged.
+
+- [x] Approve step 3 implementation and its full validation/benchmark scope.
+- [x] Complete review, full Mac/Linux correctness and reuse measurements.
+- [x] Update the live report with declared run 3 and retain the full window.
+- [x] Human review and publication authorized on 8 November 2026.
+- [ ] Resume CDC planning after separate approval.
+
+### Stage 4 review corrections — 8 November 2026
+
+All three follow-up findings are fixed, including exact Unicode role identity
+under narrow/binary result charsets. Final Mac and Linux profiles record 535
+PASS / 17 FAIL / 6 UNSUPPORTED / 2 unavailable; all 71 Stage 4 cases and all 517
+pre-review passes survive. Policy tests pass 129/129 and Base Haddock is 91/91.
+Three full final Mac runs retain every benchmark and timing alarm; the declared
+third run supplies the live report. Allocation checks pass; timing investigations
+remain open and no performance reference advances. All changes remain
+uncommitted. [Fixes and final evidence](STAGE4_IMPLEMENTATION.md#review-fix-final-validation--8-november-2026).
+The next roadmap step remains CDC planning after separate approval.
+
+### Publication authorized — 8 November 2026
+
+Anton approved commit and push after the review fixes. Publish the reviewed
+implementation and retained evidence, run the complete suite on the committed
+inputs, then publish refreshed live results with that tested commit. Earlier
+uncommitted records above remain historical; no performance reference advances.

@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "base_commit": "7b545e873ea108d9de96cef43a04d771a51341df",
+  "first_reuse_input_sha256": "84122b8e4d8b0bcb65e0eae8c7db2dace4900d5bf99e34635c55c3aa0df25ba0",
+  "patch": "stage4-first-reuse-source.patch",
+  "patch_sha256": "00b8f52942b7ed903231a5a004c17886127fecad8708f71b7460b2f0f213c6f9",
+  "verified": "Applied to a clean git archive of the base commit; every executable input matches the immutable first-capture fingerprint.",
+  "replay": [
+    "git archive 7b545e873ea108d9de96cef43a04d771a51341df | tar -x -C DESTINATION",
+    "cd DESTINATION && git apply PATH_TO/stage4-first-reuse-source.patch"
+  ],
+  "later_differences": [
+    "Correct the raw generic state-change tracker marker and its independent wire fixture.",
+    "Add the real-server transaction-tracker-reset and advisory-lock regressions.",
+    "Create the first-reuse baseline\u2019s own three checksummed artifacts."
+  ],
+  "unchanged": "All measured Stage4Bench/Common workload bytes, compiler/dependencies and earlier baselines remain unchanged."
+}

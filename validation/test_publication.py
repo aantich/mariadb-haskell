@@ -37,6 +37,11 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'native benchmark'):
             live.verify(document, self.inputs)
 
+    def test_session_stage_cannot_publish_without_session_measurements(self):
+        self.data['correctness'].append({'id': 'stage4.required', 'status': 'PASS'})
+        with self.assertRaisesRegex(ValueError, 'session reuse benchmark'):
+            live.verify(self.publish(), self.inputs)
+
     def test_complete_run_includes_failures_and_performance_deltas(self):
         document = self.publish()
         live.verify(document, self.inputs)

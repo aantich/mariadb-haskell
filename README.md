@@ -38,8 +38,13 @@ The Cabal package is still named `mysql-haskell`, and public modules still use `
 The [development roadmap](docs/ROADMAP.md) records the accepted implementation
 order, current stage and remaining work so development can resume between sessions.
 Stage 3's prepared/native APIs are described in the [implementation and migration
-notes](docs/STAGE3_IMPLEMENTATION.md). The live report identifies the committed
-implementation tested for publication; review evidence retains its original fingerprints.
+notes](docs/STAGE3_IMPLEMENTATION.md). The live report records the tested commit
+or working-tree fingerprint; historical evidence keeps its original identity.
+
+[Stage 4 session reuse and public session-state APIs](docs/STAGE4_IMPLEMENTATION.md)
+are implemented and validated, including the role/charset/tracker review fixes.
+The live results identify the committed inputs tested for publication.
+The live report identifies the tested working tree and retains open timing signals.
 
 ## A first query
 

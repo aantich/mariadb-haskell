@@ -37,6 +37,11 @@ module Database.MySQL.Base
     , ConnectionError(..)
     , connectionStatus
     , connectionFailure
+    , resetConnection
+    , resetConnectionWith
+    , getSessionState
+    , SessionState(..)
+    , SessionChange(..)
     , refreshSessionState
     , getRenderContext
     , RenderContext(..)
@@ -127,6 +132,7 @@ import           Database.MySQL.Protocol.Command
 import           Database.MySQL.Protocol.MySQLValue
 import           Database.MySQL.Protocol.Packet
 
+import           Database.MySQL.Session (SessionState(..), SessionChange(..))
 import           Database.MySQL.Query
 import           System.IO.Streams                  (InputStream)
 import qualified System.IO.Streams                  as Stream

@@ -29,6 +29,11 @@ class RatchetTests(unittest.TestCase):
         self.assertFalse(report['correctness_accepted'])
         self.assertTrue(any('required statement target' in item for item in report['correctness_failures']))
 
+    def test_session_targets_are_required_with_previous_stage(self):
+        report = compare(data(), data(), data(), previous_stage=data())
+        self.assertFalse(report['correctness_accepted'])
+        self.assertTrue(any('required session target' in item for item in report['correctness_failures']))
+
     def test_native_targets_are_required_with_previous_stage(self):
         report = compare(data(), data(), data(), previous_stage=data())
         self.assertFalse(report['correctness_accepted'])

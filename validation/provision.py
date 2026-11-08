@@ -67,6 +67,35 @@ CREATE USER IF NOT EXISTS 'mariadb_socket'@'localhost' IDENTIFIED VIA unix_socke
 ALTER USER 'mariadb_socket'@'localhost' IDENTIFIED VIA unix_socket USING '{os_user}';
 GRANT ALL ON mariadb_haskell_validation.* TO 'mariadb_socket'@'localhost';
 """)
+    # Separate role fixtures keep the ordinary benchmark account unchanged.
+    # The default-role account reaches the database through its role only, so
+    # restoring a different database before that role is an observable error.
+    role = "mb_stage4_rôle_'`"
+    role_identifier = "`" + role.replace("`", "``") + "`"
+    admin(f"""
+CREATE ROLE IF NOT EXISTS {role_identifier};
+CREATE ROLE IF NOT EXISTS mb_stage4_other_role;
+GRANT ALL ON mariadb_haskell_validation.* TO {role_identifier};
+CREATE USER IF NOT EXISTS 'mariadb_role_none'@'localhost' IDENTIFIED BY '{password}';
+ALTER USER 'mariadb_role_none'@'localhost' IDENTIFIED BY '{password}';
+CREATE USER IF NOT EXISTS 'mariadb_role_default'@'localhost' IDENTIFIED BY '{password}';
+ALTER USER 'mariadb_role_default'@'localhost' IDENTIFIED BY '{password}';
+GRANT ALL ON mariadb_haskell_validation.* TO 'mariadb_role_none'@'localhost';
+GRANT {role_identifier} TO 'mariadb_role_none'@'localhost';
+GRANT mb_stage4_other_role TO 'mariadb_role_none'@'localhost';
+GRANT {role_identifier} TO 'mariadb_role_default'@'localhost';
+GRANT mb_stage4_other_role TO 'mariadb_role_default'@'localhost';
+SET DEFAULT ROLE NONE FOR 'mariadb_role_none'@'localhost';
+SET DEFAULT ROLE {role_identifier} FOR 'mariadb_role_default'@'localhost';
+CREATE ROLE IF NOT EXISTS `mb_stage4_汉`;
+CREATE ROLE IF NOT EXISTS `mb_stage4_字`;
+GRANT ALL ON mariadb_haskell_validation.* TO `mb_stage4_汉`;
+CREATE USER IF NOT EXISTS 'mariadb_role_wide'@'localhost' IDENTIFIED BY '{password}';
+ALTER USER 'mariadb_role_wide'@'localhost' IDENTIFIED BY '{password}';
+GRANT `mb_stage4_汉` TO 'mariadb_role_wide'@'localhost';
+GRANT `mb_stage4_字` TO 'mariadb_role_wide'@'localhost';
+SET DEFAULT ROLE `mb_stage4_汉` FOR 'mariadb_role_wide'@'localhost';
+""")
     configured = []
     for soname,plugin,user in [("auth_ed25519","ed25519","mariadb_ed25519"),
                               ("auth_parsec","parsec","mariadb_parsec"),

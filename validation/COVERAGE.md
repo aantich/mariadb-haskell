@@ -84,3 +84,42 @@ benchmark profiles to the 24 frozen runnable profiles. Native comparisons use
 the same current build's alternatives and a separate immutable first native
 capture; the original benchmark workloads and recorder are unchanged. Linux
 also checks all eight native benchmark paths as correctness smoke runs.
+
+## Stage 4: clean-session reuse and observations
+
+Additive cases exercise initial snapshots, schema/variable/status and transaction
+trackers, wire ordering, unknown kinds, repeated deltas, retained-byte ownership,
+length/count/cumulative budgets, subscription replacement, disabled tracking and
+error invalidation. Latest real envelopes remain observable after opaque SQL,
+while final-state facts become explicitly unknown. Snapshot reads issue no SQL.
+
+Reset checks cover TCP/TLS/sockets, same-session identity, rollback, server defaults,
+charset and database restoration, user variables, temporary tables, advisory locks,
+transaction-tracker reset, custom initialization, stale handles and raw IDs, repeated
+metadata release, pending results, transaction ownership, unsupported versions,
+no-database restoration limits, malformed/ERR replies, wire/restoration/buffered
+deadlines, cancellation, exclusive initialization and a concurrent close.
+The original session-tracking and reset capability inventory entries now run
+actual server checks. CDC defects and the original timeout conflict remain visible.
+
+Seven new profiles measure complete reset/restoration/preparation requests versus
+equivalent reconnect requests on three transports, plus repeated snapshot reads.
+Both alternatives check returned values and absence of preceding request state.
+The first reuse reference is separate from both earlier immutable baselines; all
+39 runnable profiles (24 frozen, eight native and seven reuse) have seven process
+repetitions in a full run. Frozen benchmark source and enumeration stay unchanged.
+
+Stage 4 review fixes add 16 regressions (69 Stage 4 cases total). They cover
+initially absent and configured default roles; Unicode/quoted role names, latin1
+clients, initializer role overrides, preservation across explicit refresh, role
+restoration before database access, all transports and disabled tracking; role
+restoration ERR/deadline and bounded snapshots; charset/collation alias ordering,
+explicit selection and released cache budgets; and CHARACTERISTICS-to-STATE
+transitions across different transactions. Role fixtures use separate reserved
+accounts and leave the ordinary benchmark account's default role unchanged.
+
+Two further role regressions (71 Stage 4 cases total) cover exact binary role
+identity when a latin1 result charset collapses distinct Unicode names, temporary
+UTF-8 restoration with the original narrow charset restored afterward, and binary
+result settings. A third dedicated role account and two Unicode roles provide
+these fixtures; provisioning remains separate from the benchmark account.

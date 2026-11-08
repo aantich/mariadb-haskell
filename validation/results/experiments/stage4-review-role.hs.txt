@@ -1,0 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+import Control.Monad
+import Database.MySQL.Base
+import System.Environment
+import Validation.Common
+main = withConn $ \c -> do
+  role <- getEnv "MB_REVIEW_ROLE"
+  print =<< rows c "SELECT CURRENT_ROLE()"
+  exec c ("SET ROLE `" ++ role ++ "`")
+  print =<< rows c "SELECT CURRENT_ROLE()"
+  void (resetConnection c)
+  print =<< rows c "SELECT CURRENT_ROLE()"

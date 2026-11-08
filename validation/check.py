@@ -44,6 +44,15 @@ def native_benchmarks(output, repetitions, config):
     return data
 
 
+def session_reuse_benchmarks(output, repetitions, config):
+    """Require complete request-boundary measurements in every Stage 4 run."""
+    destination = output / 'reuse'
+    subprocess.run([sys.executable, str(run.HERE / 'stage4_benchmarks.py'),
+                    '--config', str(config), '--output', str(destination),
+                    '--repetitions', str(repetitions)], cwd=run.ROOT, check=True)
+    return json.loads((destination / 'results.json').read_text())
+
+
 def main():
     if "--help" in sys.argv or "-h" in sys.argv:
         status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
@@ -116,6 +125,26 @@ def main():
                     data, gate, status = None, None, status or 1
                 except KeyboardInterrupt:
                     attempt.update(state="FAILED", stage="native benchmarks", reason="Native benchmarks interrupted.")
+                    data, gate, status = None, None, 130
+            if data is not None and any(case['id'].startswith('stage4.') for case in data.get('correctness', [])):
+                try:
+                    from stage4_benchmarks import verify_evidence as verify_reuse
+                    reuse = session_reuse_benchmarks(output, args.repetitions, args.config)
+                    verify_reuse(reuse, inputs)
+                    attempt['session_reuse'] = reuse
+                    comparison = reuse['baseline_comparison']
+                    gate['reuse_timing_investigations'] = comparison['timing_investigations']
+                    gate['reuse_allocation_investigations'] = comparison['allocation_investigations']
+                    gate['performance_requires_confirmation'] = gate.get('performance_requires_confirmation', False) or bool(comparison['timing_investigations'] or comparison['allocation_investigations'])
+                    (run.HERE / 'results/stage1-gates.json').write_text(json.dumps(gate, indent=2) + '\n')
+                    if any(item['percent'] > 20 for item in comparison['timing_investigations']):
+                        status = status or 1
+                except (OSError, ValueError, KeyError, RuntimeError, subprocess.CalledProcessError) as error:
+                    attempt.update(state='FAILED', stage='session reuse benchmarks',
+                                   reason='Session reuse evidence failed: ' + str(error))
+                    data, gate, status = None, None, status or 1
+                except KeyboardInterrupt:
+                    attempt.update(state='FAILED', stage='session reuse benchmarks', reason='Session reuse benchmarks interrupted.')
                     data, gate, status = None, None, 130
             attempt.update(exit_code=status, finished_at=live.now())
             live.publish(attempt,data,gate=gate)

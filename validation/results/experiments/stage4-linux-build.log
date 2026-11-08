@@ -1,0 +1,61 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Stage4Evidence.Dockerfile
+#1 transferring dockerfile: 1.82kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 140B done
+#4 DONE 0.0s
+
+#5 [tooling 1/1] FROM docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#5 resolve docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32 done
+#5 DONE 0.0s
+
+#6 [verification  1/10] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#6 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 202.59kB 0.1s done
+#7 DONE 0.1s
+
+#8 [verification  3/10] COPY --from=tooling /usr/local/bin/cabal /usr/local/bin/cabal
+#8 CACHED
+
+#9 [verification  4/10] WORKDIR /workspace
+#9 CACHED
+
+#10 [verification  6/10] RUN cabal user-config init && sed -i 's|url: http://hackage.haskell.org/|url: https://hackage.haskell.org/|' /root/.cabal/config && cabal update
+#10 CACHED
+
+#11 [verification  2/10] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     ghc cabal-install build-essential libgmp-dev zlib1g-dev libffi-dev pkg-config     libmariadb-dev openssl python3 git ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#11 CACHED
+
+#12 [verification  5/10] COPY mysql-haskell.cabal ./
+#12 CACHED
+
+#13 [verification  7/10] RUN cabal build all --only-dependencies --enable-tests -O2
+#13 CACHED
+
+#14 [verification  8/10] COPY . .
+#14 DONE 0.1s
+
+#15 [verification  9/10] COPY validation/linux/mysql-haskell.stage4.cabal.txt ./mysql-haskell.cabal
+#15 DONE 0.0s
+
+#16 [verification 10/10] RUN python3 - <<'PYRUN'
+#16 DONE 102.1s
+
+#17 [evidence 1/1] COPY --from=verification /tmp/stage4-review-evidence/ /
+#17 DONE 0.0s
+
+#18 exporting to client directory
+#18 copying files 561.81kB 0.1s done
+#18 DONE 0.1s

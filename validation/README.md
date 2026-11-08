@@ -142,3 +142,52 @@ regression. Matching uses the Haskell workload/fixture hashes, verified profile
 units, compiler, dependencies, RTS, machine and server settings. Python admission
 policy changes do not invalidate identical measured workloads. Dependency pairs
 are normalized across JSON serialization.
+
+## Stage 4 session reset, observations and reuse measurements
+
+`getSessionState` exposes bounded observed schema/variables, transaction status
+and the latest actual tracker envelope. `resetConnection` and
+`resetConnectionWith` reset synchronized sessions, restore required state and
+invalidate previous statements. See [API contracts and migration](../docs/STAGE4_IMPLEMENTATION.md).
+The two former session-tracking/reset inventory entries now invoke real checks.
+The previous-stage correctness reference protects all 462 published Stage 3 passes;
+the original, accepted and first-native performance references remain unchanged.
+
+Every full wrapper run also executes seven reuse profiles: reset versus reconnect
+for TCP, TLS and Unix sockets, plus public snapshot reads. Reset/restoration and
+statement preparation are inside timing, as are new connection setup and close
+for reconnects. Both alternatives initialize and verify the same settings and
+request result, then leave identical per-request state. Each process performs two
+warmups; all seven repetitions, counters and checksums are retained under `reuse/`
+and embedded in the live report. Snapshot measurements use a strict loop without
+an allocated result list and represent hot repeated reads, not server round trips.
+
+The first reuse capture is separately immutable under
+`baselines/macos-arm64-session-reuse/`. Its results, summary and checksum manifest
+are required fingerprinted inputs. The shared `feature_benchmarks.py` recorder
+retains the existing native recorder's evidence checks and applies the same
+checksum, workload, compiler, dependency, machine and server comparison rules to
+reuse. Publication independently verifies both additive suites, including source
+file maps and tested commits, rather than trusting recorded comparison flags.
+A missing/failed/interrupted reuse phase publishes a failed attempt and preserves
+the raw candidate; it cannot present older measurements as current.
+
+Run a separate complete reuse experiment without replacing the live report:
+
+```sh
+python3 validation/stage4_benchmarks.py --output validation/results/runs/NEW_REUSE_RUN
+```
+
+The one-time `--freeze` option refuses an existing baseline directory. It is not
+a way to advance a reference after a regression. The first capture precedes its
+own checksummed artifact creation; later full runs fingerprint those artifacts.
+Timing increases above 20% fail the wrapper, while timing/allocation increases
+above 5% remain open investigations. Linux runs all new correctness cases and
+smoke-tests these seven paths without comparing timings across platforms.
+
+Stage 4 review fixtures include three dedicated role accounts and four roles,
+created by `provision.py` on both Mac and Linux. One account has no default role;
+the other reaches the reserved database through its configured default role only.
+They test restoration order and quoted Unicode role names without altering the
+ordinary benchmark user's role settings. Run provisioning before the new role
+checks when updating an existing validation installation.

@@ -1,0 +1,1404 @@
+{
+  "schema": 1,
+  "declared_on": "2026-11-08",
+  "inputs": {
+    "commit": "7b545e873ea108d9de96cef43a04d771a51341df",
+    "branch": "codex/stage4-session-reuse",
+    "files": {
+      ".dockerignore": "d7fed09b205c24afeda8dcf05e528a30b09fea7d6f8180de6a6eedfd2636904f",
+      ".github/workflows/bump.yaml": "b6b2568b3929b8577004767645bfa4b3d365c40bbe4ee9948006c13942e7fd4e",
+      ".github/workflows/ci.yaml": "41d845977e2126c1f37f2aaa0d02cf72496e9bb15d873ec2f3499acb8682c30a",
+      ".github/workflows/mariadb-linux.yml": "f1a0e58f28c82e7c1b099db6f5d7ec79ba93d32ecd11422b0b2cee7478b49dcf",
+      ".github/workflows/validation-report.yml": "b30ffd40b4613e83998f6f0cb03baa0e5f1e88c413c6f8f6970b39f37c78f814",
+      "app/Main.hs": "14d368ffba0a93fcb5b42a21a8d59881bf4aa0d2e307d6ca59df5cc26443c0e9",
+      "benchmark/insert/MySQLHaskell.hs": "a537baee061148200b7df26eab118bbf1276e0af775277260b9a37571cb705cb",
+      "benchmark/insert/MySQLHaskellInsertMany.hs": "2e809df988df24fcc6a30cf43443a93b78ff4ff58702044715e2fd7e789928f5",
+      "benchmark/insert/MySQLHaskellPrepared.hs": "1dc7a8824b119b08c566c2d88cc433b52f95048a944a858e8dda533c4d4cec1b",
+      "benchmark/insert/mysql-haskell-bench.cabal": "b5734a45dbd81dd0c5ec3f61d618ee0badc2cbca6abc2ab82fe35496d36eea2d",
+      "benchmark/select/MySQLFFI.hs": "1bfc5a38038217f8aa3fd85619a70406338dda857ede62822582a544ac486314",
+      "benchmark/select/MySQLHaskell.hs": "ee77fb18066cb51fe8ec1904992d4611d5d9d671d1d8c8cf0957c17be58bbf17",
+      "benchmark/select/MySQLHaskellOpenSSL.hs": "c2ed6a1f1c38dcf4b27c486ef10f2646ba138f33895b614176fc8e3f49b1e8fd",
+      "benchmark/select/MySQLHaskellPrepared.hs": "b64323963d4be10fa2368b131fd5d6ff1346462ffe5b7c1205bd6618cf7e02c8",
+      "benchmark/select/MySQLHaskellTLS.hs": "c2a56982828ed7f36b00082749fa7a9571e937dd33d85f11fbcb0a1a8ca56d58",
+      "benchmark/select/mysql-haskell-bench.cabal": "68eca1130f0854323d4bf2c65a7b0d51614b136c9373a43c0750380d306527c7",
+      "binary-parser-bench/Aeson.hs": "8bc10f152ed05c2a3b12a47218e16691c2715983601ab92d588eff5d643abe02",
+      "binary-parser-bench/AesonBP.hs": "8d79120631a458684340cc50a3282f5d9074abc139a689c3f8331d695aa88519",
+      "binary-parser-bench/Bench.hs": "43d470c035ac61b3615596acb2299445d680519a035eb0efe3eef208452a003e",
+      "binary-parser-bench/Common.hs": "62e12d49e1a8910d3a4f27e8ea78228270a19249dd630ceb9ff2b3d6024ae33b",
+      "binary-parser-bench/HttpReq.hs": "690ba34977edb0dd6265efe475b71dbd2577d7b4bef1624ad46c34380d16f67f",
+      "binary-parser-bench/Network/Wai/Handler/Warp/ReadInt.hs": "975e3a3287b901dba7056d41d5e0ebb4f47c80ca67efa9eabfb6f7e3b3608d67",
+      "binary-parser-bench/Network/Wai/Handler/Warp/RequestHeader.hs": "f0363ad88b076ec9a57d0f77452861ed49235292cc6922cb76a4708db2edc01d",
+      "default.nix": "13ddba5bdc58bb13e15ca8744cd9f516b47fe74decd724dfab527d6d428d464e",
+      "mozillaCAStore.pem": "e78c8ab7b4432bd466e64bb942d988f6c0ac91cd785017e465bdc96d42fe9dd0",
+      "mysql-haskell.cabal": "956c372a4af8952d1bf8c0a1322e2c29f36680f4808b730b8f682f1ef92a2c68",
+      "nix/ci.nix": "c3db45b14ecdb91a0d57b03f05789a3dd789990b8a28cfc05f6c6de09dbcd353",
+      "nix/hpkgs.nix": "08ddc69f75f3fb7927a684c032ef9af1275d23d613a1821f62a89a90bfb35a47",
+      "nix/pkgs.nix": "c1b68cea588fa6a6ac47ecab48ea35ed72646c75604cbe543d552b3e881541af",
+      "npins/default.nix": "4b00cfc74eafb33b9fca27e14b3b121c32ac49755494f5c217d46af3fd6e98ab",
+      "npins/sources.json": "56698029576b2c9d2ea8f2634e36e0a45f468f98ea1f8395fbb732952e533029",
+      "shell.nix": "c6c97f2386dbd47ce37e13dd489ed8615698a354bb5ffb1330d1b19e9cd5c5ba",
+      "src/Data/Binary/Parser.hs": "ec8b2b63bb165227f721baba51cf265c8483ff0266b7d2d8e6db83e753a72dd8",
+      "src/Data/Binary/Parser/Numeric.hs": "d11b483f5f0d41481bbef35edad7e6d02539f2004f35f02c38326ef7f9aa999b",
+      "src/Data/Binary/Parser/Word8.hs": "9137cdf8a3dea06323c95ecc6866dd4eca4dc02cf2675b66804e490d75dfda30",
+      "src/Data/Connection.hs": "0a6bb6b888d971e02fc0b8e3723dae9dd8da6db78157924de5f485f06f8cfdc5",
+      "src/Data/Int/Int24.hs": "37f75aa6a046ecff79afa163a8fb0c1256461a9846cf481c0b47ce5572968832",
+      "src/Data/TLSSetting.hs": "798b710434551dfcd85f1ee56de957ab7e3ca8282de7b45f843b99b245e5530a",
+      "src/Data/Word/Word24.hs": "d44b3b63e7ae1e01b3db5fe7e02e72e3968b3bd0f7f544e7201282252573e218",
+      "src/Database/MySQL/Base.hs": "d2e9a84ceafce9e457879e8b3c16ef9ba22e0162c462ab88caa47a36860963f3",
+      "src/Database/MySQL/BinLog.hs": "6efa58ec1adae10b647da2f66f246b3944367c0348e7862321993e207c7e7699",
+      "src/Database/MySQL/BinLogProtocol/BinLogEvent.hs": "b1623bbe55fdf5a3b517eb96b0629fe259f584100d4633fa24e9c9a535231255",
+      "src/Database/MySQL/BinLogProtocol/BinLogMeta.hs": "eaba7042b9639e563598eeb7ac4fecda0dee73aff84fa2fde671a707cae6b743",
+      "src/Database/MySQL/BinLogProtocol/BinLogValue.hs": "52f1754ae8b0fb7df42791128f25bcdab4da82be590238b0632ed6274f05d023",
+      "src/Database/MySQL/Connection.hs": "7644511cf56be2557245c588d93189fb38ae584ac3b3ff5db2114f38afff8488",
+      "src/Database/MySQL/Field.hs": "e4469124ba21b73d619564c74935db2e1172c42abcf08d293aea1a5a3825d0f5",
+      "src/Database/MySQL/Protocol/Auth.hs": "010ffd32f7b365c71b07a8e4217c9a4b3eddc2af0efca1700a9ed576902dfd4e",
+      "src/Database/MySQL/Protocol/ColumnDef.hs": "15da37239b50b95df43d8bff5354614860fb04859556867170317dd5b630ed24",
+      "src/Database/MySQL/Protocol/Command.hs": "62eef1bd5513d8ec64491c59b6bbb63da468c6b7b01214038f4c1190e90a7a3d",
+      "src/Database/MySQL/Protocol/Escape.hs": "cb75d67f1f1119a477e037675fc971373152d0eea9252675a5fe67427fcf2393",
+      "src/Database/MySQL/Protocol/MySQLValue.hs": "1a462ff4f7bc4a2b808972ef7f685cc721556ed235b8a09d31bc6cdd1819acf8",
+      "src/Database/MySQL/Protocol/Packet.hs": "9ce903e8528055edad4791cd308d402ffcb3299c6fa86df9883a9b5531ef6d15",
+      "src/Database/MySQL/Query.hs": "1b0a3dc15abae0a4ffdd7f309cecf1c6731932c85b2df64fda5378f4dedd4838",
+      "src/Database/MySQL/Session.hs": "1cf7ddcf81014c90220bbf67bce392a5f1fcc0ae0c58eba9e7cec034af2cbf8b",
+      "src/Database/MySQL/TLS.hs": "61deadd7d89c00f5e4ade4a4906e4abf8409ac4c8e56cf05d5a79c54713f6c4e",
+      "src/System/IO/Streams/TCP.hs": "b4c5d511f026ca13d2f9105d13881feb746c32f9caee648b3581da10d5c29d5e",
+      "src/System/IO/Streams/TLS.hs": "72fd94a96fbb7a764c7c439bcc898767146b171de608f187c920eed97e1ac6e0",
+      "tcp-streams-bench/TCPLoopBack.hs": "4c6831698fbb09ad958bc436227ad74fafbd7db21e3ac9afa4bcd7615ff59f5a",
+      "tcp-streams-bench/tcp-streams-bench.cabal": "da8432cfcdf2e14e2d4e478f4e2271c15426ca300b700de754e6d928b9db6662",
+      "test/Aeson.hs": "c7b8034b56ebc64190f2655ad0512df5e3b632f52dab330a59b32db9a9473464",
+      "test/AesonBP.hs": "cdc4a7b98861836f1873541f346f0713b8cf5426c30f69c6709397a3bf9ddd82",
+      "test/BinLog.hs": "4ab3697f61d079212883cf5b33c2b4c715b58fe6f88ef776ffdbb992dbc0bc79",
+      "test/BinLogNew.hs": "de4c3e19af7610a3e20b56618b715d9140f4e75ed203b09910b13eb181b86e4e",
+      "test/BinaryRow.hs": "c7ba4464359f76031d441771b42cb69f9f0423d51be9af51c063eb7cf25af320",
+      "test/BinaryRowNew.hs": "0f9aed39510e162f6136053c1d51362d83e5a46e9b6cdacd243281d0ffef34d5",
+      "test/BoundsCheck.hs": "c67fe343470265fcb571073178ca2707d3902609bd27eb8058c9bf4788289017",
+      "test/CachingSha2.hs": "b909f6d7b41eb6407da887613051820991b056d27ca73b788b2b45a2a3106b1e",
+      "test/ExecuteMany.hs": "1f6dacd8d9819229ba7513cbb074ac56364e526a78d092a37c53b879ec04920d",
+      "test/FieldRoundtrip.hs": "76eebc1f3e14f76723ac96cff94b3ba3d348629c8334518efb8f764223be6a93",
+      "test/Integration.hs": "ec6e426d3263b9ba476923a913ad24bb8553d3ca8ff9734d05855aa26147fd06",
+      "test/JSON.hs": "4ecb7fc2755bcdc1ed288b7947bf5b990f4c6811a3e47cdddfdae645bbf845fb",
+      "test/Main.hs": "13af030ae0386c823e05453a664987c4683d3c37886e7c011aa198f6c7ab0818",
+      "test/MultipleResults.hs": "0e216b45d753d71868f5b0b187e112ccc5b4157d0ebe7ca6cc3c8e1b9e714d0d",
+      "test/MysqlTests.hs": "7e01ad7e713d04894590a456817f7f5247e3ddf7246b4a68109120d9b517578d",
+      "test/Orphans.hs": "8e47f572923a821794c055c5df741e5db988aee9c49b19cd5d73b71067706f52",
+      "test/QC/ByteString.hs": "0f2d25016070d5dc26bd18f8e0fec63e67fbfb2c8d9200f6612f02dcf1cc96e7",
+      "test/QC/Combinator.hs": "6998f1edc27ffa3a3fbd2c26255d2eedae19742650b4f4fb77a87733da4a7c52",
+      "test/QC/Common.hs": "a9c0477fc1e5437a804cd683e40a7b62839ea72c1b6c7ac792ef51751e1a8541",
+      "test/QueryWithoutResultSet.hs": "21105d81ab587256d7d95baea6dd6af91e4fb2ca8f31af43ed89f9401f8a81d5",
+      "test/RoundtripBit.hs": "6b90e2c9832724864e57d3b929dd4317b6defbb16fdd306bb5ad0c87dccedc6b",
+      "test/RoundtripYear.hs": "f02ed26eff596796c034186193f7cf961e54aa02554bdcd400ee46aa5daae8ee",
+      "test/SelectOne.hs": "39887805917910b5d4cd05afe57528335be395adc36dd9c93d92610b3d2201e3",
+      "test/Sha1Scramble.hs": "3019543a09dfca261168d757295bdb7fded9c2d9ff2b4191d4d8fcb7a90338f4",
+      "test/Sha256Scramble.hs": "34276d7ea76abb3499bdfa7869d26f06381a155fe679215e925a1d1c18be0ff6",
+      "test/TCPStreams.hs": "6fc037920c871d794f016e8133f30c3101ee1f304b1ebbb1f1d1ee3b84cfc71f",
+      "test/TLSConnection.hs": "b11fb1d4af0cf7784d6911d1780d3ed2a2c637a35d342ac99f7981bd5bae3ae7",
+      "test/TextRow.hs": "1a81633ff71eb23256cf5da24fa853c8e12ff61a5fd8ff2857f2f83618a8382a",
+      "test/TextRowNew.hs": "30a6065bb1da69c9df3a2ad91e4e149655609c8b3951eef296889a1cd9111a82",
+      "test/UnixSocket.hs": "6cc69fb7e1adb030ed50b37b5ad2aa88f3b3e55db7f2874ea7810ff62ca76fe1",
+      "test/Word24.hs": "9fbfe462c8aee5a3c8d29e883c422505384a46d0fce094f099741764540796b5",
+      "test/cert/ca-key.pem": "84db0c8e210559876466a14c1edf4a5d294460c4dd91518c6e7054adaeec4901",
+      "test/cert/ca.pem": "08a03dd68ac0e83f2f494d52539979fe06b9c0857af1549ccf96c98677a00f0d",
+      "test/cert/server-cert.pem": "4418283cb6e80f051b48dc53e141b6981e5d3f6506f75ade26fdc1da414a2d6d",
+      "test/cert/server-key.pem": "53747570771df759585537854853d96726bc37e46067f2062c8a22df1659badb",
+      "test/cert/server-req.pem": "8323b4b2cc9535040dfab18cb78299d1b671bd0b8e7c521b5937a97a3c778741",
+      "test/json-data/buffer-builder.json": "abb6bf5752f6364961ffbd17fe0d25cce582bc0019d4521324aa435a04846414",
+      "test/json-data/dates-fract.json": "fa441ec0b77ee14d9c03eb576acebadb04624c1cc1b504ce78ce157ce849671b",
+      "test/json-data/dates.json": "2a43be6c1f559254de930c7a41b89fc3f7da78e4783b3b1c383a9862b2e4dfde",
+      "test/json-data/example.json": "d79c0c57ba46c86df2eabf42571b4bdfb8da0d6e5f2aa19209a54f8a71adb980",
+      "test/json-data/geometry.json": "3f8f894f73f8aafda0b8aa91e853f91d7bad58e6bda549ecd6a4b40ac53a8309",
+      "test/json-data/integers.json": "d7837fcdffdf62463965166e5102a42fefb33cb55fccda81a7546410c96f633f",
+      "test/json-data/jp10.json": "6707a225c2bd16442dee58ba17113a8dfa09c6562cf99e62683fcdf4d7cee669",
+      "test/json-data/jp100.json": "9d55ebd514c53cbe1aadac454834d550e463c8ad8ff98580cf32fc92df136998",
+      "test/json-data/jp50.json": "ab32c5504af0a8e1db9904d7a648bc37fea021b651b6f236736e474aa63efb7a",
+      "test/json-data/numbers.json": "f3692e8c9ddd5a78b0501c3e03ab75cea5df3b61c135bfb1dc024be538a2cb70",
+      "test/json-data/twitter1.json": "4961e86c42db96ccb70d985a08da7ecd779b43896996e75f383809356bd96e0e",
+      "test/json-data/twitter10.json": "81aa55b0a98805c613751575d72971786ed93a1e4695a20477bd74150ba7707d",
+      "test/json-data/twitter100.json": "956889c4f0be955dd81d4a5b79ef8777d0afe3db769f1e433f3f84e988a1ce2d",
+      "test/json-data/twitter20.json": "a661bfdabd8dfceb2f88d5abd391dbe0ea90489bca0c80faa3968bfbdd56d7cb",
+      "test/json-data/twitter50.json": "b7b4f76bf5c4fc5b4ba2e8d7124fbb01aab9e51fcc2c3398e6a597797a239456",
+      "validation/baselines/macos-arm64-native-statements/SHA256SUMS": "61b4b85fc6c06c00883b49aabc2d8b1ef06da4681e68a8f8a8905607f9e7f1f7",
+      "validation/baselines/macos-arm64-native-statements/SUMMARY.md": "5add9106fce2575835bd0a4aa56b2dab30cd11564290119b988ac90c1b24e464",
+      "validation/baselines/macos-arm64-native-statements/results.json": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+      "validation/baselines/macos-arm64-session-reuse/SHA256SUMS": "82fc327c9c2b539050ab0574d65d9e1b5cfcd56802992f37db83dcf74fce2473",
+      "validation/baselines/macos-arm64-session-reuse/SUMMARY.md": "3e9dc9d9300ca4a876a80908467e4dbf7ac30e75e5697ad40ecf532be4d523e6",
+      "validation/baselines/macos-arm64-session-reuse/results.json": "9c6031ea96fc74c441aa34a4976f03fe973b1fde28c585873f6874841441c452",
+      "validation/check.py": "6d3c55bad6fd73242266c677e3308547e5304a88fb71e4bbf11f7d2425abea75",
+      "validation/configure_macos.py": "59821956ef0e934e7fe7cfa5af280c6df356d91f7699f60f36428d1e605fd5b2",
+      "validation/connector_c.c": "f3258db4fda91dcc2e151d26e924ad33a85f41bad4f638065d974409a81d5980",
+      "validation/feature_benchmarks.py": "4571aad752bc5933b98c04adb4ccd29366ed2ce89da4307520627768762914d8",
+      "validation/hs/Main.hs": "164dbb547cbf004a2c26d7d0480910b0f8f1669509f6eee4ff3f106c01ee9126",
+      "validation/hs/Validation/Benchmark.hs": "7fc5450494568f81376818494f9d748a45dc7c7ba8376ea9d420c813810187e0",
+      "validation/hs/Validation/CDC.hs": "69ddf52b76190bd8fde3782147de8fb7e8af9167724bd462f0d03654347225d5",
+      "validation/hs/Validation/Common.hs": "07bcf4b72feaa294c133f4f396c87e1fae18b05400f1075534a33b6b3f0e0056",
+      "validation/hs/Validation/FaultTransport.hs": "218b79fdb2e02b2e3711599ff07223ad195c64a79a237d90626bf31f820a9863",
+      "validation/hs/Validation/Functional.hs": "28c7d66dbfb57a71486f520057c77e1f61434c8e0e57b904529b1416c21ac49d",
+      "validation/hs/Validation/Protocol.hs": "dda245b79359a64be740f95aa1ca7e1686288bfa03934b4621ff21c668a98f93",
+      "validation/hs/Validation/Reliability.hs": "a94efd7f4daefed6590254175f07b2e711a23bd4bde242e6ca4677f544fea97d",
+      "validation/hs/Validation/Security.hs": "ef1e7b09f8e7806e471e0511fd4b4cf143a478005ca1d5fd19679ce16009f3dd",
+      "validation/hs/Validation/Stage1.hs": "12fdb17bc740710c79862f38b1454096d3a1dcd1ac5e69f6bb62ec35d35faa35",
+      "validation/hs/Validation/Stage2.hs": "a7dc4865351cb1769978fa8d193a385e15cd6712057e70aa17129db9b0702fce",
+      "validation/hs/Validation/Stage3.hs": "92c804804aeafc9bb439671905b42ad04a36abe169a8a779f5314f65863c7f2a",
+      "validation/hs/Validation/Stage3Bench.hs": "8807780753c24076f15883a3a63b95f0f4d4e8dd6ce5788b0d566cc498fb354e",
+      "validation/hs/Validation/Stage4.hs": "8adc7ef8349001831eab423e1426dcc11b17eeaa524b28c2e9974bd3fec6ee09",
+      "validation/hs/Validation/Stage4Bench.hs": "a2cc56ba455ecb5385d1c67566d7e142233eae5aac3c992a156b00afda41209b",
+      "validation/hs/Validation/Supplementary.hs": "c8dbcb86cb945a866aeb4552b7a2d41b26f3fb619651cda97fe394107dbcd594",
+      "validation/linux/Dockerfile": "1fce21bb58cc9bb489c47e959ddcd884f8d595b97862372430cacd37206075cf",
+      "validation/linux/verify.py": "f0e9d620e9a282e393b782579275f6258a859535ba4ed4566232c62d2baee685",
+      "validation/profile_workloads.py": "f918367f109c5f35a56227e97422a5d3c53ba0a018c2e0270d50127c03186616",
+      "validation/provision.py": "e24487f510f8eb41df9de421376a7c7875bc95917dfc4a6565b222aa670a0909",
+      "validation/publish_results.py": "2202c14df4d301cf34450f8eaa866944788f16df682df617513173c5faea1787",
+      "validation/results/accepted.json": "aff6db6f56e7ed50bfa2f48a0b7c276a5461f8f3576ee71f5546b342f08747a9",
+      "validation/results/previous-stage.json": "e277e809b057a7b4ca803ec0a5481a530029794230838c671814f51a41e768d9",
+      "validation/run.py": "e756bc0f593b54bc9207fd88d2a53120a4654832650d0a148555a69ebd413346",
+      "validation/stage1_gates.py": "a471116b6651d152ce32ff1ef8b8a2e05a9be0494ed0fdca1dd531058fbb38a9",
+      "validation/stage3_benchmarks.py": "5c4d70813451d69cafa46bdf20e017a90c7f87acd2d98a4cec20f4003aff9f9e",
+      "validation/stage4_benchmarks.py": "99a398e69b1dc669f1d0259c449c51f44933f554d65d5170f06831b0b7cc279f",
+      "validation/supplementary.py": "701eb398afe24d4c436a04ebd9fcc1e932ee013166454afe013e57c31a1234fb",
+      "validation/test_check.py": "4f62625169198f2991e4c0cd02c27e0be5e36d02470f80fe938960c25795562f",
+      "validation/test_publication.py": "98f1731df1a5cbb84ce7047e6a4b7f72e691c75926c22cb948bd74f777a970c6",
+      "validation/test_runner.py": "9bcb095d73a3135d06bbb4560ce283473785ec640f3f3b5f50082b88c0304d3d",
+      "validation/test_stage1_gates.py": "fba869fd30edd8ff8a0305930a7bf71b4c9e43a1e7079fd9e1ab8b2daf679f04",
+      "validation/test_stage3_benchmarks.py": "1402912bee965962c89215c6a6e1d1d6e7c66de48b44a9a953c926f386f21f80",
+      "validation/test_stage4_benchmarks.py": "c45f99d418c83fdaeceaa92fcc345c3439bdf1fe8583fe281455727f4151e50e",
+      "word24-bench/Benchmark.hs": "eae7b0dd6112ff82541718875e04eec7f9682b547b5ab34c69fbb242b6b7fc64"
+    },
+    "dirty_inputs": [
+      "mysql-haskell.cabal",
+      "src/Database/MySQL/Base.hs",
+      "src/Database/MySQL/Connection.hs",
+      "src/Database/MySQL/Protocol/Command.hs",
+      "src/Database/MySQL/Session.hs",
+      "src/Database/MySQL/TLS.hs",
+      "validation/baselines/macos-arm64-session-reuse/SHA256SUMS",
+      "validation/baselines/macos-arm64-session-reuse/SUMMARY.md",
+      "validation/baselines/macos-arm64-session-reuse/results.json",
+      "validation/check.py",
+      "validation/feature_benchmarks.py",
+      "validation/hs/Main.hs",
+      "validation/hs/Validation/Reliability.hs",
+      "validation/hs/Validation/Stage4.hs",
+      "validation/hs/Validation/Stage4Bench.hs",
+      "validation/linux/verify.py",
+      "validation/provision.py",
+      "validation/publish_results.py",
+      "validation/results/previous-stage.json",
+      "validation/stage1_gates.py",
+      "validation/stage3_benchmarks.py",
+      "validation/stage4_benchmarks.py",
+      "validation/test_check.py",
+      "validation/test_publication.py",
+      "validation/test_stage1_gates.py",
+      "validation/test_stage4_benchmarks.py"
+    ],
+    "sha256": "274775cc0a96c788dded692e1bbd8339fe76dc8ae9c2d92b94b8d7825686bad0"
+  },
+  "policy": "Three complete working-tree runs with seven repetitions per profile; run 3 supplies current results. Retain all previous measurements; no baseline advances.",
+  "run_names": [
+    "stage4-unicode-final-1",
+    "stage4-unicode-final-2",
+    "stage4-unicode-final-3"
+  ],
+  "declared_current": "stage4-unicode-final-3",
+  "superseded_window": {
+    "path": "validation/results/stage4-fixes-initial-confirmation.json",
+    "sha256": "35e4fa1af4382228b498d1c7e68221fa345df0a534e686b7654043dd7b0accec"
+  },
+  "status": "CORRECTNESS_AND_ALLOCATION_PASSED_TIMING_INVESTIGATIONS_OPEN",
+  "completed_at": "2026-11-08T10:12:24.874979+00:00",
+  "runs": [
+    {
+      "name": "stage4-unicode-final-1",
+      "exit_code": 1,
+      "counts": {
+        "PASS": 535,
+        "FAIL": 17,
+        "UNSUPPORTED": 6,
+        "ENVIRONMENT_UNAVAILABLE": 2
+      },
+      "stage4_passes": 71,
+      "repetitions": 7,
+      "runnable_profiles": {
+        "frozen": 24,
+        "native": 8,
+        "reuse": 7
+      },
+      "original_threshold_alarms": [
+        "connector-c/read.text.wide: median slowed by more than 20%; confirm on an idle machine",
+        "haskell/write.text: median slowed by more than 20%; confirm on an idle machine"
+      ],
+      "ordinary_timing_investigations": [
+        {
+          "reference": "original",
+          "id": "connector-c/read.text.wide",
+          "percent": 22.27009595305436
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/latency.text",
+          "percent": 9.266787112315566
+        },
+        {
+          "reference": "original",
+          "id": "haskell/latency.text",
+          "percent": 15.383442597957009
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.parallel-4",
+          "percent": 7.679265277287173
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.prepared.wide",
+          "percent": 7.249285243017378
+        },
+        {
+          "reference": "original",
+          "id": "haskell/write.text",
+          "percent": 25.125247886441926
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.socket.narrow",
+          "percent": 9.66867114727037
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/write.execute-many",
+          "percent": 10.569744597249509
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/read.text.narrow",
+          "percent": 11.507293354943272
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.tls.narrow",
+          "percent": 12.941874898807292
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/write.text",
+          "percent": 10.650326567876967
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.text.narrow",
+          "percent": 9.938457509493247
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/blob.text",
+          "percent": 11.547865337596397
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/read.text.wide",
+          "percent": 28.42824221895215
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/latency.text",
+          "percent": 8.09502532022639
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/blob.text",
+          "percent": 5.513410190550139
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/latency.text",
+          "percent": 13.20303151176705
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.parallel-4",
+          "percent": 26.90034135375905
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.prepared.wide",
+          "percent": 8.384497846923189
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.text.wide",
+          "percent": 6.283992183269382
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/write.text",
+          "percent": 17.474277315041654
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.socket.narrow",
+          "percent": 5.48341366600511
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/write.execute-many",
+          "percent": 10.410672246926488
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.tls.narrow",
+          "percent": 12.917498516160354
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/write.text",
+          "percent": 5.862393334677152
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/write.prepared",
+          "percent": 9.775056568614392
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.text.narrow",
+          "percent": 6.386213887480974
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/blob.text",
+          "percent": 11.129848229342333
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/read.text.wide",
+          "percent": 33.01127214170692
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/latency.text",
+          "percent": 12.939620292561461
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/blob.text",
+          "percent": 5.988239529581185
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/micro.binary-row",
+          "percent": 7.080237121148869
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.prepared.narrow",
+          "percent": 9.441498519385693
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/latency.text",
+          "percent": 9.898833438210941
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.prepared.wide",
+          "percent": 12.270856715301171
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/write.execute-many",
+          "percent": 24.438523030072325
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.text.wide",
+          "percent": 11.58985007477722
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/write.text",
+          "percent": 15.354823189800326
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.socket.narrow",
+          "percent": 9.759263629926851
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/write.execute-many",
+          "percent": 9.494163424124524
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/read.text.narrow",
+          "percent": 5.369962668708728
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.tls.narrow",
+          "percent": 5.4628836365469
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.parallel-16",
+          "percent": 5.304738028525091
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/write.text",
+          "percent": 14.606292053100557
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/write.prepared",
+          "percent": 7.547661893957169
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/micro.text-row",
+          "percent": 9.107800295908897
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/latency.prepared",
+          "percent": 10.815677966101699
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/blob.text",
+          "percent": 7.530065872967917
+        }
+      ],
+      "ordinary_allocation_investigations": [],
+      "native_baseline": {
+        "reference": "validation/baselines/macos-arm64-native-statements/results.json",
+        "sha256": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+        "comparable": true,
+        "timing_investigations": [],
+        "allocation_investigations": [],
+        "profiles": {
+          "bulk.native": {
+            "elapsed_ns": 2.476780185758498,
+            "allocated_bytes": 0.005013767534634006
+          },
+          "bulk.units": {
+            "elapsed_ns": 0.5019520356943863,
+            "allocated_bytes": -0.019313537790222046
+          },
+          "bulk.prepared": {
+            "elapsed_ns": -0.19482956021436015,
+            "allocated_bytes": 0.028232754171675367
+          },
+          "bulk.text-batch": {
+            "elapsed_ns": 0.8143027758676924,
+            "allocated_bytes": -1.2471010215180156
+          },
+          "prepared.narrow.cached": {
+            "elapsed_ns": -0.9130733097588051,
+            "allocated_bytes": -0.2845727795624087
+          },
+          "prepared.narrow.uncached": {
+            "elapsed_ns": -3.2393814836562895,
+            "allocated_bytes": -0.3769365150886772
+          },
+          "prepared.wide.cached": {
+            "elapsed_ns": -0.0035766658321167988,
+            "allocated_bytes": -0.23703409174679058
+          },
+          "prepared.wide.uncached": {
+            "elapsed_ns": 0.2289913728831694,
+            "allocated_bytes": -0.07148635972763495
+          }
+        }
+      },
+      "reuse_baseline": {
+        "reference": "validation/baselines/macos-arm64-session-reuse/results.json",
+        "sha256": "9c6031ea96fc74c441aa34a4976f03fe973b1fde28c585873f6874841441c452",
+        "comparable": true,
+        "timing_investigations": [
+          {
+            "id": "reuse.tcp.reset",
+            "percent": 8.199233716475085
+          },
+          {
+            "id": "reuse.tcp.reconnect",
+            "percent": 7.707289927657213
+          },
+          {
+            "id": "reuse.tls.reset",
+            "percent": 7.340720221606656
+          },
+          {
+            "id": "reuse.socket.reset",
+            "percent": 10.560642167314672
+          },
+          {
+            "id": "reuse.socket.reconnect",
+            "percent": 14.511846405228756
+          }
+        ],
+        "allocation_investigations": [],
+        "profiles": {
+          "reuse.tcp.reset": {
+            "elapsed_ns": 8.199233716475085,
+            "allocated_bytes": 2.013581457620428
+          },
+          "reuse.tcp.reconnect": {
+            "elapsed_ns": 7.707289927657213,
+            "allocated_bytes": 1.7627786285838498
+          },
+          "reuse.tls.reset": {
+            "elapsed_ns": 7.340720221606656,
+            "allocated_bytes": 1.0957899084128808
+          },
+          "reuse.tls.reconnect": {
+            "elapsed_ns": -0.6313064896570464,
+            "allocated_bytes": 0.2761086914137456
+          },
+          "reuse.socket.reset": {
+            "elapsed_ns": 10.560642167314672,
+            "allocated_bytes": 2.06188646995078
+          },
+          "reuse.socket.reconnect": {
+            "elapsed_ns": 14.511846405228756,
+            "allocated_bytes": 2.7664974421876876
+          },
+          "session.snapshot": {
+            "elapsed_ns": 2.005730659025784,
+            "allocated_bytes": 0.0
+          }
+        }
+      },
+      "request_comparisons": {
+        "tcp": {
+          "current": "reuse.tcp.reset",
+          "baseline": "reuse.tcp.reconnect",
+          "change_percent": {
+            "elapsed_ns": -27.047274606044947,
+            "allocated_bytes": -16.788311499079388
+          }
+        },
+        "tls": {
+          "current": "reuse.tls.reset",
+          "baseline": "reuse.tls.reconnect",
+          "change_percent": {
+            "elapsed_ns": -98.82784338307087,
+            "allocated_bytes": -77.1180483539029
+          }
+        },
+        "socket": {
+          "current": "reuse.socket.reset",
+          "baseline": "reuse.socket.reconnect",
+          "change_percent": {
+            "elapsed_ns": -21.385891376081346,
+            "allocated_bytes": -14.674959904998119
+          }
+        }
+      },
+      "evidence": {
+        "stage4-unicode-final-1.json": "631ebd7b356630cb2257ac9f5134ceda5ce3dde8c85f41f006627a66d4a94b01",
+        "stage4-unicode-final-1-native.json": "483ac670cc08d55119104bf3ba6b5941d14390737a26c70af816ad463764256a",
+        "stage4-unicode-final-1-reuse.json": "e31f8947e62ff7d3b5097596669910a5af444ea9e43cd93a1b05b40825c47413"
+      }
+    },
+    {
+      "name": "stage4-unicode-final-2",
+      "exit_code": 0,
+      "counts": {
+        "PASS": 535,
+        "FAIL": 17,
+        "UNSUPPORTED": 6,
+        "ENVIRONMENT_UNAVAILABLE": 2
+      },
+      "stage4_passes": 71,
+      "repetitions": 7,
+      "runnable_profiles": {
+        "frozen": 24,
+        "native": 8,
+        "reuse": 7
+      },
+      "original_threshold_alarms": [],
+      "ordinary_timing_investigations": [
+        {
+          "reference": "original",
+          "id": "connector-c/read.text.wide",
+          "percent": 11.128439639449116
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/latency.text",
+          "percent": 5.450165612767233
+        },
+        {
+          "reference": "original",
+          "id": "haskell/micro.binary-row",
+          "percent": 5.371145329703819
+        },
+        {
+          "reference": "original",
+          "id": "haskell/latency.text",
+          "percent": 14.96671240534635
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.parallel-4",
+          "percent": 9.819851642529143
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.prepared.wide",
+          "percent": 9.726193094347924
+        },
+        {
+          "reference": "original",
+          "id": "haskell/write.text",
+          "percent": 17.77215321991441
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.socket.narrow",
+          "percent": 9.090909090909083
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/write.execute-many",
+          "percent": 12.966601178781922
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/read.text.narrow",
+          "percent": 10.838735818476497
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.tls.narrow",
+          "percent": 14.458416536240492
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/write.text",
+          "percent": 12.11110330781655
+        },
+        {
+          "reference": "original",
+          "id": "haskell/latency.prepared",
+          "percent": 6.660928608999184
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.text.narrow",
+          "percent": 10.625900222600482
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/read.text.wide",
+          "percent": 16.725435211150284
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/micro.binary-row",
+          "percent": 5.701825888490375
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/latency.text",
+          "percent": 12.79417630634223
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.parallel-4",
+          "percent": 29.42302889018398
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.prepared.wide",
+          "percent": 10.887623281011273
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/write.text",
+          "percent": 10.570798628123468
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/write.execute-many",
+          "percent": 12.804080565001307
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.tls.narrow",
+          "percent": 14.433712836561806
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/write.text",
+          "percent": 7.2599610293623495
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/write.prepared",
+          "percent": 9.631305736723018
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/latency.prepared",
+          "percent": 10.546139359698682
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.text.narrow",
+          "percent": 7.051444500760251
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/read.text.wide",
+          "percent": 20.89084426040946
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/latency.text",
+          "percent": 8.994708994709
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/blob.text",
+          "percent": 5.322212888515532
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/micro.binary-row",
+          "percent": 8.2700175336061
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.prepared.narrow",
+          "percent": 5.805385304042399
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/latency.text",
+          "percent": 9.501911999612766
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.prepared.wide",
+          "percent": 14.863737085959317
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/write.execute-many",
+          "percent": 23.639132089836323
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.text.wide",
+          "percent": 8.752023928708264
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.vector.narrow",
+          "percent": 9.366076527698453
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/write.text",
+          "percent": 8.575896078903057
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.socket.narrow",
+          "percent": 9.181024309653063
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/write.execute-many",
+          "percent": 11.867704280155644
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.tls.narrow",
+          "percent": 6.879000151186809
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.parallel-16",
+          "percent": 11.21621336928813
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/write.text",
+          "percent": 16.119294417166753
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/write.prepared",
+          "percent": 7.406827843413399
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/micro.text-row",
+          "percent": 11.069056876440841
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/latency.prepared",
+          "percent": 18.14618644067796
+        }
+      ],
+      "ordinary_allocation_investigations": [],
+      "native_baseline": {
+        "reference": "validation/baselines/macos-arm64-native-statements/results.json",
+        "sha256": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+        "comparable": true,
+        "timing_investigations": [
+          {
+            "id": "bulk.native",
+            "percent": 5.487349204654635
+          }
+        ],
+        "allocation_investigations": [],
+        "profiles": {
+          "bulk.native": {
+            "elapsed_ns": 5.487349204654635,
+            "allocated_bytes": 0.0057590573032895165
+          },
+          "bulk.units": {
+            "elapsed_ns": -0.25097601784719314,
+            "allocated_bytes": 0.02667540395968615
+          },
+          "bulk.prepared": {
+            "elapsed_ns": 1.476375111846595,
+            "allocated_bytes": 0.025524431985091134
+          },
+          "bulk.text-batch": {
+            "elapsed_ns": 0.4560095544859033,
+            "allocated_bytes": -0.9826330688111118
+          },
+          "prepared.narrow.cached": {
+            "elapsed_ns": 3.282841610809095,
+            "allocated_bytes": -0.3108091461276774
+          },
+          "prepared.narrow.uncached": {
+            "elapsed_ns": -0.17615971814445297,
+            "allocated_bytes": -0.3722460156952101
+          },
+          "prepared.wide.cached": {
+            "elapsed_ns": 2.610966057441244,
+            "allocated_bytes": -0.219154796337806
+          },
+          "prepared.wide.uncached": {
+            "elapsed_ns": -0.9079774203855528,
+            "allocated_bytes": -0.06827071032811105
+          }
+        }
+      },
+      "reuse_baseline": {
+        "reference": "validation/baselines/macos-arm64-session-reuse/results.json",
+        "sha256": "9c6031ea96fc74c441aa34a4976f03fe973b1fde28c585873f6874841441c452",
+        "comparable": true,
+        "timing_investigations": [
+          {
+            "id": "reuse.tcp.reset",
+            "percent": 6.867816091954015
+          },
+          {
+            "id": "reuse.tcp.reconnect",
+            "percent": 7.004730105731771
+          },
+          {
+            "id": "reuse.socket.reset",
+            "percent": 7.588109870813975
+          },
+          {
+            "id": "reuse.socket.reconnect",
+            "percent": 5.4738562091503296
+          }
+        ],
+        "allocation_investigations": [],
+        "profiles": {
+          "reuse.tcp.reset": {
+            "elapsed_ns": 6.867816091954015,
+            "allocated_bytes": 2.020077172703938
+          },
+          "reuse.tcp.reconnect": {
+            "elapsed_ns": 7.004730105731771,
+            "allocated_bytes": 1.890836381881722
+          },
+          "reuse.tls.reset": {
+            "elapsed_ns": 4.778393351800547,
+            "allocated_bytes": 1.1015717999174113
+          },
+          "reuse.tls.reconnect": {
+            "elapsed_ns": -2.1395620681737504,
+            "allocated_bytes": 0.2860996840817309
+          },
+          "reuse.socket.reset": {
+            "elapsed_ns": 7.588109870813975,
+            "allocated_bytes": 1.9763328930417323
+          },
+          "reuse.socket.reconnect": {
+            "elapsed_ns": 5.4738562091503296,
+            "allocated_bytes": 1.6883039102599584
+          },
+          "session.snapshot": {
+            "elapsed_ns": 0.0,
+            "allocated_bytes": 0.0
+          }
+        }
+      },
+      "request_comparisons": {
+        "tcp": {
+          "current": "reuse.tcp.reset",
+          "baseline": "reuse.tcp.reconnect",
+          "change_percent": {
+            "elapsed_ns": -27.471884547877533,
+            "allocated_bytes": -16.887601206540715
+          }
+        },
+        "tls": {
+          "current": "reuse.tls.reset",
+          "baseline": "reuse.tls.reconnect",
+          "change_percent": {
+            "elapsed_ns": -98.83818949703512,
+            "allocated_bytes": -77.11901942707546
+          }
+        },
+        "socket": {
+          "current": "reuse.socket.reset",
+          "baseline": "reuse.socket.reconnect",
+          "change_percent": {
+            "elapsed_ns": -16.94422927962821,
+            "allocated_bytes": -13.842547088631807
+          }
+        }
+      },
+      "evidence": {
+        "stage4-unicode-final-2.json": "cd4363ef6c8bbe4745fca7a6df0b5f04bfd956cf0ac2595bc68c7fe910b11f44",
+        "stage4-unicode-final-2-native.json": "d829bce17421dda58d2b2c629ed205abdce0f0422820ba4824ad3f42df6ced84",
+        "stage4-unicode-final-2-reuse.json": "47d75cfc475e7278bc6baf47ffe37a33ea02ce2a7f1fe8245d64ba248002d17b"
+      }
+    },
+    {
+      "name": "stage4-unicode-final-3",
+      "exit_code": 0,
+      "counts": {
+        "PASS": 535,
+        "FAIL": 17,
+        "UNSUPPORTED": 6,
+        "ENVIRONMENT_UNAVAILABLE": 2
+      },
+      "stage4_passes": 71,
+      "repetitions": 7,
+      "runnable_profiles": {
+        "frozen": 24,
+        "native": 8,
+        "reuse": 7
+      },
+      "original_threshold_alarms": [],
+      "ordinary_timing_investigations": [
+        {
+          "reference": "original",
+          "id": "connector-c/read.text.wide",
+          "percent": 6.5105336893024335
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/latency.text",
+          "percent": 6.872929840409525
+        },
+        {
+          "reference": "original",
+          "id": "haskell/latency.text",
+          "percent": 12.750927478782327
+        },
+        {
+          "reference": "original",
+          "id": "haskell/write.text",
+          "percent": 16.402254461955955
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.socket.narrow",
+          "percent": 8.849192312227316
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/write.execute-many",
+          "percent": 9.39096267190569
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/read.text.narrow",
+          "percent": 7.982171799027538
+        },
+        {
+          "reference": "original",
+          "id": "haskell/read.tls.narrow",
+          "percent": 8.117005774731512
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/write.text",
+          "percent": 9.85673151204438
+        },
+        {
+          "reference": "original",
+          "id": "connector-c/blob.text",
+          "percent": 8.250266440975484
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/read.text.wide",
+          "percent": 11.87494794124997
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/latency.text",
+          "percent": 5.726839439976161
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/latency.text",
+          "percent": 10.620263262863983
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.parallel-4",
+          "percent": 19.532095579052534
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.prepared.wide",
+          "percent": 6.0161133490762575
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/write.text",
+          "percent": 9.284664380205786
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/write.execute-many",
+          "percent": 9.233586188856924
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/read.tls.narrow",
+          "percent": 8.093670749473914
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/write.text",
+          "percent": 5.10313780823759
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/write.prepared",
+          "percent": 7.224810328763476
+        },
+        {
+          "reference": "accepted",
+          "id": "haskell/latency.prepared",
+          "percent": 5.729011795024275
+        },
+        {
+          "reference": "accepted",
+          "id": "connector-c/blob.text",
+          "percent": 7.844606832802459
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/read.text.wide",
+          "percent": 15.867264780308265
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/latency.text",
+          "percent": 10.465297230003113
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/micro.binary-row",
+          "percent": 7.163730483426556
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.prepared.narrow",
+          "percent": 10.164589215618758
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/latency.text",
+          "percent": 7.391451667554083
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.prepared.wide",
+          "percent": 9.817548706437606
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/write.execute-many",
+          "percent": 22.3956350716914
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.text.wide",
+          "percent": 6.83253612171999
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.vector.narrow",
+          "percent": 7.909765848086803
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/write.text",
+          "percent": 7.312966081308625
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/read.socket.narrow",
+          "percent": 8.939107859334449
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/write.execute-many",
+          "percent": 8.326848249027229
+        },
+        {
+          "reference": "previous_stage",
+          "id": "connector-c/write.text",
+          "percent": 13.784324422622296
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/write.prepared",
+          "percent": 5.049161515791667
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/micro.text-row",
+          "percent": 5.357327185768845
+        },
+        {
+          "reference": "previous_stage",
+          "id": "haskell/latency.prepared",
+          "percent": 12.997881355932206
+        }
+      ],
+      "ordinary_allocation_investigations": [],
+      "native_baseline": {
+        "reference": "validation/baselines/macos-arm64-native-statements/results.json",
+        "sha256": "fa3e67db26a4edb73e225f8cdaa5285c5d81bcd4c47d26061fc15a34d4c2e563",
+        "comparable": true,
+        "timing_investigations": [
+          {
+            "id": "bulk.native",
+            "percent": 7.697234973844336
+          }
+        ],
+        "allocation_investigations": [],
+        "profiles": {
+          "bulk.native": {
+            "elapsed_ns": 7.697234973844336,
+            "allocated_bytes": 0.011179346529921474
+          },
+          "bulk.units": {
+            "elapsed_ns": -0.6785647889942292,
+            "allocated_bytes": 0.026220967776380277
+          },
+          "bulk.prepared": {
+            "elapsed_ns": -0.6792576272164896,
+            "allocated_bytes": 0.032596162138953666
+          },
+          "bulk.text-batch": {
+            "elapsed_ns": 0.4071513879338351,
+            "allocated_bytes": -1.104838666703778
+          },
+          "prepared.narrow.cached": {
+            "elapsed_ns": 1.2983585791946028,
+            "allocated_bytes": -0.3151917446058583
+          },
+          "prepared.narrow.uncached": {
+            "elapsed_ns": -3.195341554120179,
+            "allocated_bytes": -0.3579749217959005
+          },
+          "prepared.wide.cached": {
+            "elapsed_ns": -0.2682499374083491,
+            "allocated_bytes": -0.22315762366819092
+          },
+          "prepared.wide.uncached": {
+            "elapsed_ns": -1.214186814357232,
+            "allocated_bytes": -0.06312920496955865
+          }
+        }
+      },
+      "reuse_baseline": {
+        "reference": "validation/baselines/macos-arm64-session-reuse/results.json",
+        "sha256": "9c6031ea96fc74c441aa34a4976f03fe973b1fde28c585873f6874841441c452",
+        "comparable": true,
+        "timing_investigations": [
+          {
+            "id": "reuse.tcp.reset",
+            "percent": 11.216475095785427
+          },
+          {
+            "id": "reuse.tcp.reconnect",
+            "percent": 9.348914858096835
+          },
+          {
+            "id": "reuse.tls.reset",
+            "percent": 11.826715912588481
+          },
+          {
+            "id": "reuse.socket.reset",
+            "percent": 11.338266649943552
+          },
+          {
+            "id": "reuse.socket.reconnect",
+            "percent": 6.413398692810457
+          },
+          {
+            "id": "session.snapshot",
+            "percent": 6.5902578796561695
+          }
+        ],
+        "allocation_investigations": [],
+        "profiles": {
+          "reuse.tcp.reset": {
+            "elapsed_ns": 11.216475095785427,
+            "allocated_bytes": 2.035955587352478
+          },
+          "reuse.tcp.reconnect": {
+            "elapsed_ns": 9.348914858096835,
+            "allocated_bytes": 1.8154994814035597
+          },
+          "reuse.tls.reset": {
+            "elapsed_ns": 11.826715912588481,
+            "allocated_bytes": 1.0907368267619066
+          },
+          "reuse.tls.reconnect": {
+            "elapsed_ns": 1.1449683762289498,
+            "allocated_bytes": 0.2687643193200806
+          },
+          "reuse.socket.reset": {
+            "elapsed_ns": 11.338266649943552,
+            "allocated_bytes": 2.0440514914840113
+          },
+          "reuse.socket.reconnect": {
+            "elapsed_ns": 6.413398692810457,
+            "allocated_bytes": 2.8014986750088733
+          },
+          "session.snapshot": {
+            "elapsed_ns": 6.5902578796561695,
+            "allocated_bytes": 0.0
+          }
+        }
+      },
+      "request_comparisons": {
+        "tcp": {
+          "current": "reuse.tcp.reset",
+          "baseline": "reuse.tcp.reconnect",
+          "change_percent": {
+            "elapsed_ns": -26.138676844783713,
+            "allocated_bytes": -16.813158200559307
+          }
+        },
+        "tls": {
+          "current": "reuse.tls.reset",
+          "baseline": "reuse.tls.reconnect",
+          "change_percent": {
+            "elapsed_ns": -98.80030180256037,
+            "allocated_bytes": -77.1175161176085
+          }
+        },
+        "socket": {
+          "current": "reuse.socket.reset",
+          "baseline": "reuse.socket.reconnect",
+          "change_percent": {
+            "elapsed_ns": -14.808061420345487,
+            "allocated_bytes": -14.718916051985076
+          }
+        }
+      },
+      "evidence": {
+        "stage4-unicode-final-3.json": "6360fd0b69f95e17826e59f9ff4f2d105582387bad63156a19dac59e53fd038a",
+        "stage4-unicode-final-3-native.json": "3030dca34d0b147bed825118a765e35ea691f7f3eb1e6e6bfa10870abd154f7e",
+        "stage4-unicode-final-3-reuse.json": "5e50298d98c85e02d5abc3d636b363074c8e3d0da1531da7e3a3052c354bcbeb"
+      }
+    }
+  ],
+  "protected_pre_review_passes": 517,
+  "frozen_workloads_and_accepted_reference_unchanged": true,
+  "baseline_manifests": {
+    "macos-arm64-mariadb-12.3.3": "a47460d471fdb5c10051191f60630fb9241dfb1d710ffc9b97b93d65753db080",
+    "macos-arm64-native-statements": "61b4b85fc6c06c00883b49aabc2d8b1ef06da4681e68a8f8a8905607f9e7f1f7",
+    "macos-arm64-session-reuse": "82fc327c9c2b539050ab0574d65d9e1b5cfcd56802992f37db83dcf74fce2473"
+  },
+  "linux": {
+    "reference": "stage4-unicode-linux.json",
+    "sha256": "e2a8ec9b65d94d5f04c8710fe18b53845a4c7c051ed0fbaa3393ca8a97a1f306",
+    "counts": {
+      "PASS": 535,
+      "FAIL": 17,
+      "UNSUPPORTED": 6,
+      "ENVIRONMENT_UNAVAILABLE": 2
+    },
+    "stage4_passes": 71,
+    "driver_and_registered_harness_and_library_config_match": true
+  },
+  "policy_tests": {
+    "passed": 129,
+    "failed": 0
+  },
+  "base_haddock": {
+    "documented": 91,
+    "total": 91
+  },
+  "window_request_comparisons": {
+    "tcp": {
+      "elapsed_ns": {
+        "baseline_reconnect": 516133.3333333333,
+        "current_reset": 376533.3333333333,
+        "change_percent": -27.047274606044947
+      },
+      "allocated_bytes": {
+        "baseline_reconnect": 362554.13333333336,
+        "current_reset": 301550.4,
+        "change_percent": -16.826103393847212
+      }
+    },
+    "tls": {
+      "elapsed_ns": {
+        "baseline_reconnect": 39670466.666666664,
+        "current_reset": 465000.0,
+        "change_percent": -98.82784338307087
+      },
+      "allocated_bytes": {
+        "baseline_reconnect": 2424854.933333333,
+        "current_reset": 554854.1333333333,
+        "change_percent": -77.1180483539029
+      }
+    },
+    "socket": {
+      "elapsed_ns": {
+        "baseline_reconnect": 347333.3333333333,
+        "current_reset": 293833.3333333333,
+        "change_percent": -15.403071017274472
+      },
+      "allocated_bytes": {
+        "baseline_reconnect": 352329.86666666664,
+        "current_reset": 300573.06666666665,
+        "change_percent": -14.689870174692354
+      }
+    }
+  },
+  "performance_references_advanced": false,
+  "current_exit_code": 0,
+  "review_source_reconstruction": {
+    "validation/feature_benchmarks.py": {
+      "path": "validation/results/experiments/stage4-review-feature_benchmarks.py.txt",
+      "sha256": "4571aad752bc5933b98c04adb4ccd29366ed2ce89da4307520627768762914d8"
+    }
+  },
+  "publication_note": "The final Python recorder was whitespace-normalized before publication; exact review bytes are archived. Driver, registered Haskell harness and workload bytes are unchanged. A fresh committed-input run records publication."
+}

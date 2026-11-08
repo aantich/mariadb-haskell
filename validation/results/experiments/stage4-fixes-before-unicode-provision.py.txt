@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""Provision only the reserved local validation databases and accounts.
+
+Run after installing/starting/configuring MariaDB. Uses the current macOS user's
+socket-admin account. It does not alter root or any application account.
+"""
+import argparse
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import subprocess
+import time
+import getpass
+
+HERE = Path(__file__).resolve().parent
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--client", default=shutil.which("mariadb") or "/opt/homebrew/opt/mariadb@12.3/bin/mariadb")
+    p.add_argument("--socket", default="/tmp/mysql.sock")
+    p.add_argument("--port", default="3306")
+    p.add_argument("--tls-ca", default="/opt/homebrew/var/mariadb-haskell/tls/ca.pem")
+    p.add_argument("--output", type=Path, help="separate private environment file for another local profile")
+    args = p.parse_args()
+    local = HERE / ".local"; local.mkdir(exist_ok=True)
+    path = args.output or local / "environment.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    config = json.loads(path.read_text()) if path.exists() else {"MB_PASSWORD": secrets.token_hex(20)}
+    config.update(MB_HOST="127.0.0.1",MB_PORT=args.port,MB_USER="mariadb_haskell_test",
+                  MB_DATABASE="mariadb_haskell_validation",MB_SOCKET=args.socket,
+                  MB_TLS_CA=args.tls_ca,MB_TLS_NAME="localhost")
+    tls=Path(args.tls_ca).parent
+    config.update(MB_TLS_CLIENT_CERT=str(tls/"client-cert.pem"),
+                  MB_TLS_CLIENT_KEY=str(tls/"client-key.pem"),
+                  MB_TLS_EXPIRED_CERT=str(tls/"expired-client-cert.pem"),
+                  MB_TLS_EXPIRED_KEY=str(tls/"expired-client-key.pem"))
+    def admin(sql, check=True):
+        return subprocess.run([args.client,"--protocol=socket","--socket="+args.socket,"--batch","--skip-column-names"],
+                              input=sql,text=True,capture_output=True,check=check)
+    for attempt in range(30):
+        ready = admin("SELECT VERSION()",False)
+        if ready.returncode == 0: break
+        time.sleep(1)
+    else: raise SystemExit("MariaDB must be running before provisioning: " + ready.stderr)
+    if "MariaDB" not in ready.stdout: raise SystemExit("expected MariaDB server")
+    if not Path(args.tls_ca).is_file(): raise SystemExit("configured TLS CA does not exist")
+    password = config["MB_PASSWORD"].replace("\\","\\\\").replace("'","''")
+    os_user=getpass.getuser().replace("'","''")
+    admin(f"""
+CREATE DATABASE IF NOT EXISTS mariadb_haskell_validation CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS testMySQLHaskell CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'mariadb_haskell_test'@'localhost' IDENTIFIED BY '{password}';
+ALTER USER 'mariadb_haskell_test'@'localhost' IDENTIFIED BY '{password}';
+GRANT ALL ON mariadb_haskell_validation.* TO 'mariadb_haskell_test'@'localhost';
+GRANT BINLOG MONITOR, REPLICATION SLAVE ON *.* TO 'mariadb_haskell_test'@'localhost';
+CREATE USER IF NOT EXISTS 'testMySQLHaskell'@'localhost' IDENTIFIED BY '';
+ALTER USER 'testMySQLHaskell'@'localhost' IDENTIFIED BY '';
+GRANT ALL ON testMySQLHaskell.* TO 'testMySQLHaskell'@'localhost';
+GRANT BINLOG MONITOR, REPLICATION SLAVE, CREATE USER ON *.* TO 'testMySQLHaskell'@'localhost';
+CREATE USER IF NOT EXISTS 'mariadb_x509'@'localhost' IDENTIFIED BY '{password}' REQUIRE X509;
+ALTER USER 'mariadb_x509'@'localhost' IDENTIFIED BY '{password}' REQUIRE X509;
+GRANT ALL ON mariadb_haskell_validation.* TO 'mariadb_x509'@'localhost';
+CREATE USER IF NOT EXISTS 'mariadb_socket'@'localhost' IDENTIFIED VIA unix_socket USING '{os_user}';
+ALTER USER 'mariadb_socket'@'localhost' IDENTIFIED VIA unix_socket USING '{os_user}';
+GRANT ALL ON mariadb_haskell_validation.* TO 'mariadb_socket'@'localhost';
+""")
+    # Separate role fixtures keep the ordinary benchmark account unchanged.
+    # The default-role account reaches the database through its role only, so
+    # restoring a different database before that role is an observable error.
+    role = "mb_stage4_rôle_'`"
+    role_identifier = "`" + role.replace("`", "``") + "`"
+    admin(f"""
+CREATE ROLE IF NOT EXISTS {role_identifier};
+CREATE ROLE IF NOT EXISTS mb_stage4_other_role;
+GRANT ALL ON mariadb_haskell_validation.* TO {role_identifier};
+CREATE USER IF NOT EXISTS 'mariadb_role_none'@'localhost' IDENTIFIED BY '{password}';
+ALTER USER 'mariadb_role_none'@'localhost' IDENTIFIED BY '{password}';
+CREATE USER IF NOT EXISTS 'mariadb_role_default'@'localhost' IDENTIFIED BY '{password}';
+ALTER USER 'mariadb_role_default'@'localhost' IDENTIFIED BY '{password}';
+GRANT ALL ON mariadb_haskell_validation.* TO 'mariadb_role_none'@'localhost';
+GRANT {role_identifier} TO 'mariadb_role_none'@'localhost';
+GRANT mb_stage4_other_role TO 'mariadb_role_none'@'localhost';
+GRANT {role_identifier} TO 'mariadb_role_default'@'localhost';
+GRANT mb_stage4_other_role TO 'mariadb_role_default'@'localhost';
+SET DEFAULT ROLE NONE FOR 'mariadb_role_none'@'localhost';
+SET DEFAULT ROLE {role_identifier} FOR 'mariadb_role_default'@'localhost';
+""")
+    configured = []
+    for soname,plugin,user in [("auth_ed25519","ed25519","mariadb_ed25519"),
+                              ("auth_parsec","parsec","mariadb_parsec"),
+                              ("auth_mysql_sha2","caching_sha2_password","mariadb_sha2")]:
+        exists = admin(f"SELECT COUNT(*) FROM information_schema.PLUGINS WHERE PLUGIN_NAME='{plugin}' AND PLUGIN_STATUS='ACTIVE'").stdout.strip()
+        install = admin(f"INSTALL SONAME '{soname}'",False) if exists == "0" else None
+        if install and install.returncode:
+            print(plugin,"unavailable:",install.stderr.strip())
+            continue
+        admin(f"CREATE USER IF NOT EXISTS '{user}'@'localhost' IDENTIFIED VIA {plugin} USING PASSWORD('{password}'); ALTER USER '{user}'@'localhost' IDENTIFIED VIA {plugin} USING PASSWORD('{password}'); GRANT ALL ON mariadb_haskell_validation.* TO '{user}'@'localhost';")
+        configured.append(plugin)
+    config["MB_AVAILABLE_AUTH"] = ",".join(configured)
+    path.write_text(json.dumps(config,indent=2)+"\n"); path.chmod(0o600)
+    print("Configured dedicated validation accounts on",ready.stdout.strip())
+    print("Connection settings:",path,"(mode 0600; excluded from Git)")
+    print("Authentication fixtures:",", ".join(configured))
+
+
+if __name__ == "__main__": main()

@@ -51,6 +51,7 @@ data Command
     | COM_STMT_EXECUTE   !StmtID ![MySQLValue] !BitMap -- ^ 0x17 stmtId, params
     | COM_STMT_CLOSE     !StmtID                  -- ^ 0x19 stmtId
     | COM_STMT_RESET     !StmtID                  -- ^ 0x1A stmtId
+    | COM_RESET_CONNECTION                       -- ^ 0x1F; use the guarded reset API.
     | COM_STMT_BULK_EXECUTE !StmtID !Word16 ![MySQLValue] ![[BulkParameter]]
       -- ^ 0xFA: statement, flags, one type exemplar per column, batch rows.
     | COM_UNSUPPORTED
@@ -90,6 +91,7 @@ putCommand (COM_STMT_EXECUTE stid params nullmap) = do
 
 putCommand (COM_STMT_CLOSE stid) = putWord8 0x19 >> putWord32le stid
 putCommand (COM_STMT_RESET stid) = putWord8 0x1A >> putWord32le stid
+putCommand COM_RESET_CONNECTION = putWord8 0x1f
 putCommand (COM_STMT_BULK_EXECUTE ident flags types rows) = do
     putWord8 0xfa
     putWord32le ident

@@ -72,5 +72,6 @@ connectDetailWithOptions options ci (params,name) = withConnectDeadline options 
             mysqlWrite conn (encodeToPacket 2 (mkAuthWithOptions options (caps+0x800) ci greeting))
             response <- readConnPacket conn
             completeAuth conn greeting True (ciPassword ci) response
-            initializeSession conn
+            role <- initializeSession conn
+            rememberInitialSession conn ci role
             pure (greeting,conn)

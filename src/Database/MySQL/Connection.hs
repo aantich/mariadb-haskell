@@ -69,6 +69,7 @@ import qualified Data.Vector as V
 import Data.Int (Int64)
 import Data.Maybe (isJust)
 import qualified Data.IntMap.Strict as IM
+import Database.MySQL.Session
 import Database.MySQL.Protocol.ColumnDef
 import Database.MySQL.Protocol.MySQLValue
 import Database.MySQL.Query
@@ -173,6 +174,8 @@ data MySQLConn = MySQLConn
     , connectionStatementSerial :: !(IORef Word64)
     , connectionActiveStatement :: !(IORef (Maybe StmtID))
     , connectionResultIndex :: !(IORef Int)
+    , connectionSession :: !(IORef SessionCache)
+    , connectionInitialSession :: !(IORef (Maybe InitialSession))
     }
 
 -- A decoder is compiled per metadata shape, not per row/execution. Metadata
@@ -244,6 +247,8 @@ newConnectionUsing options makeReader output abort = do
     serial <- newIORef 0
     active <- newIORef Nothing
     resultIndex <- newIORef 0
+    observations <- newIORef (emptySessionCache 0)
+    initial <- newIORef Nothing
     input <- makeReader framing
     let checkedOutput packet = advanceFraming (maximumMessageBytes options) framing (pLen packet) (pSeqN packet) >> output packet
     pure MySQLConn
@@ -267,7 +272,18 @@ newConnectionUsing options makeReader output abort = do
         , connectionStatementSerial = serial
         , connectionActiveStatement = active
         , connectionResultIndex = resultIndex
+        , connectionSession = observations
+        , connectionInitialSession = initial
         }
+
+-- Retain only restoration facts, never ConnectInfo or authentication material.
+data InitialSession = InitialSession
+    { initialSchema :: !ByteString
+    , initialCharset :: !ByteString
+    , initialCollation :: !ByteString
+    , initialVersion :: !Int
+    , initialRole :: !(Maybe ByteString)
+    }
 
 data FramingState = FramingState {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word64
 -- The 257 possible empty states are constants, shared by every connection.
@@ -303,6 +319,7 @@ releaseTransport conn = do
 abortConnection :: MySQLConn -> Bool -> IO ()
 abortConnection conn uncertain = mask_ $ do
     clearStatements conn
+    invalidateSession conn
     phase <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
         (rt { runtimeStatus=if runtimeStatus rt == Closed then Closed else Broken, runtimeOwner=Nothing },runtimeStatus rt)
     atomicModifyIORef' (connectionFailureRef conn) $ \prior ->
@@ -346,7 +363,11 @@ finishResponse conn = mask_ $ do
     started <- readIORef (connectionExchangeProgress conn)
     writeIORef (connectionExchangeProgress conn) ReplyComplete
     effect <- readIORef (connectionQueryEffect conn)
-    when (started/=BeforeSend && (caps .&. 0x800000 == 0 || effect==Just True)) (writeIORef (connectionRenderContext conn) Nothing)
+    when (started/=BeforeSend && (caps .&. 0x800000 == 0 || effect==Just True)) $ do
+        writeIORef (connectionRenderContext conn) Nothing
+        -- Preserve the latest actual envelope for observers, while declining
+        -- to present cached facts as current after an opaque effect.
+        invalidateSessionFacts conn
     atomicModifyIORef' (connectionRuntime conn) $ \rt ->
         (if runtimeStatus rt `elem` [Executing,Streaming] then rt {runtimeStatus=Ready,runtimeOwner=Nothing} else rt,())
 
@@ -450,7 +471,8 @@ connectDetailWithOptions opts ci = withConnectDeadline opts $ do
         mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
         q <- readConnPacket conn
         completeAuth conn greet False (ciPassword ci) q
-        initializeSession conn
+        role <- initializeSession conn
+        rememberInitialSession conn ci role
         pure (greet,conn)
 
 -- | Open a Unix-domain socket with the same session and ownership contracts as TCP.
@@ -477,7 +499,8 @@ connectUnixSocketDetailWithOptions opts path ci = withConnectDeadline opts $ do
         mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
         q <- readConnPacket conn
         completeAuth conn greet True (ciPassword ci) q
-        initializeSession conn
+        role <- initializeSession conn
+        rememberInitialSession conn ci role
         pure (greet,conn)
 
 -- Greeting parsing consumes the whole envelope; an initial ERR is a server
@@ -875,6 +898,17 @@ sendCommand conn cmd = do
         COM_STMT_BULK_EXECUTE ident _ _ _ -> Just ident
         _ -> Nothing
     writeIORef (connectionResultIndex conn) 0
+    case cmd of
+        COM_RESET_CONNECTION -> do
+            -- Invalidate before writing: an interrupted reset must never leave
+            -- a usable handle to a statement MariaDB may already have removed.
+            atomicModifyIORef' (connectionStatements conn) (\registry ->
+                (fmap (const (StatementRegistry IM.empty 0)) registry, ()))
+            writeIORef (connectionOpaqueStatements conn) []
+            writeIORef (connectionRenderContext conn) Nothing
+            writeIORef (connectionServerStatus conn) Nothing
+            invalidateSession conn
+        _ -> pure ()
     setExchangeSequence conn 0
     writeIORef (connectionExchangeProgress conn) WireInFlight
     writeEncoded size body (mysqlWrite conn)
@@ -929,6 +963,7 @@ lengthWithin limit = go 0
 close :: MySQLConn -> IO ()
 close conn = mask_ $ do
     clearStatements conn
+    invalidateSession conn
     prior <- atomicModifyIORef' (connectionRuntime conn) (\rt -> (rt {runtimeStatus=Closed,runtimeOwner=Nothing},runtimeStatus rt))
     unless (prior == Closed) $ do
         when (prior `elem` [Executing,Streaming,Replicating]) $
@@ -958,6 +993,7 @@ ping conn = command conn COM_PING
 -- | Low-level command expecting one OK/ERR reply. Commands producing rows or no
 -- reply require their dedicated APIs instead (for example 'closeStmt' in Base).
 command :: MySQLConn -> Command -> IO OK
+command conn COM_RESET_CONNECTION = resetConnection conn
 command conn cmd = withCommand conn $ sendCommand conn cmd >> readConnPacket conn >>= consumeCommandOK conn
 
 consumeCommandOK :: MySQLConn -> Packet -> IO OK
@@ -971,6 +1007,7 @@ serverError conn packet = do
     err <- decodeFromPacket packet
     writeIORef (connectionServerStatus conn) Nothing
     writeIORef (connectionRenderContext conn) Nothing
+    invalidateSession conn
     finishResponse conn
     throwIO (ERRException err)
 
@@ -979,6 +1016,7 @@ updateStatus conn flags = do
     previous <- readIORef (connectionServerStatus conn)
     unless (previous==Just flags) $ do
         writeIORef (connectionServerStatus conn) (Just flags)
+        atomicModifyIORef' (connectionSession conn) (\cache -> (applySessionStatus flags cache, ()))
         when (maybe True (\old -> (old .&. 0x8200) /= (flags .&. 0x8200)) previous) $
             atomicModifyIORef' (connectionRenderContext conn) $ \ctx ->
                 let change c = c {renderSQLModes=toggle "NO_BACKSLASH_ESCAPES" 0x200 (toggle "ANSI_QUOTES" 0x8000 (renderSQLModes c))}
@@ -1002,45 +1040,71 @@ consumeOK conn packet = case P.parseDetailLazy getOK (pBody packet) of
                     (tracking,leftover) <- either (throwIO . ProtocolError) pure (lenString rest)
                     unless (B.null leftover) (throwIO (ProtocolError "trailing session payload"))
                     when (fromIntegral (B.length tracking)>maximumMetadataBytes (connectionOptions conn)) (throwIO (ProtocolError "session tracking payload exceeds metadata budget"))
-                    pairs <- either (throwIO . ProtocolError) pure (trackingPairs tracking)
-                    mapM_ (updateTracked conn) pairs
+                    changes <- either (throwIO . ProtocolError) pure (decodeSessionChanges tracking)
+                    recordSessionChanges conn changes
+                    mapM_ (updateTracked conn) [(name,value) | SystemVariableChanged name value <- changes]
+                    -- MariaDB aliases these settings by storage offset. A
+                    -- collation-only tracker cannot establish the new charset
+                    -- required by the renderer; keep that context explicit.
+                    when (hasVariableChange "collation_connection" changes &&
+                          not (hasVariableChange "character_set_connection" changes)) $
+                        writeIORef (connectionRenderContext conn) Nothing
                 else unless (B.null rest) (throwIO (ProtocolError "unexpected OK trailer"))
         pure ok
 
+-- Kept for internal wire fixtures and the rendering parser's legacy helper.
 lenString :: ByteString -> Either String (ByteString,ByteString)
-lenString bytes = do
-    when (B.null bytes) (Left "truncated length string")
-    let tag=B.head bytes; after=B.tail bytes
-        takeLength width = do
-            when (B.length after < width) (Left "truncated encoded length")
-            let n=B.foldr (\w a -> a*256+fromIntegral w) (0::Word64) (B.take width after)
-            pure (n,B.drop width after)
-    (count,rest) <- case tag of
-        0xfc -> takeLength 2; 0xfd -> takeLength 3; 0xfe -> takeLength 8
-        _ | tag < 0xfb -> Right (fromIntegral tag,after)
-          | otherwise -> Left "invalid non-null string length"
-    when (count > fromIntegral (B.length rest)) (Left "truncated length string body")
-    pure (B.splitAt (fromIntegral count) rest)
--- Each tracker item is length-delimited. Skip unknown kinds by their envelope,
--- not by a guessed layout, and bound both item and variable counts. Retained
--- rendering values are copied by updateTracked to avoid pinning a large packet.
+lenString = lengthString
+
 trackingPairs :: ByteString -> Either String [(ByteString,ByteString)]
-trackingPairs = items 0 []
-  where
-    items :: Int -> [(ByteString,ByteString)] -> ByteString -> Either String [(ByteString,ByteString)]
-    items count acc bytes
-        | B.null bytes = Right (reverse acc)
-        | count>=65535 = Left "too many session tracking items"
-        | otherwise = do
-            (payload,rest) <- lenString (B.tail bytes)
-            (count',acc') <- if B.head bytes==0 then variables (count+1) acc payload else Right (count+1,acc)
-            items count' acc' rest
-    variables count acc body | B.null body = Right (count,acc)
-    variables count acc body = do
-        when (count>=65535) (Left "too many tracked variables")
-        (name,rest) <- lenString body
-        (value,left) <- lenString rest
-        variables (count+1) ((name,value):acc) left
+trackingPairs payload = do
+    changes <- decodeSessionChanges payload
+    pure [(name,value) | SystemVariableChanged name value <- changes]
+
+-- | Read observed session state without claiming the wire or issuing SQL.
+-- ERR, terminal failure, untracked/opaque effects and reset invalidate facts;
+-- unknown values stay explicit. Last changes are a bounded latest envelope,
+-- not a lossless change log. Do not infer that an absent variable is a default.
+getSessionState :: MySQLConn -> IO SessionState
+getSessionState conn = do
+    cache <- readIORef (connectionSession conn)
+    phase <- connectionStatus conn
+    pure (sessionObservation (if phase `elem` [Broken,Closed]
+        then emptySessionCache (sessionChangeNumber (sessionObservation cache)) else cache))
+
+invalidateSession :: MySQLConn -> IO ()
+invalidateSession conn = do
+    flags <- readIORef (connectionServerStatus conn)
+    atomicModifyIORef' (connectionSession conn) $ \cache ->
+        let empty = emptySessionCache (sessionChangeNumber (sessionObservation cache) + 1)
+        in (maybe empty (`applySessionStatus` empty) flags, ())
+
+-- Opaque SQL may disable its own tracking. Keep the last real wire envelope
+-- observable, but invalidate final-state facts rather than invent completeness.
+invalidateSessionFacts :: MySQLConn -> IO ()
+invalidateSessionFacts conn = do
+    flags <- readIORef (connectionServerStatus conn)
+    atomicModifyIORef' (connectionSession conn) $ \cache ->
+        let prior = sessionObservation cache
+            empty = emptySessionCache (sessionChangeNumber prior + 1)
+            current = maybe empty (`applySessionStatus` empty) flags
+        in (current {sessionObservation = (sessionObservation current)
+                {sessionLastChanges = sessionLastChanges prior}}, ())
+
+recordSessionChanges :: MySQLConn -> [SessionChange] -> IO ()
+recordSessionChanges conn = updateSessionObservations conn TrackingEnvelope
+
+-- Seed facts read by explicit helper SQL without fabricating tracker events.
+recordSessionFacts :: MySQLConn -> [SessionChange] -> IO ()
+recordSessionFacts conn = updateSessionObservations conn SnapshotFacts
+
+updateSessionObservations :: MySQLConn -> ObservationSource -> [SessionChange] -> IO ()
+updateSessionObservations conn source changes = do
+    result <- atomicModifyIORef' (connectionSession conn) $ \cache ->
+        case applySessionObservations source (maximumMetadataBytes (connectionOptions conn)) changes cache of
+            Left message -> (cache, Left message)
+            Right updated -> (updated, Right ())
+    either (\message -> abortConnection conn False >> throwIO (ProtocolError message)) pure result
 
 updateTracked :: MySQLConn -> (ByteString,ByteString) -> IO ()
 updateTracked conn (name,value)
@@ -1239,24 +1303,172 @@ clearStatements conn = do
 getRenderContext :: MySQLConn -> IO RenderContext
 getRenderContext conn = readIORef (connectionRenderContext conn) >>= maybe (throwIO SessionContextUnavailable) pure
 
-initializeSession :: MySQLConn -> IO ()
-initializeSession = refreshSessionState
+-- Startup and reset include CURRENT_ROLE in the existing snapshot exchange.
+-- Ordinary public refresh keeps its six rendering facts and never redefines
+-- the constructor's restoration target.
+initializeSession :: MySQLConn -> IO (Maybe ByteString)
+initializeSession = refreshSessionSnapshot RenderingAndRole
+
+-- Capture the constructor's database and wire charset once. Later SET/USE
+-- commands must not silently redefine what a pool's clean session means.
+rememberInitialSession :: MySQLConn -> ConnectInfo -> Maybe ByteString -> IO ()
+rememberInitialSession conn ci role = do
+    context <- getRenderContext conn
+    collation <- maybe (throwIO SessionContextUnavailable) pure (renderConnectionCollation context)
+    writeIORef (connectionInitialSession conn) (Just (InitialSession
+        (B.copy (ciDatabase ci)) (renderClientCharset context) collation (renderServerVersion context) role))
+    recordSessionFacts conn [SchemaChanged (B.copy (ciDatabase ci))]
+
+-- | Roll back and reset a synchronized MariaDB session without reconnecting.
+-- Restores the constructor's active role, nonempty database and charset, configures required
+-- tracking, and refreshes rendering facts. Other settings return to server
+-- defaults; use 'resetConnectionWith' for application-specific initialization.
+-- All prepared handles/raw registrations and cached decoders are invalidated.
+--
+-- Pending streams, transaction helpers and other command owners are rejected
+-- before sending. This cannot repair a broken transport. One cleanup deadline
+-- covers reset and restoration; any failure after starting retires the socket.
+-- The returned OK belongs to RESET; helper SQL changes statement diagnostics.
+resetConnection :: MySQLConn -> IO OK
+resetConnection conn = resetConnectionWith conn (const (pure ()))
+
+-- | Reset and initialize under one exclusive lease and cleanup deadline.
+-- The callback may issue ordinary commands, but must consume all results and
+-- leave no active transaction. Failure or cancellation retires the connection;
+-- SQL is never replayed. A pool should open connections with an explicit
+-- database: MariaDB cannot reset a selected database back to "none". A
+-- constructor with no database can reset only while that fact remains known.
+-- This callback runs with the caller's masking state, including buffered work.
+resetConnectionWith :: MySQLConn -> (MySQLConn -> IO ()) -> IO OK
+resetConnectionWith conn initialize = mask $ \restore -> do
+    acquireResetLease conn
+    flip finally (endTransactionLease conn) $ do
+        initial <- readIORef (connectionInitialSession conn) >>= maybe
+            (throwIO (ProtocolError "initial session restoration facts unavailable")) pure
+        when (initialVersion initial < 100204)
+            (throwIO (ProtocolError "MariaDB reset requires server 10.2.4 or later"))
+        state <- getSessionState conn
+        when (B.null (initialSchema initial) && sessionSchema state /= Just B.empty)
+            (throwIO (ProtocolError "cannot reset a selected/unknown database to none; use an explicit constructor database"))
+        let run = do
+                ok <- withCommand conn $ do
+                    sendCommand conn COM_RESET_CONNECTION
+                    readConnPacket conn >>= consumeCommandOK conn
+                -- RESET preserves the active role. Snapshot it alongside the
+                -- rendering facts, then restore it before selecting a database:
+                -- access to that database may come exclusively from this role.
+                role <- initializeSession conn
+                when (role /= initialRole initial) $ do
+                    context <- getRenderContext conn
+                    sql <- case initialRole initial of
+                        Nothing -> pure "SET ROLE NONE"
+                        Just name -> do
+                            text <- either (const (throwIO (ProtocolError "invalid initial role encoding"))) pure
+                                (TE.decodeUtf8' name)
+                            let renderRole current = renderParams current "SET ROLE ?" [MySQLText text]
+                                utf8Role = do
+                                    -- A valid role can be outside the original
+                                    -- client charset. Change only this rare
+                                    -- restoration path, then let the ordinary
+                                    -- charset restoration below put it back.
+                                    void (command conn (COM_QUERY "SET NAMES utf8mb4"))
+                                    refreshSessionState conn
+                                    utf8 <- getRenderContext conn
+                                    either throwIO pure (renderRole utf8)
+                            case renderRole context of
+                                Left (UnencodableParameter _) -> utf8Role
+                                Left (UnsupportedRenderingContext _) -> utf8Role
+                                result -> either throwIO pure result
+                    void (command conn (COM_QUERY (fromQuery sql)))
+                when (sessionSchema state /= Just (initialSchema initial)) $
+                    void (command conn (COM_INIT_DB (initialSchema initial)))
+                recordSessionFacts conn [SchemaChanged (initialSchema initial)]
+                -- Without negotiated tracking, ROLE/INIT_DB invalidate the
+                -- rendering snapshot. Refresh only on that restoration path;
+                -- unchanged roles/databases keep the ordinary exchange count.
+                restorationContext <- readIORef (connectionRenderContext conn)
+                unless (isJust restorationContext) (refreshSessionState conn)
+                -- MariaDB restores the authentication charset on RESET. Avoid
+                -- a redundant SET NAMES unless the snapshot reports otherwise.
+                context <- getRenderContext conn
+                let identifier bytes = not (B.null bytes) && B.all
+                        (\w -> w >= 97 && w <= 122 || w >= 65 && w <= 90 || w >= 48 && w <= 57 || w == 95) bytes
+                unless (identifier (initialCharset initial) && identifier (initialCollation initial))
+                    (throwIO (ProtocolError "invalid initial charset/collation identifier"))
+                when (renderClientCharset context /= initialCharset initial ||
+                      renderConnectionCollation context /= Just (initialCollation initial)) $ do
+                    void (command conn (COM_QUERY (L.fromStrict ("SET NAMES " <> initialCharset initial
+                        <> " COLLATE " <> initialCollation initial))))
+                    refreshSessionState conn
+                    restored <- getRenderContext conn
+                    unless (renderClientCharset restored == initialCharset initial &&
+                            renderConnectionCollation restored == Just (initialCollation initial))
+                        (throwIO (ProtocolError "server did not restore the initial charset/collation"))
+                recordSessionFacts conn [SchemaChanged (initialSchema initial)]
+                initialize conn
+                guardUnconsumed conn
+                flags <- readIORef (connectionServerStatus conn)
+                unless (maybe False (\value -> value .&. 1 == 0) flags)
+                    (throwIO (ProtocolError "reset initializer left an active or unknown transaction"))
+                known <- readIORef (connectionRenderContext conn)
+                when (not (isJust known)) (refreshSessionState conn)
+                pure ok
+        result <- timeout (cleanupTimeoutMicros (connectionOptions conn))
+            (restore run `onException` abortConnection conn False)
+        case result of
+            Just ok -> pure ok
+            Nothing -> abortConnection conn False >> throwIO CleanupDeadlineExceeded
+
+-- A reset inside withTransaction/refresh would roll back its caller's work.
+-- Unlike ordinary session refresh this operation never borrows an existing
+-- lease, even on the same thread. The atomic claim also excludes stream owners.
+acquireResetLease :: MySQLConn -> IO ()
+acquireResetLease conn = do
+    tid <- myThreadId
+    result <- atomicModifyIORef' (connectionRuntime conn) $ \runtime ->
+        if runtimeStatus runtime == Ready && transactionOwner runtime == Nothing
+        then (runtime {transactionOwner = Just tid}, Right ())
+        else (runtime, Left (case runtimeStatus runtime of
+            Streaming -> toException UnconsumedResultSet
+            Broken -> toException (ConnectionUnavailable Broken)
+            Closed -> toException (ConnectionUnavailable Closed)
+            _ | transactionOwner runtime == Just tid -> toException NestedTransactionUnsupported
+              | otherwise -> toException ConcurrentConnectionUse))
+    either throwIO pure result
+
 -- | Reconfigure tracking and explicitly snapshot rendering facts under one lease.
 -- This executes SQL and therefore changes preceding-statement diagnostics such
 -- as ROW_COUNT(). Existing tracker selections, including '*', are preserved.
 refreshSessionState :: MySQLConn -> IO ()
-refreshSessionState conn = withSessionLease conn $ do
+refreshSessionState conn = void (refreshSessionSnapshot RenderingFacts conn)
+
+-- Binary role bytes bypass character_set_results: lossy conversion could make
+-- two distinct Unicode roles compare equal. The extra column costs no exchange.
+-- Keep it out of ordinary refreshes, which do not establish a new clean-session role.
+data SnapshotFields = RenderingFacts | RenderingAndRole deriving (Eq)
+
+refreshSessionSnapshot :: SnapshotFields -> MySQLConn -> IO (Maybe ByteString)
+refreshSessionSnapshot fieldsToRead conn = withSessionLease conn $ do
     guardUnconsumed conn
     caps <- readIORef (connectionCapabilities conn)
-    when (caps .&. 0x800000 /= 0) $ void $ command conn (COM_QUERY "SET SESSION session_track_system_variables=IF(@@session.session_track_system_variables='*','*',CONCAT_WS(',',NULLIF(@@session.session_track_system_variables,''),'sql_mode,character_set_client,character_set_connection,character_set_results,session_track_system_variables'))")
-    (context, limit) <- withCommand conn $ do
-        sendCommand conn (COM_QUERY "SELECT @@sql_mode,@@character_set_client,@@character_set_connection,@@collation_connection,VERSION(),CAST(@@max_allowed_packet AS CHAR)")
+    when (caps .&. 0x800000 /= 0) $ void $ withCommand conn $ do
+        -- This exact setup statement changes only tracker configuration. It
+        -- cannot execute a routine or invalidate an already observed schema.
+        writeIORef (connectionQueryEffect conn) (Just False)
+        sendCommand conn (COM_QUERY "SET SESSION session_track_schema=ON, session_track_system_variables=IF(@@session.session_track_system_variables='*','*',CONCAT_WS(',',NULLIF(@@session.session_track_system_variables,''),'sql_mode,character_set_client,character_set_connection,character_set_results,session_track_system_variables,session_track_schema,session_track_transaction_info'))")
+        readConnPacket conn >>= consumeCommandOK conn
+    (context, limit, role) <- withCommand conn $ do
+        writeIORef (connectionQueryEffect conn) (Just False)
+        let query = "SELECT @@sql_mode,@@character_set_client,@@character_set_connection,@@collation_connection,VERSION(),CAST(@@max_allowed_packet AS CHAR)"
+                <> if fieldsToRead == RenderingAndRole then ",CAST(CURRENT_ROLE() AS BINARY)" else ""
+        sendCommand conn (COM_QUERY query)
         first <- readConnPacket conn
         when (isERR first) (serverError conn first)
         metadata <- readResultColumns conn first
         let fields = cachedFields metadata
             count = length fields
-        unless (count == 6) (throwIO (ProtocolError "invalid session snapshot column count"))
+        unless (count == if fieldsToRead == RenderingAndRole then 7 else 6)
+            (throwIO (ProtocolError "invalid session snapshot column count"))
         rowPacket <- readConnPacket conn
         when (fromIntegral (pLen rowPacket) > maximumMetadataBytes (connectionOptions conn))
             (throwIO (ProtocolError "session snapshot exceeds metadata budget"))
@@ -1264,7 +1476,20 @@ refreshSessionState conn = withSessionLease conn $ do
         -- Force/validate the snapshot while this exchange is still owned. A
         -- lazy UTF-8 exception after Ready would escape retirement, and a
         -- permissive decoder could otherwise accept an unparsed row trailer.
-        values <- forM rawValues $ \value -> do
+        let (renderingValues, roleValues) = splitAt 6 rawValues
+        role <- case roleValues of
+            [] -> pure Nothing
+            [MySQLNull] -> pure Nothing
+            [MySQLText value] -> Just <$> ownSnapshotValue (TE.encodeUtf8 value)
+            [MySQLBytes value] -> do
+                -- Binary results must still represent a valid role name when
+                -- later rendered in the constructor's client charset.
+                owned <- ownSnapshotValue value
+                either (const (throwIO (ProtocolError "invalid role snapshot encoding"))) (const (pure ()))
+                    (TE.decodeUtf8' owned)
+                pure (Just owned)
+            _ -> throwIO (ProtocolError "invalid role snapshot value type")
+        values <- forM renderingValues $ \value -> do
             bytes <- case value of
                 MySQLText text -> evaluate (TE.encodeUtf8 text)
                 MySQLBytes raw -> pure raw
@@ -1272,7 +1497,7 @@ refreshSessionState conn = withSessionLease conn $ do
             -- These six cold-start facts outlive the receive buffers. Retain
             -- explicitly owned, bounded storage regardless of codec internals;
             -- ordinary result payloads are not copied by this policy.
-            B.copy <$> boundedSnapshotValue bytes
+            ownSnapshotValue bytes
         snapshot <- case values of
             [modes, client, server, collation, version, packetLimit] -> do
                 versionID <- maybe (throwIO (ProtocolError "invalid server version snapshot")) pure (versionNumber version)
@@ -1286,9 +1511,16 @@ refreshSessionState conn = withSessionLease conn $ do
         unless isEnd (throwIO (UnexpectedPacket end))
         flags <- consumeEnd conn end
         when (flags .&. 8 /= 0) (throwIO (ProtocolError "unexpected additional session snapshot result"))
-        pure snapshot
+        let (context, limit) = snapshot
+        pure (context, limit, role)
     writeIORef (connectionServerPacketLimit conn) limit
     writeIORef (connectionRenderContext conn) (Just context)
+    recordSessionFacts conn
+        [SystemVariableChanged "sql_mode" (BC.intercalate "," (renderSQLModes context)),
+         SystemVariableChanged "character_set_client" (renderClientCharset context),
+         SystemVariableChanged "character_set_connection" (renderConnectionCharset context),
+         SystemVariableChanged "collation_connection" (maybe "" id (renderConnectionCollation context))]
+    pure role
   where
     -- Failure must be detected under the command claim, not turned into version
     -- zero after Ready: version gates determine which SQL bytes are executable.
@@ -1298,6 +1530,9 @@ refreshSessionState conn = withSessionLease conn $ do
     component value = case BC.readInt value of
         Just (n, rest) | n >= 0 && n < 100 && B.null rest -> Just n
         _ -> Nothing
+    -- Force copies while the exchange is owned; neither a role nor a rendering
+    -- fact can retain a receive-buffer slice or defer work past Ready.
+    ownSnapshotValue bytes = boundedSnapshotValue bytes >>= evaluate . B.copy
     boundedSnapshotValue bytes = do
         when (B.length bytes > maximumRenderingValueBytes)
             (throwIO (ProtocolError "session snapshot value exceeds bound"))

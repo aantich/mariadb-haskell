@@ -1,0 +1,2221 @@
+diff --git a/mysql-haskell.cabal b/mysql-haskell.cabal
+index b80729811c5d3fdf7c26247c62944ffb0974e5cd..f739c938ee349a3e05bf553dd1d4d1f74c3fb7cd 100644
+--- a/mysql-haskell.cabal
++++ b/mysql-haskell.cabal
+@@ -90,6 +90,7 @@ library
+   autogen-modules:    Paths_mysql_haskell
+   hs-source-dirs:     src
+   other-modules:      Database.MySQL.Query
++                      Database.MySQL.Session
+   build-depends:
+     asn1-encoding >=0.9 && <0.10,
+     asn1-types >=0.3 && <0.4,
+@@ -294,6 +295,8 @@ executable mariadb-validation
+     Validation.Stage2
+     Validation.Stage3
+     Validation.Stage3Bench
++    Validation.Stage4
++    Validation.Stage4Bench
+     Validation.FaultTransport
+   build-depends:
+     binary, bytestring, containers, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector
+diff --git a/src/Database/MySQL/Base.hs b/src/Database/MySQL/Base.hs
+index c0bcc23bebc4d8b15fb0a87258106b2b991d037a..e611bdfaa9e69fbb1ea4a0c75acec57e1ecfb9cd 100644
+--- a/src/Database/MySQL/Base.hs
++++ b/src/Database/MySQL/Base.hs
+@@ -37,6 +37,11 @@ module Database.MySQL.Base
+     , ConnectionError(..)
+     , connectionStatus
+     , connectionFailure
++    , resetConnection
++    , resetConnectionWith
++    , getSessionState
++    , SessionState(..)
++    , SessionChange(..)
+     , refreshSessionState
+     , getRenderContext
+     , RenderContext(..)
+@@ -127,6 +132,7 @@ import           Database.MySQL.Protocol.Command
+ import           Database.MySQL.Protocol.MySQLValue
+ import           Database.MySQL.Protocol.Packet
+ 
++import           Database.MySQL.Session (SessionState(..), SessionChange(..))
+ import           Database.MySQL.Query
+ import           System.IO.Streams                  (InputStream)
+ import qualified System.IO.Streams                  as Stream
+diff --git a/src/Database/MySQL/Connection.hs b/src/Database/MySQL/Connection.hs
+index 89e7e62144763b738108a4ad50c879d3106f6309..d11da51a5168d6a9895483029d6a8f9f7654b2f0 100644
+--- a/src/Database/MySQL/Connection.hs
++++ b/src/Database/MySQL/Connection.hs
+@@ -69,6 +69,7 @@ import qualified Data.Vector as V
+ import Data.Int (Int64)
+ import Data.Maybe (isJust)
+ import qualified Data.IntMap.Strict as IM
++import Database.MySQL.Session
+ import Database.MySQL.Protocol.ColumnDef
+ import Database.MySQL.Protocol.MySQLValue
+ import Database.MySQL.Query
+@@ -173,6 +174,8 @@ data MySQLConn = MySQLConn
+     , connectionStatementSerial :: !(IORef Word64)
+     , connectionActiveStatement :: !(IORef (Maybe StmtID))
+     , connectionResultIndex :: !(IORef Int)
++    , connectionSession :: !(IORef SessionCache)
++    , connectionInitialSession :: !(IORef (Maybe InitialSession))
+     }
+ 
+ -- A decoder is compiled per metadata shape, not per row/execution. Metadata
+@@ -244,6 +247,8 @@ newConnectionUsing options makeReader output abort = do
+     serial <- newIORef 0
+     active <- newIORef Nothing
+     resultIndex <- newIORef 0
++    observations <- newIORef (emptySessionCache 0)
++    initial <- newIORef Nothing
+     input <- makeReader framing
+     let checkedOutput packet = advanceFraming (maximumMessageBytes options) framing (pLen packet) (pSeqN packet) >> output packet
+     pure MySQLConn
+@@ -267,8 +272,18 @@ newConnectionUsing options makeReader output abort = do
+         , connectionStatementSerial = serial
+         , connectionActiveStatement = active
+         , connectionResultIndex = resultIndex
++        , connectionSession = observations
++        , connectionInitialSession = initial
+         }
+ 
++-- Retain only restoration facts, never ConnectInfo or authentication material.
++data InitialSession = InitialSession
++    { initialSchema :: !ByteString
++    , initialCharset :: !ByteString
++    , initialCollation :: !ByteString
++    , initialVersion :: !Int
++    }
++
+ data FramingState = FramingState {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word64
+ -- The 257 possible empty states are constants, shared by every connection.
+ -- Ordinary short packets need no new framing-state allocation per row.
+@@ -303,6 +318,7 @@ releaseTransport conn = do
+ abortConnection :: MySQLConn -> Bool -> IO ()
+ abortConnection conn uncertain = mask_ $ do
+     clearStatements conn
++    invalidateSession conn
+     phase <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
+         (rt { runtimeStatus=if runtimeStatus rt == Closed then Closed else Broken, runtimeOwner=Nothing },runtimeStatus rt)
+     atomicModifyIORef' (connectionFailureRef conn) $ \prior ->
+@@ -346,7 +362,11 @@ finishResponse conn = mask_ $ do
+     started <- readIORef (connectionExchangeProgress conn)
+     writeIORef (connectionExchangeProgress conn) ReplyComplete
+     effect <- readIORef (connectionQueryEffect conn)
+-    when (started/=BeforeSend && (caps .&. 0x800000 == 0 || effect==Just True)) (writeIORef (connectionRenderContext conn) Nothing)
++    when (started/=BeforeSend && (caps .&. 0x800000 == 0 || effect==Just True)) $ do
++        writeIORef (connectionRenderContext conn) Nothing
++        -- Preserve the latest actual envelope for observers, while declining
++        -- to present cached facts as current after an opaque effect.
++        invalidateSessionFacts conn
+     atomicModifyIORef' (connectionRuntime conn) $ \rt ->
+         (if runtimeStatus rt `elem` [Executing,Streaming] then rt {runtimeStatus=Ready,runtimeOwner=Nothing} else rt,())
+ 
+@@ -451,6 +471,7 @@ connectDetailWithOptions opts ci = withConnectDeadline opts $ do
+         q <- readConnPacket conn
+         completeAuth conn greet False (ciPassword ci) q
+         initializeSession conn
++        rememberInitialSession conn ci
+         pure (greet,conn)
+ 
+ -- | Open a Unix-domain socket with the same session and ownership contracts as TCP.
+@@ -478,6 +499,7 @@ connectUnixSocketDetailWithOptions opts path ci = withConnectDeadline opts $ do
+         q <- readConnPacket conn
+         completeAuth conn greet True (ciPassword ci) q
+         initializeSession conn
++        rememberInitialSession conn ci
+         pure (greet,conn)
+ 
+ -- Greeting parsing consumes the whole envelope; an initial ERR is a server
+@@ -875,6 +897,17 @@ sendCommand conn cmd = do
+         COM_STMT_BULK_EXECUTE ident _ _ _ -> Just ident
+         _ -> Nothing
+     writeIORef (connectionResultIndex conn) 0
++    case cmd of
++        COM_RESET_CONNECTION -> do
++            -- Invalidate before writing: an interrupted reset must never leave
++            -- a usable handle to a statement MariaDB may already have removed.
++            atomicModifyIORef' (connectionStatements conn) (\registry ->
++                (fmap (const (StatementRegistry IM.empty 0)) registry, ()))
++            writeIORef (connectionOpaqueStatements conn) []
++            writeIORef (connectionRenderContext conn) Nothing
++            writeIORef (connectionServerStatus conn) Nothing
++            invalidateSession conn
++        _ -> pure ()
+     setExchangeSequence conn 0
+     writeIORef (connectionExchangeProgress conn) WireInFlight
+     writeEncoded size body (mysqlWrite conn)
+@@ -929,6 +962,7 @@ lengthWithin limit = go 0
+ close :: MySQLConn -> IO ()
+ close conn = mask_ $ do
+     clearStatements conn
++    invalidateSession conn
+     prior <- atomicModifyIORef' (connectionRuntime conn) (\rt -> (rt {runtimeStatus=Closed,runtimeOwner=Nothing},runtimeStatus rt))
+     unless (prior == Closed) $ do
+         when (prior `elem` [Executing,Streaming,Replicating]) $
+@@ -958,6 +992,7 @@ ping conn = command conn COM_PING
+ -- | Low-level command expecting one OK/ERR reply. Commands producing rows or no
+ -- reply require their dedicated APIs instead (for example 'closeStmt' in Base).
+ command :: MySQLConn -> Command -> IO OK
++command conn COM_RESET_CONNECTION = resetConnection conn
+ command conn cmd = withCommand conn $ sendCommand conn cmd >> readConnPacket conn >>= consumeCommandOK conn
+ 
+ consumeCommandOK :: MySQLConn -> Packet -> IO OK
+@@ -971,6 +1006,7 @@ serverError conn packet = do
+     err <- decodeFromPacket packet
+     writeIORef (connectionServerStatus conn) Nothing
+     writeIORef (connectionRenderContext conn) Nothing
++    invalidateSession conn
+     finishResponse conn
+     throwIO (ERRException err)
+ 
+@@ -979,6 +1015,7 @@ updateStatus conn flags = do
+     previous <- readIORef (connectionServerStatus conn)
+     unless (previous==Just flags) $ do
+         writeIORef (connectionServerStatus conn) (Just flags)
++        atomicModifyIORef' (connectionSession conn) (\cache -> (applySessionStatus flags cache, ()))
+         when (maybe True (\old -> (old .&. 0x8200) /= (flags .&. 0x8200)) previous) $
+             atomicModifyIORef' (connectionRenderContext conn) $ \ctx ->
+                 let change c = c {renderSQLModes=toggle "NO_BACKSLASH_ESCAPES" 0x200 (toggle "ANSI_QUOTES" 0x8000 (renderSQLModes c))}
+@@ -1002,45 +1039,65 @@ consumeOK conn packet = case P.parseDetailLazy getOK (pBody packet) of
+                     (tracking,leftover) <- either (throwIO . ProtocolError) pure (lenString rest)
+                     unless (B.null leftover) (throwIO (ProtocolError "trailing session payload"))
+                     when (fromIntegral (B.length tracking)>maximumMetadataBytes (connectionOptions conn)) (throwIO (ProtocolError "session tracking payload exceeds metadata budget"))
+-                    pairs <- either (throwIO . ProtocolError) pure (trackingPairs tracking)
+-                    mapM_ (updateTracked conn) pairs
++                    changes <- either (throwIO . ProtocolError) pure (decodeSessionChanges tracking)
++                    recordSessionChanges conn changes
++                    mapM_ (updateTracked conn) [(name,value) | SystemVariableChanged name value <- changes]
+                 else unless (B.null rest) (throwIO (ProtocolError "unexpected OK trailer"))
+         pure ok
+ 
++-- Kept for internal wire fixtures and the rendering parser's legacy helper.
+ lenString :: ByteString -> Either String (ByteString,ByteString)
+-lenString bytes = do
+-    when (B.null bytes) (Left "truncated length string")
+-    let tag=B.head bytes; after=B.tail bytes
+-        takeLength width = do
+-            when (B.length after < width) (Left "truncated encoded length")
+-            let n=B.foldr (\w a -> a*256+fromIntegral w) (0::Word64) (B.take width after)
+-            pure (n,B.drop width after)
+-    (count,rest) <- case tag of
+-        0xfc -> takeLength 2; 0xfd -> takeLength 3; 0xfe -> takeLength 8
+-        _ | tag < 0xfb -> Right (fromIntegral tag,after)
+-          | otherwise -> Left "invalid non-null string length"
+-    when (count > fromIntegral (B.length rest)) (Left "truncated length string body")
+-    pure (B.splitAt (fromIntegral count) rest)
+--- Each tracker item is length-delimited. Skip unknown kinds by their envelope,
+--- not by a guessed layout, and bound both item and variable counts. Retained
+--- rendering values are copied by updateTracked to avoid pinning a large packet.
++lenString = lengthString
++
+ trackingPairs :: ByteString -> Either String [(ByteString,ByteString)]
+-trackingPairs = items 0 []
+-  where
+-    items :: Int -> [(ByteString,ByteString)] -> ByteString -> Either String [(ByteString,ByteString)]
+-    items count acc bytes
+-        | B.null bytes = Right (reverse acc)
+-        | count>=65535 = Left "too many session tracking items"
+-        | otherwise = do
+-            (payload,rest) <- lenString (B.tail bytes)
+-            (count',acc') <- if B.head bytes==0 then variables (count+1) acc payload else Right (count+1,acc)
+-            items count' acc' rest
+-    variables count acc body | B.null body = Right (count,acc)
+-    variables count acc body = do
+-        when (count>=65535) (Left "too many tracked variables")
+-        (name,rest) <- lenString body
+-        (value,left) <- lenString rest
+-        variables (count+1) ((name,value):acc) left
++trackingPairs payload = do
++    changes <- decodeSessionChanges payload
++    pure [(name,value) | SystemVariableChanged name value <- changes]
++
++-- | Read observed session state without claiming the wire or issuing SQL.
++-- ERR, terminal failure, untracked/opaque effects and reset invalidate facts;
++-- unknown values stay explicit. Last changes are a bounded latest envelope,
++-- not a lossless change log. Do not infer that an absent variable is a default.
++getSessionState :: MySQLConn -> IO SessionState
++getSessionState conn = do
++    cache <- readIORef (connectionSession conn)
++    phase <- connectionStatus conn
++    pure (sessionObservation (if phase `elem` [Broken,Closed]
++        then emptySessionCache (sessionChangeNumber (sessionObservation cache)) else cache))
++
++invalidateSession :: MySQLConn -> IO ()
++invalidateSession conn = do
++    flags <- readIORef (connectionServerStatus conn)
++    atomicModifyIORef' (connectionSession conn) $ \cache ->
++        let empty = emptySessionCache (sessionChangeNumber (sessionObservation cache) + 1)
++        in (maybe empty (`applySessionStatus` empty) flags, ())
++
++-- Opaque SQL may disable its own tracking. Keep the last real wire envelope
++-- observable, but invalidate final-state facts rather than invent completeness.
++invalidateSessionFacts :: MySQLConn -> IO ()
++invalidateSessionFacts conn = do
++    flags <- readIORef (connectionServerStatus conn)
++    atomicModifyIORef' (connectionSession conn) $ \cache ->
++        let prior = sessionObservation cache
++            empty = emptySessionCache (sessionChangeNumber prior + 1)
++            current = maybe empty (`applySessionStatus` empty) flags
++        in (current {sessionObservation = (sessionObservation current)
++                {sessionLastChanges = sessionLastChanges prior}}, ())
++
++recordSessionChanges :: MySQLConn -> [SessionChange] -> IO ()
++recordSessionChanges conn = updateSessionObservations conn TrackingEnvelope
++
++-- Seed facts read by explicit helper SQL without fabricating tracker events.
++recordSessionFacts :: MySQLConn -> [SessionChange] -> IO ()
++recordSessionFacts conn = updateSessionObservations conn SnapshotFacts
++
++updateSessionObservations :: MySQLConn -> ObservationSource -> [SessionChange] -> IO ()
++updateSessionObservations conn source changes = do
++    result <- atomicModifyIORef' (connectionSession conn) $ \cache ->
++        case applySessionObservations source (maximumMetadataBytes (connectionOptions conn)) changes cache of
++            Left message -> (cache, Left message)
++            Right updated -> (updated, Right ())
++    either (\message -> abortConnection conn False >> throwIO (ProtocolError message)) pure result
+ 
+ updateTracked :: MySQLConn -> (ByteString,ByteString) -> IO ()
+ updateTracked conn (name,value)
+@@ -1241,6 +1298,105 @@ getRenderContext conn = readIORef (connectionRenderContext conn) >>= maybe (thro
+ 
+ initializeSession :: MySQLConn -> IO ()
+ initializeSession = refreshSessionState
++
++-- Capture the constructor's database and wire charset once. Later SET/USE
++-- commands must not silently redefine what a pool's clean session means.
++rememberInitialSession :: MySQLConn -> ConnectInfo -> IO ()
++rememberInitialSession conn ci = do
++    context <- getRenderContext conn
++    collation <- maybe (throwIO SessionContextUnavailable) pure (renderConnectionCollation context)
++    writeIORef (connectionInitialSession conn) (Just (InitialSession
++        (B.copy (ciDatabase ci)) (renderClientCharset context) collation (renderServerVersion context)))
++    recordSessionFacts conn [SchemaChanged (B.copy (ciDatabase ci))]
++
++-- | Roll back and reset a synchronized MariaDB session without reconnecting.
++-- Restores the constructor's nonempty database and charset, configures required
++-- tracking, and refreshes rendering facts. Other settings return to server
++-- defaults; use 'resetConnectionWith' for application-specific initialization.
++-- All prepared handles/raw registrations and cached decoders are invalidated.
++--
++-- Pending streams, transaction helpers and other command owners are rejected
++-- before sending. This cannot repair a broken transport. One cleanup deadline
++-- covers reset and restoration; any failure after starting retires the socket.
++-- The returned OK belongs to RESET; helper SQL changes statement diagnostics.
++resetConnection :: MySQLConn -> IO OK
++resetConnection conn = resetConnectionWith conn (const (pure ()))
++
++-- | Reset and initialize under one exclusive lease and cleanup deadline.
++-- The callback may issue ordinary commands, but must consume all results and
++-- leave no active transaction. Failure or cancellation retires the connection;
++-- SQL is never replayed. A pool should open connections with an explicit
++-- database: MariaDB cannot reset a selected database back to "none". A
++-- constructor with no database can reset only while that fact remains known.
++-- This callback runs with the caller's masking state, including buffered work.
++resetConnectionWith :: MySQLConn -> (MySQLConn -> IO ()) -> IO OK
++resetConnectionWith conn initialize = mask $ \restore -> do
++    acquireResetLease conn
++    flip finally (endTransactionLease conn) $ do
++        initial <- readIORef (connectionInitialSession conn) >>= maybe
++            (throwIO (ProtocolError "initial session restoration facts unavailable")) pure
++        when (initialVersion initial < 100204)
++            (throwIO (ProtocolError "MariaDB reset requires server 10.2.4 or later"))
++        state <- getSessionState conn
++        when (B.null (initialSchema initial) && sessionSchema state /= Just B.empty)
++            (throwIO (ProtocolError "cannot reset a selected/unknown database to none; use an explicit constructor database"))
++        let run = do
++                ok <- withCommand conn $ do
++                    sendCommand conn COM_RESET_CONNECTION
++                    readConnPacket conn >>= consumeCommandOK conn
++                when (sessionSchema state /= Just (initialSchema initial)) $
++                    void (command conn (COM_INIT_DB (initialSchema initial)))
++                recordSessionFacts conn [SchemaChanged (initialSchema initial)]
++                -- MariaDB restores the authentication charset on RESET. Read
++                -- the mandatory snapshot first; avoid a redundant SET NAMES
++                -- exchange unless the server reports a different charset.
++                refreshSessionState conn
++                context <- getRenderContext conn
++                let identifier bytes = not (B.null bytes) && B.all
++                        (\w -> w >= 97 && w <= 122 || w >= 65 && w <= 90 || w >= 48 && w <= 57 || w == 95) bytes
++                unless (identifier (initialCharset initial) && identifier (initialCollation initial))
++                    (throwIO (ProtocolError "invalid initial charset/collation identifier"))
++                when (renderClientCharset context /= initialCharset initial ||
++                      renderConnectionCollation context /= Just (initialCollation initial)) $ do
++                    void (command conn (COM_QUERY (L.fromStrict ("SET NAMES " <> initialCharset initial
++                        <> " COLLATE " <> initialCollation initial))))
++                    refreshSessionState conn
++                    restored <- getRenderContext conn
++                    unless (renderClientCharset restored == initialCharset initial &&
++                            renderConnectionCollation restored == Just (initialCollation initial))
++                        (throwIO (ProtocolError "server did not restore the initial charset/collation"))
++                recordSessionFacts conn [SchemaChanged (initialSchema initial)]
++                initialize conn
++                guardUnconsumed conn
++                flags <- readIORef (connectionServerStatus conn)
++                unless (maybe False (\value -> value .&. 1 == 0) flags)
++                    (throwIO (ProtocolError "reset initializer left an active or unknown transaction"))
++                known <- readIORef (connectionRenderContext conn)
++                when (not (isJust known)) (refreshSessionState conn)
++                pure ok
++        result <- timeout (cleanupTimeoutMicros (connectionOptions conn))
++            (restore run `onException` abortConnection conn False)
++        case result of
++            Just ok -> pure ok
++            Nothing -> abortConnection conn False >> throwIO CleanupDeadlineExceeded
++
++-- A reset inside withTransaction/refresh would roll back its caller's work.
++-- Unlike ordinary session refresh this operation never borrows an existing
++-- lease, even on the same thread. The atomic claim also excludes stream owners.
++acquireResetLease :: MySQLConn -> IO ()
++acquireResetLease conn = do
++    tid <- myThreadId
++    result <- atomicModifyIORef' (connectionRuntime conn) $ \runtime ->
++        if runtimeStatus runtime == Ready && transactionOwner runtime == Nothing
++        then (runtime {transactionOwner = Just tid}, Right ())
++        else (runtime, Left (case runtimeStatus runtime of
++            Streaming -> toException UnconsumedResultSet
++            Broken -> toException (ConnectionUnavailable Broken)
++            Closed -> toException (ConnectionUnavailable Closed)
++            _ | transactionOwner runtime == Just tid -> toException NestedTransactionUnsupported
++              | otherwise -> toException ConcurrentConnectionUse))
++    either throwIO pure result
++
+ -- | Reconfigure tracking and explicitly snapshot rendering facts under one lease.
+ -- This executes SQL and therefore changes preceding-statement diagnostics such
+ -- as ROW_COUNT(). Existing tracker selections, including '*', are preserved.
+@@ -1248,8 +1404,14 @@ refreshSessionState :: MySQLConn -> IO ()
+ refreshSessionState conn = withSessionLease conn $ do
+     guardUnconsumed conn
+     caps <- readIORef (connectionCapabilities conn)
+-    when (caps .&. 0x800000 /= 0) $ void $ command conn (COM_QUERY "SET SESSION session_track_system_variables=IF(@@session.session_track_system_variables='*','*',CONCAT_WS(',',NULLIF(@@session.session_track_system_variables,''),'sql_mode,character_set_client,character_set_connection,character_set_results,session_track_system_variables'))")
++    when (caps .&. 0x800000 /= 0) $ void $ withCommand conn $ do
++        -- This exact setup statement changes only tracker configuration. It
++        -- cannot execute a routine or invalidate an already observed schema.
++        writeIORef (connectionQueryEffect conn) (Just False)
++        sendCommand conn (COM_QUERY "SET SESSION session_track_schema=ON, session_track_system_variables=IF(@@session.session_track_system_variables='*','*',CONCAT_WS(',',NULLIF(@@session.session_track_system_variables,''),'sql_mode,character_set_client,character_set_connection,character_set_results,session_track_system_variables,session_track_schema,session_track_transaction_info'))")
++        readConnPacket conn >>= consumeCommandOK conn
+     (context, limit) <- withCommand conn $ do
++        writeIORef (connectionQueryEffect conn) (Just False)
+         sendCommand conn (COM_QUERY "SELECT @@sql_mode,@@character_set_client,@@character_set_connection,@@collation_connection,VERSION(),CAST(@@max_allowed_packet AS CHAR)")
+         first <- readConnPacket conn
+         when (isERR first) (serverError conn first)
+@@ -1289,6 +1451,11 @@ refreshSessionState conn = withSessionLease conn $ do
+         pure snapshot
+     writeIORef (connectionServerPacketLimit conn) limit
+     writeIORef (connectionRenderContext conn) (Just context)
++    recordSessionFacts conn
++        [SystemVariableChanged "sql_mode" (BC.intercalate "," (renderSQLModes context)),
++         SystemVariableChanged "character_set_client" (renderClientCharset context),
++         SystemVariableChanged "character_set_connection" (renderConnectionCharset context),
++         SystemVariableChanged "collation_connection" (maybe "" id (renderConnectionCollation context))]
+   where
+     -- Failure must be detected under the command claim, not turned into version
+     -- zero after Ready: version gates determine which SQL bytes are executable.
+diff --git a/src/Database/MySQL/Protocol/Command.hs b/src/Database/MySQL/Protocol/Command.hs
+index 9458a52269ae4374c8ce0c98b99800bcc0d582bc..3c32f7b2d7e16003e1cdf2eb6116982415d243a7 100644
+--- a/src/Database/MySQL/Protocol/Command.hs
++++ b/src/Database/MySQL/Protocol/Command.hs
+@@ -51,6 +51,7 @@ data Command
+     | COM_STMT_EXECUTE   !StmtID ![MySQLValue] !BitMap -- ^ 0x17 stmtId, params
+     | COM_STMT_CLOSE     !StmtID                  -- ^ 0x19 stmtId
+     | COM_STMT_RESET     !StmtID                  -- ^ 0x1A stmtId
++    | COM_RESET_CONNECTION                       -- ^ 0x1F; use the guarded reset API.
+     | COM_STMT_BULK_EXECUTE !StmtID !Word16 ![MySQLValue] ![[BulkParameter]]
+       -- ^ 0xFA: statement, flags, one type exemplar per column, batch rows.
+     | COM_UNSUPPORTED
+@@ -90,6 +91,7 @@ putCommand (COM_STMT_EXECUTE stid params nullmap) = do
+ 
+ putCommand (COM_STMT_CLOSE stid) = putWord8 0x19 >> putWord32le stid
+ putCommand (COM_STMT_RESET stid) = putWord8 0x1A >> putWord32le stid
++putCommand COM_RESET_CONNECTION = putWord8 0x1f
+ putCommand (COM_STMT_BULK_EXECUTE ident flags types rows) = do
+     putWord8 0xfa
+     putWord32le ident
+diff --git a/src/Database/MySQL/Session.hs b/src/Database/MySQL/Session.hs
+new file mode 100644
+index 0000000000000000000000000000000000000000..a112265d3c94a01cf5f0621b04ef62f55b716d40
+--- /dev/null
++++ b/src/Database/MySQL/Session.hs
+@@ -0,0 +1,189 @@
++-- | Bounded session observations carried by MariaDB OK packets. This module
++-- owns retained bytes; callers never keep slices of a large receive buffer.
++module Database.MySQL.Session where
++
++import Control.Monad (foldM, unless, when)
++import Data.Bits ((.&.))
++import qualified Data.ByteString as B
++import Data.ByteString (ByteString)
++import qualified Data.Map.Strict as M
++import Data.Word
++import qualified Data.ByteString.Char8 as BC
++
++-- | One server-reported change. Unknown kinds retain their length-delimited
++-- payload rather than guessing a layout. Values can contain application data;
++-- do not log session observations indiscriminately.
++data SessionChange
++    = SystemVariableChanged !ByteString !ByteString -- ^ Variable name and value.
++    | SchemaChanged !ByteString -- ^ Empty bytes mean no selected database.
++    | SessionStateChanged !Bool -- ^ The server's generic state-change marker.
++    | TransactionCharacteristicsChanged !ByteString -- ^ Server-provided SQL text.
++    | TransactionStateChanged !ByteString -- ^ Eight-byte MariaDB transaction state.
++    | UnknownSessionChange !Word8 !ByteString -- ^ Unimplemented tracker kind and payload.
++    deriving (Eq, Show)
++
++-- | Current observations, not a complete inventory of server settings. 'Nothing'
++-- means unknown; an absent variable has not been observed or is no longer tracked.
++-- A snapshot reflects only replies consumed so far, including during streaming.
++-- 'sessionLastChanges' is the latest tracking envelope, not an event queue: use
++-- 'sessionChangeNumber' to recognize replacement, and snapshot fields for final
++-- state after multiple results. Transaction flags also work without tracking.
++data SessionState = SessionState
++    { sessionSchema :: !(Maybe ByteString) -- ^ Known schema; Just empty means none.
++    , sessionVariables :: !(M.Map ByteString ByteString) -- ^ Observed tracked variables.
++    , sessionAutocommit :: !(Maybe Bool) -- ^ SERVER_STATUS_AUTOCOMMIT, not transaction activity.
++    , sessionInTransaction :: !(Maybe Bool) -- ^ SERVER_STATUS_IN_TRANS.
++    , sessionTransactionCharacteristics :: !(Maybe ByteString) -- ^ When the server tracks them.
++    , sessionTransactionState :: !(Maybe ByteString) -- ^ When the server tracks it.
++    , sessionLastChanges :: ![SessionChange] -- ^ Latest bounded tracker envelope, in wire order.
++    , sessionChangeNumber :: !Word64 -- ^ Advances on a tracker envelope or invalidation.
++    } deriving (Eq, Show)
++
++-- Internal accounting avoids rescanning every tracked variable per update.
++data SessionCache = SessionCache
++    { sessionObservation :: !SessionState
++    , sessionVariableBytes :: !Word64
++    }
++
++emptySessionCache :: Word64 -> SessionCache
++emptySessionCache serial = SessionCache
++    (SessionState Nothing M.empty Nothing Nothing Nothing Nothing [] serial) 0
++
++-- The caller has already bounded the complete OK envelope. Additionally bound
++-- item counts, even for zero-length payloads, and reject known malformed kinds.
++decodeSessionChanges :: ByteString -> Either String [SessionChange]
++decodeSessionChanges = items 0 []
++  where
++    items :: Int -> [SessionChange] -> ByteString -> Either String [SessionChange]
++    items count acc bytes
++        | B.null bytes = Right (reverse acc)
++        | count >= 65535 = Left "too many session tracking items"
++        | otherwise = do
++            (payload, rest) <- lengthString (B.tail bytes)
++            (next, changes) <- case B.head bytes of
++                0 -> variables (count + 1) acc payload
++                kind -> do
++                    change <- case kind of
++                        1 -> SchemaChanged <$> single payload
++                        2 -> single payload >>= \value -> case value of
++                            "0" -> pure (SessionStateChanged False)
++                            "1" -> pure (SessionStateChanged True)
++                            _ -> Left "invalid session state-change marker"
++                        4 -> TransactionCharacteristicsChanged <$> single payload
++                        5 -> do
++                            value <- single payload
++                            unless (B.length value == 8) (Left "invalid transaction state length")
++                            pure (TransactionStateChanged value)
++                        _ -> pure (UnknownSessionChange kind (B.copy payload))
++                    pure (count + 1, change : acc)
++            items next changes rest
++    variables count acc bytes
++        | B.null bytes = Right (count, acc)
++        | count >= 65535 = Left "too many tracked variables"
++        | otherwise = do
++            (name, rest) <- lengthString bytes
++            (value, remaining) <- lengthString rest
++            when (B.null name) (Left "empty tracked variable name")
++            variables (count + 1) (SystemVariableChanged (B.copy name) (B.copy value) : acc) remaining
++    single payload = do
++        (value, rest) <- lengthString payload
++        unless (B.null rest) (Left "trailing session tracking payload")
++        pure (B.copy value)
++
++-- Non-NULL length-encoded strings, with arithmetic in Word64 before conversion.
++lengthString :: ByteString -> Either String (ByteString, ByteString)
++lengthString bytes = do
++    when (B.null bytes) (Left "truncated length string")
++    let tag = B.head bytes
++        after = B.tail bytes
++        takeLength width = do
++            when (B.length after < width) (Left "truncated encoded length")
++            let size = B.foldr (\byte acc -> acc * 256 + fromIntegral byte)
++                            (0 :: Word64) (B.take width after)
++            pure (size, B.drop width after)
++    (count, rest) <- case tag of
++        0xfc -> takeLength 2
++        0xfd -> takeLength 3
++        0xfe -> takeLength 8
++        _ | tag < 0xfb -> Right (fromIntegral tag, after)
++          | otherwise -> Left "invalid non-null string length"
++    when (count > fromIntegral (B.length rest)) (Left "truncated length string body")
++    pure (B.splitAt (fromIntegral count) rest)
++
++applySessionStatus :: Word16 -> SessionCache -> SessionCache
++applySessionStatus flags cache = cache {sessionObservation = state
++    { sessionAutocommit = Just (flags .&. 2 /= 0)
++    , sessionInTransaction = Just (flags .&. 1 /= 0)
++    }}
++  where state = sessionObservation cache
++
++-- Replace the latest envelope, then apply deltas with incremental byte charges.
++-- Both accumulated variables and the retained latest envelope share the budget.
++applySessionChanges :: Word64 -> [SessionChange] -> SessionCache -> Either String SessionCache
++applySessionChanges = applySessionObservations TrackingEnvelope
++
++-- Helper SELECT/configuration observations update facts without creating a
++-- tracker event. Charge the envelope actually retained, including an older one.
++applySessionFacts :: Word64 -> [SessionChange] -> SessionCache -> Either String SessionCache
++applySessionFacts = applySessionObservations SnapshotFacts
++
++data ObservationSource = TrackingEnvelope | SnapshotFacts
++
++applySessionObservations :: ObservationSource -> Word64 -> [SessionChange] -> SessionCache -> Either String SessionCache
++applySessionObservations source limit changes cache = do
++    applied <- foldM apply cache changes
++    -- A changed subscription invalidates values the server will no longer
++    -- report. Recount only on this cold configuration path, never per query.
++    let updated = case reverse [value | SystemVariableChanged "session_track_system_variables" value <- changes] of
++            selected : _ | selected /= "*" ->
++                let names = BC.split ',' selected
++                    observed = sessionObservation applied
++                    kept = M.filterWithKey (\name _ -> name `elem` names || name == "session_track_system_variables")
++                               (sessionVariables observed)
++                in applied {sessionObservation = observed {sessionVariables = kept},
++                    sessionVariableBytes = sum [bytes key + bytes value | (key,value) <- M.toList kept]}
++            _ -> applied
++        state = sessionObservation updated
++        prior = sessionObservation cache
++        envelope = case source of TrackingEnvelope -> changes; SnapshotFacts -> sessionLastChanges prior
++        serial = case source of TrackingEnvelope -> sessionChangeNumber prior + 1; SnapshotFacts -> sessionChangeNumber prior
++        retained = sessionVariableBytes updated + sum (map changeBytes envelope)
++            + maybeBytes (sessionSchema state)
++            + maybeBytes (sessionTransactionCharacteristics state)
++            + maybeBytes (sessionTransactionState state)
++    when (retained > limit) (Left "retained session state exceeds metadata budget")
++    pure updated {sessionObservation = state
++        {sessionLastChanges = envelope, sessionChangeNumber = serial}}
++  where
++    apply current change = case change of
++        SystemVariableChanged name value -> do
++            let state = sessionObservation current
++                variables = sessionVariables state
++                old = maybe 0 (\prior -> bytes name + bytes prior) (M.lookup name variables)
++                charge = sessionVariableBytes current - old + bytes name + bytes value
++            when (charge > limit || M.size variables >= 65535 && M.notMember name variables)
++                (Left "tracked variables exceed session budget")
++            pure current {sessionVariableBytes = charge, sessionObservation = state
++                {sessionVariables = M.insert name value variables,
++                 sessionSchema = if name == "session_track_schema" && value `elem` ["0","OFF"]
++                    then Nothing else sessionSchema state,
++                 sessionTransactionState = if name == "session_track_transaction_info" && value == "OFF"
++                    then Nothing else sessionTransactionState state,
++                 sessionTransactionCharacteristics = if name == "session_track_transaction_info" && value == "OFF"
++                    then Nothing else sessionTransactionCharacteristics state}}
++        SchemaChanged value -> pure (modifyState (\s -> s {sessionSchema = Just value}) current)
++        TransactionCharacteristicsChanged value -> pure (modifyState
++            (\s -> s {sessionTransactionCharacteristics = Just value}) current)
++        TransactionStateChanged value -> pure (modifyState
++            (\s -> s {sessionTransactionState = Just value}) current)
++        _ -> pure current
++    modifyState change current = current {sessionObservation = change (sessionObservation current)}
++    maybeBytes = maybe 0 bytes
++    bytes = fromIntegral . B.length
++    changeBytes change = case change of
++        SystemVariableChanged name value -> bytes name + bytes value
++        SchemaChanged value -> bytes value
++        SessionStateChanged _ -> 1
++        TransactionCharacteristicsChanged value -> bytes value
++        TransactionStateChanged value -> bytes value
++        UnknownSessionChange _ value -> bytes value
+diff --git a/src/Database/MySQL/TLS.hs b/src/Database/MySQL/TLS.hs
+index b504cd0d1496d33f94a31462f6d8f8e5d3f635c7..31fa6333f959c66cbd4ffc0aa99f07237c3400b4 100644
+--- a/src/Database/MySQL/TLS.hs
++++ b/src/Database/MySQL/TLS.hs
+@@ -73,4 +73,5 @@ connectDetailWithOptions options ci (params,name) = withConnectDeadline options
+             response <- readConnPacket conn
+             completeAuth conn greeting True (ciPassword ci) response
+             initializeSession conn
++            rememberInitialSession conn ci
+             pure (greeting,conn)
+diff --git a/validation/check.py b/validation/check.py
+index 4e9988e274104cc47d8829f0a82752838c67902a..fcfb050bc51f2bb3893be582765be67e1b132b7c 100644
+--- a/validation/check.py
++++ b/validation/check.py
+@@ -44,6 +44,15 @@ def native_benchmarks(output, repetitions, config):
+     return data
+ 
+ 
++def session_reuse_benchmarks(output, repetitions, config):
++    """Require complete request-boundary measurements in every Stage 4 run."""
++    destination = output / 'reuse'
++    subprocess.run([sys.executable, str(run.HERE / 'stage4_benchmarks.py'),
++                    '--config', str(config), '--output', str(destination),
++                    '--repetitions', str(repetitions)], cwd=run.ROOT, check=True)
++    return json.loads((destination / 'results.json').read_text())
++
++
+ def main():
+     if "--help" in sys.argv or "-h" in sys.argv:
+         status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
+@@ -117,6 +126,26 @@ def main():
+                 except KeyboardInterrupt:
+                     attempt.update(state="FAILED", stage="native benchmarks", reason="Native benchmarks interrupted.")
+                     data, gate, status = None, None, 130
++            if data is not None and any(case['id'].startswith('stage4.') for case in data.get('correctness', [])):
++                try:
++                    from stage4_benchmarks import verify_evidence as verify_reuse
++                    reuse = session_reuse_benchmarks(output, args.repetitions, args.config)
++                    verify_reuse(reuse, inputs)
++                    attempt['session_reuse'] = reuse
++                    comparison = reuse['baseline_comparison']
++                    gate['reuse_timing_investigations'] = comparison['timing_investigations']
++                    gate['reuse_allocation_investigations'] = comparison['allocation_investigations']
++                    gate['performance_requires_confirmation'] = gate.get('performance_requires_confirmation', False) or bool(comparison['timing_investigations'] or comparison['allocation_investigations'])
++                    (run.HERE / 'results/stage1-gates.json').write_text(json.dumps(gate, indent=2) + '\n')
++                    if any(item['percent'] > 20 for item in comparison['timing_investigations']):
++                        status = status or 1
++                except (OSError, ValueError, KeyError, RuntimeError, subprocess.CalledProcessError) as error:
++                    attempt.update(state='FAILED', stage='session reuse benchmarks',
++                                   reason='Session reuse evidence failed: ' + str(error))
++                    data, gate, status = None, None, status or 1
++                except KeyboardInterrupt:
++                    attempt.update(state='FAILED', stage='session reuse benchmarks', reason='Session reuse benchmarks interrupted.')
++                    data, gate, status = None, None, 130
+             attempt.update(exit_code=status, finished_at=live.now())
+             live.publish(attempt,data,gate=gate)
+             print("Live results updated:",live.REPORT,flush=True)
+diff --git a/validation/feature_benchmarks.py b/validation/feature_benchmarks.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..c5fdf28d055c5e0e02dce88d9ac253c4672e8432
+--- /dev/null
++++ b/validation/feature_benchmarks.py
+@@ -0,0 +1,248 @@
++#!/usr/bin/env python3
++"""Shared recorder and independent evidence checks for additive feature suites.
++
++Workload-specific units/checksums live in immutable specifications. Both native
++and session-reuse recorders use these same completeness and baseline guards.
++"""
++from dataclasses import dataclass
++import argparse
++import json
++import hashlib
++import os
++import platform
++from pathlib import Path
++import random
++import statistics
++
++import publish_results as live
++import run
++
++@dataclass(frozen=True)
++class FeatureSpec:
++    """Wire record identity, workloads and independent expected work."""
++    marker: str
++    command: str
++    label: str
++    profiles: dict
++    units: dict
++    checksums: dict
++    pairs: dict
++    baseline_directory: Path
++    workload_paths: tuple
++
++
++def sample(spec, output, ident):
++    """Require one complete record, positive work and the independent checksum."""
++    lines = [line for line in output.splitlines() if line.startswith(spec.marker + '\t')]
++    if len(lines) != 1:
++        raise ValueError(f'expected exactly one {spec.label} benchmark record')
++    marker, name, *values = lines[0].split('\t')
++    if marker != spec.marker or name != ident or len(values) != 6:
++        raise ValueError(f'{spec.label} benchmark record shape/identity mismatch')
++    result = dict(zip(('units', 'elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns', 'checksum'), map(int, values)))
++    if (result['units'] <= 0 or result['elapsed_ns'] <= 0 or result['allocated_bytes'] <= 0
++            or any(value < 0 for value in result.values())):
++        raise ValueError(f'invalid {spec.label} benchmark counters')
++    expected = spec.checksums[ident]
++    if result['checksum'] != expected:
++        raise ValueError(f'{spec.label} benchmark checksum mismatch')
++    expected_units = spec.units[ident]
++    if result['units'] != expected_units:
++        raise ValueError(f'{spec.label} benchmark unit count mismatch')
++    return result
++
++
++def verify_measurements(spec, data, inputs):
++    """Validate samples/units independently of any baseline comparison."""
++    if (not data.get('complete') or data.get('repetitions', 0) < 7
++            or data.get('inputs', {}).get('sha256') != inputs['sha256']):
++        raise ValueError(f'{spec.label} benchmark evidence is incomplete or stale')
++    if data['inputs'].get('files') != inputs.get('files'):
++        raise ValueError(f'{spec.label} input file evidence disagrees with current inputs')
++    if inputs.get('commit') is not None and (data['inputs'].get('commit') != inputs['commit']
++            or data.get('build', {}).get('git_commit') != inputs['commit']):
++        raise ValueError(f'{spec.label} tested commit disagrees with current inputs')
++    if set(data.get('profiles', {})) != set(spec.profiles):
++        raise ValueError(f'{spec.label} benchmark profiles are incomplete')
++    keys = ('units', 'elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns', 'checksum')
++    for ident, profile in data['profiles'].items():
++        if len(profile.get('samples', [])) != data['repetitions']:
++            raise ValueError(f'{spec.label} benchmark repetitions are incomplete')
++        for entry in profile['samples']:
++            sample(spec, spec.marker + '\t' + ident + '\t' + '\t'.join(str(entry[k]) for k in keys), ident)
++        for key in keys[1:-1]:
++            expected = statistics.median(s[key] / s['units'] for s in profile['samples'])
++            if profile.get('median_' + key + '_per_unit') != expected:
++                raise ValueError(f'{spec.label} benchmark summary disagrees with samples')
++
++    if set(data.get('comparisons', {})) != set(spec.pairs):
++        raise ValueError(f'{spec.label} comparison profiles are incomplete')
++    for name, (candidate, reference) in spec.pairs.items():
++        pair = data['comparisons'][name]
++        if pair.get('current') != candidate or pair.get('baseline') != reference:
++            raise ValueError(f'{spec.label} comparison identity mismatch')
++        for key in ('elapsed_ns', 'allocated_bytes'):
++            expected = 100 * (data['profiles'][candidate]['median_' + key + '_per_unit'] /
++                              data['profiles'][reference]['median_' + key + '_per_unit'] - 1)
++            if pair.get('change_percent', {}).get(key) != expected:
++                raise ValueError(f'{spec.label} comparison disagrees with samples')
++
++
++def load_baseline(spec):
++    """Require the immutable capture, including both checksummed artifacts.
++
++    The baseline is versioned with this runner. A missing file is a damaged
++    validation checkout, rather than permission to skip regression detection.
++    Publication repeats this check so deleting/changing it after a run cannot
++    leave an apparently valid report pointing to absent or different evidence.
++    """
++    directory = run.HERE / spec.baseline_directory
++    try:
++        entries = {}
++        for line in (directory / 'SHA256SUMS').read_text().splitlines():
++            parts = line.split()
++            if len(parts) != 2:
++                raise ValueError(f'invalid {spec.label} baseline checksum manifest')
++            digest, name = parts
++            if name in entries:
++                raise ValueError(f'duplicate {spec.label} baseline checksum entry')
++            entries[name] = digest
++        contents = {name: (directory / name).read_bytes() for name in ('results.json', 'SUMMARY.md')}
++    except OSError as error:
++        raise ValueError(f'required {spec.label} baseline is missing or unreadable') from error
++    if set(entries) != set(contents):
++        raise ValueError(f'{spec.label} baseline checksum manifest is incomplete')
++    for name, raw in contents.items():
++        if hashlib.sha256(raw).hexdigest() != entries[name]:
++            raise ValueError(f'{spec.label} baseline checksum mismatch: ' + name)
++    baseline = json.loads(contents['results.json'])
++    verify_measurements(spec, baseline, baseline['inputs'])
++    return baseline, entries['results.json']
++
++
++def baseline_comparison(spec, data):
++    """Recalculate all deltas and alarms from the verified immutable capture."""
++    baseline, expected_hash = load_baseline(spec)
++    # json round-trips tuples as lists. Compare dependency identities in a
++    # canonical form, both before saving a run and during later publication.
++    same_dependencies = sorted(map(tuple, data['dependencies'])) == sorted(map(tuple, baseline['dependencies']))
++    same = (same_dependencies
++            and all(data[key] == baseline[key] for key in ('server', 'machine', 'haskell_benchmark_rts'))
++            and all(data['build'][key] == baseline['build'][key] for key in ('ghc', 'cabal'))
++            and all(data['inputs']['files'][key] == baseline['inputs']['files'][key] for key in spec.workload_paths))
++    comparison = {'reference': live.relative(run.HERE / spec.baseline_directory / 'results.json'),
++                  'sha256': expected_hash, 'comparable': same,
++                  'timing_investigations': [], 'allocation_investigations': [], 'profiles': {}}
++    if same:
++        for ident, profile in data['profiles'].items():
++            old = baseline['profiles'][ident]
++            changes = {key: 100 * (profile['median_' + key + '_per_unit'] / old['median_' + key + '_per_unit'] - 1)
++                       for key in ('elapsed_ns', 'allocated_bytes')}
++            comparison['profiles'][ident] = changes
++            for metric, category in [('elapsed_ns', 'timing_investigations'), ('allocated_bytes', 'allocation_investigations')]:
++                if changes[metric] > 5:
++                    comparison[category].append({'id': ident, 'percent': changes[metric]})
++    return comparison
++
++
++def attach_baseline_comparison(spec, data):
++    """Attach the required baseline comparison after all measurements complete."""
++    data['baseline_comparison'] = baseline_comparison(spec, data)
++
++
++def verify_evidence(spec, data, inputs):
++    """Require current measurements and independently verified baseline deltas."""
++    verify_measurements(spec, data, inputs)
++    if data.get('baseline_comparison') != baseline_comparison(spec, data):
++        raise ValueError(f'{spec.label} baseline comparison is missing or disagrees with verified evidence')
++
++
++def main(spec):
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--output', type=Path, required=True)
++    parser.add_argument('--config', type=Path, default=run.HERE / '.local/environment.json')
++    parser.add_argument('--repetitions', type=int, default=7)
++    parser.add_argument('--freeze', action='store_true', help='capture this suite’s first immutable baseline; refuses replacement')
++    args = parser.parse_args()
++    if args.repetitions < 7:
++        parser.error('native confirmation requires at least seven process repetitions')
++    if args.output.exists():
++        parser.error('output directory exists; previous evidence must be retained')
++    env = os.environ.copy()
++    env.update(json.loads(args.config.read_text()))
++    env['TZ'] = 'UTC'
++    version = run.sql_client(env, 'SELECT VERSION()')
++    if 'MariaDB' not in version:
++        raise RuntimeError('expected MariaDB before build')
++    baseline_directory = run.HERE / spec.baseline_directory
++    if args.freeze:
++        if baseline_directory.exists():
++            raise ValueError('refusing to replace an immutable feature baseline')
++    else:
++        load_baseline(spec)
++    inputs = live.input_snapshot()
++    run.command(['cabal', 'build', 'exe:mariadb-validation', '-O2', '--enable-tests'], timeout=300)
++    if any(live.input_snapshot()[key] != inputs[key] for key in ('files', 'commit')):
++        raise RuntimeError(f'inputs changed during {spec.label} benchmark build')
++    binary = run.executable('exe:mariadb-validation')
++    args.output.mkdir(parents=True)
++    plan = json.loads((run.ROOT / 'dist-newstyle/cache/plan.json').read_text())
++    dependencies = sorted({(p['pkg-name'], p['pkg-version']) for p in plan['install-plan'] if p['pkg-name'] != 'mysql-haskell'})
++    data = {'schema': 1, 'recorded_at': live.now(), 'inputs': inputs,
++            'server': run.server_metadata(env), 'repetitions': args.repetitions,
++            'build': run.snapshot(), 'haskell_benchmark_rts': ['-N4', '-T'],
++            'dependencies': dependencies,
++            'dependency_plan_sha256': hashlib.sha256(json.dumps(dependencies).encode()).hexdigest(),
++            'machine': {'system': platform.system(), 'release': platform.release(),
++                        'machine': platform.machine(), 'processor': platform.processor(), 'cpu_count': os.cpu_count()},
++            'policy': 'two in-process warmups; shuffled independent processes; same-build alternatives; all samples retained',
++            'profiles': {ident: {'samples': []} for ident in spec.profiles}, 'complete': False}
++    destination = args.output / 'results.json'
++    try:
++        for repetition in range(args.repetitions):
++            order = list(spec.profiles)
++            random.Random(20261107 + repetition).shuffle(order)
++            for ident in order:
++                output = run.command([binary, spec.command, ident, str(spec.profiles[ident]),
++                                      '+RTS', '-N4', '-T', '-RTS'], env=env, timeout=180, check=False)
++                (args.output / f'{ident}.{repetition}.log').write_text(output.stdout + output.stderr)
++                if output.returncode:
++                    raise RuntimeError(f'{spec.label} benchmark process failed: ' + ident)
++                data['profiles'][ident]['samples'].append(sample(spec, output.stdout, ident))
++                print(spec.marker, repetition + 1, ident, flush=True)
++        for profile in data['profiles'].values():
++            for key in ('elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns'):
++                profile['median_' + key + '_per_unit'] = statistics.median(s[key] / s['units'] for s in profile['samples'])
++        data['comparisons'] = {}
++        for name, (candidate, reference) in spec.pairs.items():
++            data['comparisons'][name] = {'current': candidate, 'baseline': reference,
++                'change_percent': {key: 100 * (data['profiles'][candidate]['median_' + key + '_per_unit'] /
++                    data['profiles'][reference]['median_' + key + '_per_unit'] - 1)
++                    for key in ('elapsed_ns', 'allocated_bytes')}}
++        if any(live.input_snapshot()[key] != inputs[key] for key in ('files', 'commit')):
++            raise RuntimeError(f'inputs changed during {spec.label} benchmark measurement')
++        data['complete'] = True
++        if args.freeze:
++            verify_measurements(spec, data, inputs)
++            baseline_directory.mkdir(parents=True, exist_ok=False)
++            artifacts = {'results.json': (json.dumps(data, indent=2) + '\n').encode(),
++                'SUMMARY.md': (f'# Immutable {spec.label} feature baseline\n\n'
++                    f'First complete capture: {data["recorded_at"]}.\n\n'
++                    f'Input fingerprint: `{inputs["sha256"]}`.\n\n'
++                    f'{args.repetitions} independent process repetitions per profile; '
++                    'two warmups per process. All samples and checksums are retained.\n').encode()}
++            for name, raw in artifacts.items():
++                (baseline_directory / name).write_bytes(raw)
++            (baseline_directory / 'SHA256SUMS').write_text(''.join(
++                hashlib.sha256(raw).hexdigest() + '  ' + name + '\n' for name, raw in artifacts.items()))
++        else:
++            attach_baseline_comparison(spec, data)
++            verify_evidence(spec, data, inputs)
++    except Exception as error:
++        data['complete'] = False
++        data['error'] = str(error)
++        raise
++    finally:
++        destination.write_text(json.dumps(data, indent=2) + '\n')
++
++
+diff --git a/validation/hs/Main.hs b/validation/hs/Main.hs
+index 4c898080a633fd432bba7edb4ec288c39a772999..a39db3ccc2c12955123406750f48047feac82a97 100644
+--- a/validation/hs/Main.hs
++++ b/validation/hs/Main.hs
+@@ -19,9 +19,11 @@ import qualified Validation.Stage1 as Stage1
+ import qualified Validation.Stage2 as Stage2
+ import qualified Validation.Stage3 as Stage3
+ import qualified Validation.Stage3Bench as Stage3Bench
++import qualified Validation.Stage4 as Stage4
++import qualified Validation.Stage4Bench as Stage4Bench
+ 
+ allCases :: [Case]
+-allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases
++allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases
+ 
+ main :: IO ()
+ main=do
+@@ -40,6 +42,7 @@ main=do
+     run ["case",ident]=case find ((==ident) . caseId) allCases of
+         Nothing -> throwIO (userError ("unknown test " ++ ident))
+         Just c -> caseRun c >> putStrLn ("PASS\t" ++ ident)
++    run ["stage4-bench",ident,n]=Stage4Bench.run ident (read n)
+     run ["stage3-bench",ident,n]=Stage3Bench.run ident (read n)
+     run ["stage1-bench",ident,n]=Supplementary.run ident (read n)
+     run ["bench",ident,n]=Benchmark.runBenchmark ident (read n)
+diff --git a/validation/hs/Validation/Reliability.hs b/validation/hs/Validation/Reliability.hs
+index 5a904dc79ddff1808185a7fa83670e92ca2c6101..b2653692ad4179a9b0d968950b40120ce87d5cfe 100644
+--- a/validation/hs/Validation/Reliability.hs
++++ b/validation/hs/Validation/Reliability.hs
+@@ -11,6 +11,7 @@ import qualified System.IO.Streams as S
+ import System.Timeout
+ import Validation.Common
+ import qualified Validation.Stage3 as Stage3
++import qualified Validation.Stage4 as Stage4
+ 
+ cases :: [Case]
+ cases =
+@@ -145,8 +146,8 @@ cases =
+     , Case "capability.binary-bulk" "capabilities" $ Stage3.bulkFeature
+     , Case "capability.metadata-cache" "capabilities" $ Stage3.cacheFeature
+     , Case "capability.extended-metadata" "capabilities" $ Stage3.extendedFeature
+-    , Case "capability.session-tracking" "capabilities" $ throwIO (Unsupported "OK/session-state payloads are not exposed")
+-    , Case "capability.reset-connection" "capabilities" $ throwIO (Unsupported "no COM_RESET_CONNECTION API")
++    , Case "capability.session-tracking" "capabilities" $ Stage4.trackingFeature
++    , Case "capability.reset-connection" "capabilities" $ Stage4.resetFeature
+     , Case "capability.progress-reporting" "capabilities" $ throwIO (Unsupported "no negotiated MariaDB progress callback")
+     , Case "capability.cursor-fetch" "capabilities" $ throwIO (Unsupported "no COM_STMT_FETCH/cursor API")
+     , Case "capability.long-data" "capabilities" $ throwIO (Unsupported "no COM_STMT_SEND_LONG_DATA API")
+diff --git a/validation/hs/Validation/Stage4.hs b/validation/hs/Validation/Stage4.hs
+new file mode 100644
+index 0000000000000000000000000000000000000000..9b3b859c19277a52e83538517579a09d1ee567a4
+--- /dev/null
++++ b/validation/hs/Validation/Stage4.hs
+@@ -0,0 +1,461 @@
++{-# LANGUAGE ScopedTypeVariables #-}
++-- | Session isolation checks use both literal wire envelopes and a real server.
++-- Tests count actual writes and cover cancellation at restoration boundaries;
++-- a successful RESET acknowledgement alone does not prove a reusable session.
++module Validation.Stage4 (cases, resetFeature, trackingFeature) where
++
++import Control.Concurrent
++import Control.Exception hiding (assert)
++import Control.Monad
++import Data.Binary.Put
++import Data.Bits
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Internal as BI
++import qualified Data.ByteString.Lazy as L
++import Data.IORef
++import Data.Word (Word8)
++import qualified Data.Map.Strict as M
++import Database.MySQL.Base
++import qualified Database.MySQL.Connection as C
++import qualified System.IO.Streams as S
++import System.Timeout
++import Validation.Common
++import Validation.FaultTransport
++
++case4 :: String -> IO () -> Case
++case4 name = Case ("stage4." ++ name) "stage4"
++
++-- Independent literal protocol construction: the parser is not used to encode
++-- these fixtures, and malformed known types retain their proper outer length.
++item :: Word8 -> Put -> Put
++item kind body = putWord8 kind >> putLenEncBytes (L.toStrict (runPut body))
++
++variable :: B.ByteString -> B.ByteString -> Put
++variable name value = item 0 (putLenEncBytes name >> putLenEncBytes value)
++
++tracked :: Put -> Packet
++tracked changes = putToPacket 1 $ do
++    putByteString (B.pack [0,0,0,2,64,0,0])
++    putLenEncBytes ""
++    putLenEncBytes (L.toStrict (runPut changes))
++
++trackingFixture :: Put -> IO (MySQLConn, IO [Packet], IO Int)
++trackingFixture changes = do
++    result@(conn, _, _) <- scripted defaultConnectionOptions [tracked changes]
++    writeIORef (C.connectionCapabilities conn) (bit 23 .|. bit 24)
++    pure result
++
++snapshotPackets :: [Packet]
++snapshotPackets = [putToPacket 1 (putLenEncInt 6)] ++
++    [encodeToPacket n (ColumnDef "" "" "" "fact" "" 33 100 mySQLTypeVarString 0 0) | n <- [2..7]] ++
++    [encodeToPacket 8 (EOF 0 2), putToPacket 9 (mapM_ putLenEncBytes
++        ["","utf8mb4","utf8mb4","utf8mb4_unicode_ci","12.3.3-MariaDB","67108864"]),
++     encodeToPacket 10 (EOF 0 2)]
++
++resetFixture :: [Packet] -> IO (MySQLConn, IO [Packet], IO Int)
++resetFixture packets = do
++    result@(conn, _, _) <- scripted defaultConnectionOptions packets
++    writeIORef (C.connectionInitialSession conn)
++        (Just (C.InitialSession "db" "utf8mb4" "utf8mb4_unicode_ci" 120303))
++    writeIORef (C.connectionServerStatus conn) (Just 2)
++    C.recordSessionChanges conn [SchemaChanged "db"]
++    pure result
++
++resetTranscript :: [Packet]
++resetTranscript = encodeToPacket 1 (OK 0 0 2 0) : snapshotPackets
++
++-- Stall after an optional acknowledged prefix, so deadlines/cancellation are
++-- armed by an actual read boundary rather than a scheduler-dependent sleep.
++stalledReset :: [Packet] -> IO (MySQLConn, IO (), IO Int)
++stalledReset prefix = do
++    packets <- newIORef prefix
++    entered <- newEmptyMVar
++    blocked <- newEmptyMVar
++    released <- newIORef 0
++    input <- S.makeInputStream $ do
++        next <- atomicModifyIORef' packets (\remaining -> case remaining of
++            [] -> ([],Nothing)
++            first:rest -> (rest,Just first))
++        case next of
++            Just packet -> pure (Just packet)
++            Nothing -> void (tryPutMVar entered ()) >> takeMVar blocked
++    conn <- C.newConnection defaultConnectionOptions {cleanupTimeoutMicros=20000}
++        input (const (pure ())) (modifyIORef' released (+1))
++    writeIORef (C.connectionInitialSession conn)
++        (Just (C.InitialSession "db" "utf8mb4" "utf8mb4_unicode_ci" 120303))
++    C.recordSessionFacts conn [SchemaChanged "db"]
++    pure (conn, takeMVar entered, readIORef released)
++
++resetFeature :: IO ()
++resetFeature = withConn $ \conn -> do
++    before <- scalarInt conn "SELECT CONNECTION_ID()"
++    exec conn "SET @mb_stage4_user=7"
++    exec conn "CREATE TEMPORARY TABLE mb_stage4_temp(n INT)"
++    stmt <- prepareStatement conn "SELECT 7"
++    void (resetConnection conn)
++    equal "reset does not reconnect" before =<< scalarInt conn "SELECT CONNECTION_ID()"
++    equal "user variables cleared" MySQLNull =<< scalar conn "SELECT @mb_stage4_user"
++    expectERR [1146] (rows conn "SELECT * FROM mb_stage4_temp")
++    expectRejection (preparedMetadata stmt)
++    refreshSessionState conn
++    healthy conn
++
++trackingFeature :: IO ()
++trackingFeature = withConn $ \conn -> do
++    exec conn "SET time_zone='+01:00'"
++    state <- getSessionState conn
++    equal "tracked timezone exposed" (Just "+01:00") (M.lookup "time_zone" (sessionVariables state))
++    equal "autocommit flag exposed" (Just True) (sessionAutocommit state)
++    exec conn "START TRANSACTION"
++    active <- getSessionState conn
++    equal "transaction flag exposed" (Just True) (sessionInTransaction active)
++    exec conn "ROLLBACK"
++    equal "rollback flag exposed" (Just False) . sessionInTransaction =<< getSessionState conn
++
++cases :: [Case]
++cases =
++    [ case4 "tracking.initial-state" $ withConn $ \conn -> do
++        ci <- config
++        state <- getSessionState conn
++        equal "constructor schema observed" (Just (ciDatabase ci)) (sessionSchema state)
++        equal "initial autocommit" (Just True) (sessionAutocommit state)
++        equal "initial transaction" (Just False) (sessionInTransaction state)
++        equal "rendering charset observed" (Just "utf8mb4")
++            (M.lookup "character_set_client" (sessionVariables state))
++    , case4 "tracking.all-kinds-and-wire-order" $ do
++        let changes = do
++                variable "time_zone" "+02:00"
++                item 1 (putLenEncBytes "second")
++                item 2 (putLenEncBytes "1")
++                item 4 (putLenEncBytes "START TRANSACTION READ ONLY;")
++                item 5 (putLenEncBytes "T_______")
++                item 77 (putByteString "opaque")
++        (conn, _, _) <- trackingFixture changes
++        void (ping conn)
++        state <- getSessionState conn
++        equal "schema decoded" (Just "second") (sessionSchema state)
++        equal "characteristics decoded" (Just "START TRANSACTION READ ONLY;") (sessionTransactionCharacteristics state)
++        equal "transaction state decoded" (Just "T_______") (sessionTransactionState state)
++        equal "all changes in wire order"
++            [SystemVariableChanged "time_zone" "+02:00", SchemaChanged "second", SessionStateChanged True,
++             TransactionCharacteristicsChanged "START TRANSACTION READ ONLY;", TransactionStateChanged "T_______",
++             UnknownSessionChange 77 "opaque"] (sessionLastChanges state)
++    , case4 "tracking.repeated-variable-last-wins" $ do
++        (conn, _, _) <- trackingFixture (variable "time_zone" "+01:00" >> variable "time_zone" "+02:00")
++        void (ping conn)
++        equal "later variable replaces earlier" (Just "+02:00") . M.lookup "time_zone" . sessionVariables =<< getSessionState conn
++    , case4 "tracking.snapshot-does-no-io" $ do
++        (conn, sent, _) <- trackingFixture (variable "time_zone" "+01:00")
++        void (ping conn)
++        before <- sent
++        replicateM_ 100 (void (getSessionState conn))
++        equal "snapshot sends no SQL" before =<< sent
++    , case4 "tracking.owns-receive-bytes" $ do
++        (conn, _, _) <- trackingFixture (variable "time_zone" "+01:00")
++        void (ping conn)
++        state <- getSessionState conn
++        case M.lookup "time_zone" (sessionVariables state) of
++            Just value -> do
++                let (_, offset, size) = BI.toForeignPtr value
++                equal "retained value has exact owned storage" (0,6) (offset,size)
++            Nothing -> fail "tracked value missing"
++    , case4 "tracking.malformed-known-kinds" $ forM_
++        [item 1 (putByteString "bad"), item 2 (putLenEncBytes "yes"),
++         item 4 (putLenEncBytes "x" >> putWord8 0), item 5 (putLenEncBytes "short"),
++         item 0 (putLenEncBytes "name"), variable "" "value"] $ \changes -> do
++            (conn, _, released) <- trackingFixture changes
++            expectRejection (ping conn)
++            equal "malformed tracker retires" Broken =<< connectionStatus conn
++            equal "malformed tracker releases once" 1 =<< released
++    , case4 "tracking.item-count-bound" $ do
++        (conn, _, _) <- trackingFixture (replicateM_ 65536 (item 77 (pure ())))
++        expectRejection (ping conn)
++        equal "empty items still consume the count budget" Broken =<< connectionStatus conn
++    , case4 "tracking.length-overflow-rejected" $ do
++        (conn, _, _) <- trackingFixture (putWord8 77 >> putWord8 254 >> putWord64le maxBound)
++        expectRejection (ping conn)
++        equal "encoded length never wraps to a small payload" Broken =<< connectionStatus conn
++    , case4 "tracking.accumulated-budget" $ do
++        (conn, _, _) <- scripted defaultConnectionOptions {maximumMetadataBytes=100} []
++        C.recordSessionChanges conn [SystemVariableChanged "one" (B.replicate 30 65)]
++        expectRejection (C.recordSessionChanges conn [SystemVariableChanged "two" (B.replicate 40 65)])
++        equal "accumulated state cannot grow unbounded" Broken =<< connectionStatus conn
++    , case4 "tracking.replacement-releases-budget" $ do
++        (conn, _, _) <- scripted defaultConnectionOptions {maximumMetadataBytes=100} []
++        replicateM_ 1000 (C.recordSessionChanges conn [SystemVariableChanged "same" (B.replicate 30 65)])
++        equal "one retained variable" 1 . M.size . sessionVariables =<< getSessionState conn
++    , case4 "tracking.explicit-facts-retained-envelope-budget" $ do
++        (conn, _, _) <- scripted defaultConnectionOptions {maximumMetadataBytes=100} []
++        C.recordSessionChanges conn [UnknownSessionChange 77 (B.replicate 80 65)]
++        expectRejection (C.recordSessionFacts conn [SystemVariableChanged "name" (B.replicate 30 65)])
++        equal "snapshot seeding charges the retained old envelope" Broken =<< connectionStatus conn
++    , case4 "tracking.explicit-facts-do-not-forge-events" $ do
++        (conn, _, _) <- trackingFixture (variable "time_zone" "+01:00")
++        void (ping conn)
++        before <- getSessionState conn
++        C.recordSessionFacts conn [SchemaChanged "explicit"]
++        after <- getSessionState conn
++        equal "explicitly known schema" (Just "explicit") (sessionSchema after)
++        equal "wire envelope preserved" (sessionLastChanges before) (sessionLastChanges after)
++        equal "wire envelope counter preserved" (sessionChangeNumber before) (sessionChangeNumber after)
++    , case4 "tracking.subscription-invalidates-values" $ do
++        (conn, _, _) <- trackingFixture $ do
++            variable "old" "stale"
++            variable "time_zone" "+01:00"
++            variable "session_track_system_variables" "time_zone"
++        void (ping conn)
++        state <- getSessionState conn
++        equal "unsubscribed value discarded" Nothing (M.lookup "old" (sessionVariables state))
++        equal "selected value preserved" (Just "+01:00") (M.lookup "time_zone" (sessionVariables state))
++    , case4 "tracking.schema-and-transaction-controls" $ do
++        (conn, _, _) <- trackingFixture $ do
++            item 1 (putLenEncBytes "old")
++            item 4 (putLenEncBytes "START TRANSACTION;")
++            item 5 (putLenEncBytes "T_______")
++            variable "session_track_schema" "OFF"
++            variable "session_track_transaction_info" "OFF"
++        void (ping conn)
++        state <- getSessionState conn
++        equal "untracked schema becomes unknown" Nothing (sessionSchema state)
++        equal "untracked transaction details become unknown" Nothing (sessionTransactionState state)
++        equal "untracked transaction characteristics become unknown" Nothing (sessionTransactionCharacteristics state)
++    , case4 "tracking.live-schema" $ withConn $ \conn -> do
++        void (command conn (COM_INIT_DB "information_schema"))
++        equal "COM_INIT_DB schema reported" (Just "information_schema") . sessionSchema =<< getSessionState conn
++        ci <- config
++        exec conn ("USE `" ++ map (toEnum . fromIntegral) (B.unpack (ciDatabase ci)) ++ "`")
++        equal "USE schema reported" (Just (ciDatabase ci)) . sessionSchema =<< getSessionState conn
++    , case4 "tracking.live-transaction-details" $ withConn $ \conn -> do
++        exec conn "SET session_track_transaction_info='CHARACTERISTICS'"
++        exec conn "START TRANSACTION READ ONLY"
++        state <- getSessionState conn
++        assert (sessionTransactionState state /= Nothing) "transaction state not exposed"
++        assert (sessionTransactionCharacteristics state /= Nothing) "transaction characteristics not exposed"
++        exec conn "ROLLBACK"
++    , case4 "tracking.multiple-results-retain-real-envelope" $ withConn $ \conn -> do
++        void (queryMulti_ conn "SET time_zone='+01:00'; SET time_zone='+02:00'; SELECT 7")
++        state <- getSessionState conn
++        assert (SystemVariableChanged "time_zone" "+02:00" `elem` sessionLastChanges state)
++            "opaque multi-statement processing lost the latest actual tracker envelope"
++        equal "opaque final facts remain conservatively unknown" M.empty (sessionVariables state)
++    , case4 "tracking.disabled-transaction-flags" $ do
++        ci <- config
++        withConnect (connectWithOptions defaultConnectionOptions {enableSessionTracking=False} ci) $ \conn -> do
++            exec conn "START TRANSACTION"
++            equal "legacy status tracks transaction" (Just True) . sessionInTransaction =<< getSessionState conn
++            exec conn "ROLLBACK"
++            equal "legacy status tracks rollback" (Just False) . sessionInTransaction =<< getSessionState conn
++    , case4 "tracking.error-invalidates" $ withConn $ \conn -> do
++        expectERR [1064] (exec conn "SELECT FROM")
++        state <- getSessionState conn
++        equal "ERR invalidates schema" Nothing (sessionSchema state)
++        equal "ERR invalidates variable observations" M.empty (sessionVariables state)
++        equal "ERR invalidates transaction flags" Nothing (sessionInTransaction state)
++        healthy conn
++        equal "next complete reply restores transaction flag" (Just False) . sessionInTransaction =<< getSessionState conn
++    , case4 "tracking.disabled-honest-unknowns" $ do
++        ci <- config
++        withConnect (connectWithOptions defaultConnectionOptions {enableSessionTracking=False} ci) $ \conn -> do
++            exec conn "SET time_zone='+01:00'"
++            state <- getSessionState conn
++            equal "untracked variables unknown" M.empty (sessionVariables state)
++            equal "wire transaction flags remain known" (Just False) (sessionInTransaction state)
++    , case4 "reset.same-session-and-cleanup" resetFeature
++    , case4 "reset.rolls-back-open-transaction" $ withConn $ \conn -> do
++        exec conn "DROP TABLE IF EXISTS mb_stage4_rollback"
++        exec conn "CREATE TABLE mb_stage4_rollback(n INT) ENGINE=InnoDB"
++        flip finally (exec conn "DROP TABLE IF EXISTS mb_stage4_rollback") $ do
++            exec conn "START TRANSACTION"
++            exec conn "INSERT INTO mb_stage4_rollback VALUES(7)"
++            void (resetConnection conn)
++            equal "uncommitted insert rolled back" 0 =<< scalarInt conn "SELECT COUNT(*) FROM mb_stage4_rollback"
++    , case4 "reset.restores-constructor-database" $ withConn $ \conn -> do
++        ci <- config
++        exec conn "USE information_schema"
++        void (resetConnection conn)
++        equal "constructor schema selected" (MySQLText (textOf (MySQLBytes (ciDatabase ci)))) =<< scalar conn "SELECT DATABASE()"
++        equal "public schema matches" (Just (ciDatabase ci)) . sessionSchema =<< getSessionState conn
++    , case4 "reset.restores-charset-and-rendering" $ withConn $ \conn -> do
++        exec conn "SET NAMES latin1"
++        exec conn "SET sql_mode='NO_BACKSLASH_ESCAPES'"
++        void (resetConnection conn)
++        equal "original client charset" "utf8mb4" . renderClientCharset =<< getRenderContext conn
++        (_, stream) <- query conn "SELECT ?" [MySQLText "unicode \x1f642 '"]
++        equal "rendering after reset" [[MySQLText "unicode \x1f642 '"]] =<< S.toList stream
++    , case4 "reset.custom-initializer" $ withConn $ \conn -> do
++        void $ resetConnectionWith conn $ \session -> exec session
++            "SET time_zone='+00:00',sql_mode='ANSI_QUOTES,STRICT_TRANS_TABLES',autocommit=1"
++        equal "required settings restored" [[MySQLText "+00:00",MySQLText "ANSI_QUOTES,STRICT_TRANS_TABLES"]]
++            =<< rows conn "SELECT @@time_zone,@@sql_mode"
++        equal "custom modes reflected" ["ANSI_QUOTES","STRICT_TRANS_TABLES"] . renderSQLModes =<< getRenderContext conn
++    , case4 "reset.tls" $ withTLS $ \conn -> void (resetConnection conn) >> healthy conn
++    , case4 "reset.socket" $ do
++        ci <- config
++        path <- socketPath
++        withConnect (connectUnixSocket path ci) $ \conn -> void (resetConnection conn) >> healthy conn
++    , case4 "reset.tracking-disabled" $ do
++        ci <- config
++        withConnect (connectWithOptions defaultConnectionOptions {enableSessionTracking=False} ci) $ \conn -> do
++            void (resetConnection conn)
++            (_, stream) <- query conn "SELECT ?" [MySQLText "safe '"]
++            equal "explicit reset snapshot works without tracking" [[MySQLText "safe '"]] =<< S.toList stream
++    , case4 "reset.raw-command-uses-guarded-restoration" $ withConn $ \conn -> do
++        exec conn "USE information_schema"
++        void (command conn COM_RESET_CONNECTION)
++        ci <- config
++        equal "low-level public command restores constructor schema" (Just (ciDatabase ci)) . sessionSchema =<< getSessionState conn
++    , case4 "reset.no-database-unchanged-is-safe" $ do
++        ci <- config
++        withConnect (connect ci {ciDatabase=""}) $ \conn -> do
++            void (resetConnection conn)
++            equal "no selected database preserved honestly" MySQLNull =<< scalar conn "SELECT DATABASE()"
++    , case4 "reset.autocommit-and-isolation-defaults" $ withConn $ \conn -> do
++        expected <- rows conn "SELECT @@autocommit,@@tx_isolation"
++        exec conn "SET autocommit=0"
++        exec conn "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED"
++        void (resetConnection conn)
++        equal "transaction settings return to defaults" expected =<< rows conn "SELECT @@autocommit,@@tx_isolation"
++    , case4 "reset.empty-database-after-use-rejected" $ do
++        ci <- config
++        withConnect (connect ci {ciDatabase=""}) $ \conn -> do
++            void (command conn (COM_INIT_DB (ciDatabase ci)))
++            expectRejection (resetConnection conn)
++            equal "local restoration rejection leaves session intact" Ready =<< connectionStatus conn
++    , case4 "reset.stale-handle-and-id-reuse" $ withConn $ \conn -> do
++        old <- prepareStatement conn "SELECT 7"
++        raw <- prepareStmt conn "SELECT 8"
++        void (resetConnection conn)
++        expectRejection (queryPrepared old [])
++        expectERR [1243] (queryStmt conn raw [])
++        refreshSessionState conn
++        withPreparedStatement conn "SELECT 9" $ \fresh -> do
++            expectRejection (preparedMetadata old)
++            equal "new handle works" [[9]] . map (map number) =<< (queryPrepared fresh [] >>= S.toList . snd)
++    , case4 "reset.registry-bounded-over-reuse" $ withConn $ \conn -> replicateM_ 100 $ do
++        void (prepareStatement conn "SELECT REPEAT('x',1000)")
++        void (resetConnection conn)
++        registry <- readIORef (C.connectionStatements conn)
++        equal "all cached metadata released" (Just 0) (C.registryMetadataBytes <$> registry)
++        equal "no stale registrations retained" 0 . length =<< C.statementMap conn
++    , case4 "reset.pending-stream-rejected-before-send" $ withConn $ \conn -> do
++        (_, stream) <- query_ conn "SELECT seq FROM seq_1_to_10"
++        outcome <- try (resetConnection conn)
++        case outcome of Left UnconsumedResultSet -> pure (); _ -> fail "reset consumed pending rows"
++        equal "pending rows intact" 10 . length =<< S.toList stream
++        healthy conn
++    , case4 "reset.transaction-helper-rejected" $ withConn $ \conn -> withTransaction conn $ do
++        outcome <- try (resetConnection conn)
++        case outcome of Left NestedTransactionUnsupported -> pure (); _ -> fail "reset escaped transaction lease"
++        equal "outer transaction remains active" 1 =<< scalarInt conn "SELECT @@in_transaction"
++    , case4 "reset.initializer-error-retires" $ withConn $ \conn -> do
++        result <- try (resetConnectionWith conn (\_ -> fail "initializer-marker"))
++        case result of Left (_ :: SomeException) -> pure (); _ -> fail "initializer error swallowed"
++        equal "failed initialization cannot enter a pool" Broken =<< connectionStatus conn
++    , case4 "reset.initializer-stream-retires" $ withConn $ \conn -> do
++        expectRejection (resetConnectionWith conn (\session -> void (query_ session "SELECT seq FROM seq_1_to_10")))
++        equal "unfinished initializer result retires" Broken =<< connectionStatus conn
++    , case4 "reset.initializer-transaction-retires" $ withConn $ \conn -> do
++        expectRejection (resetConnectionWith conn (\session -> exec session "START TRANSACTION"))
++        equal "open initializer transaction retires" Broken =<< connectionStatus conn
++    , case4 "reset.malformed-reply-retires" $ do
++        (conn, _, released) <- resetFixture [putToPacket 1 (putWord8 1)]
++        expectRejection (resetConnection conn)
++        equal "malformed RESET reply retires" Broken =<< connectionStatus conn
++        equal "transport released once" 1 =<< released
++    , case4 "reset.server-error-retires" $ do
++        (conn, _, released) <- resetFixture [encodeToPacket 1 (ERR 1047 "08S01" "reset unavailable")]
++        expectERR [1047] (resetConnection conn)
++        equal "RESET ERR retires conservatively" Broken =<< connectionStatus conn
++        equal "RESET ERR releases once" 1 =<< released
++    , case4 "reset.restore-error-retires" $ do
++        (conn, _, released) <- resetFixture
++            [encodeToPacket 1 (OK 0 0 2 0), encodeToPacket 1 (ERR 1064 "42000" "snapshot unavailable")]
++        expectERR [1064] (resetConnection conn)
++        equal "restoration error retires" Broken =<< connectionStatus conn
++        equal "restoration releases once" 1 =<< released
++    , case4 "reset.wire-byte-and-no-redundant-setup" $ do
++        (conn, sent, _) <- resetFixture resetTranscript
++        void (resetConnection conn)
++        commands <- sent
++        equal "RESET then one snapshot; legacy tracking has no setup SET" [31,3]
++            (map (L.head . pBody) commands)
++        case commands of
++            first : _ -> equal "RESET is exactly one byte" (L.singleton 31) (pBody first)
++            [] -> fail "RESET was not sent"
++    , case4 "reset.known-unsupported-version-no-send" $ do
++        (conn, sent, _) <- resetFixture []
++        writeIORef (C.connectionInitialSession conn) (Just (C.InitialSession "db" "utf8mb4" "utf8mb4_unicode_ci" 100203))
++        expectRejection (resetConnection conn)
++        equal "version rejection sends nothing" [] =<< sent
++        equal "version rejection preserves connection" Ready =<< connectionStatus conn
++    , case4 "reset.no-database-unsafe-restore-rejected" $ do
++        (conn, sent, _) <- resetFixture []
++        writeIORef (C.connectionInitialSession conn) (Just (C.InitialSession "" "utf8mb4" "utf8mb4_unicode_ci" 120303))
++        expectRejection (resetConnection conn)
++        equal "cannot silently preserve another borrower's database" [] =<< sent
++    , case4 "reset.closed-and-broken-never-revived" $ do
++        forM_ [close, \conn -> C.abortConnection conn False] $ \retire -> do
++            (conn, sent, _) <- resetFixture []
++            retire conn
++            before <- sent
++            expectRejection (resetConnection conn)
++            equal "terminal reset sends nothing" before =<< sent
++            equal "terminal snapshot unknown" Nothing . sessionSchema =<< getSessionState conn
++    , case4 "reset.buffered-initializer-deadline" $ do
++        (conn, _, released) <- resetFixture resetTranscript
++        counter <- newIORef (0 :: Int)
++        let bounded = conn {C.connectionOptions=defaultConnectionOptions {cleanupTimeoutMicros=20000}}
++            spin = let loop = modifyIORef' counter (+1) >> loop in loop
++        result <- timeout 1000000 (try (resetConnectionWith bounded (\_ -> spin)))
++        case result of Just (Left CleanupDeadlineExceeded) -> pure (); _ -> fail "buffered initializer ignored deadline"
++        equal "buffered timeout retires" Broken =<< connectionStatus bounded
++        equal "deadline releases once" 1 =<< released
++    , case4 "reset.wire-and-restoration-deadlines" $ forM_
++        [[], [encodeToPacket 1 (OK 0 0 2 0)]] $ \prefix -> do
++            (conn, _, released) <- stalledReset prefix
++            result <- timeout 1000000 (try (resetConnection conn))
++            case result of Just (Left CleanupDeadlineExceeded) -> pure (); _ -> fail "reset/restoration read ignored deadline"
++            equal "stalled reset/restoration retires" Broken =<< connectionStatus conn
++            equal "stalled read releases once" 1 =<< released
++    , case4 "reset.wire-cancellation" $ do
++        (conn, entered, released) <- stalledReset []
++        let patient = conn {C.connectionOptions=defaultConnectionOptions {cleanupTimeoutMicros=5000000}}
++        done <- newEmptyMVar
++        worker <- forkFinally (resetConnection patient) (putMVar done)
++        entered
++        killThread worker
++        result <- takeMVar done
++        case result of Left err | Just ThreadKilled <- fromException err -> pure (); _ -> fail "wire cancellation lost identity"
++        equal "wire cancellation retires" Broken =<< connectionStatus patient
++        equal "wire cancellation releases once" 1 =<< released
++    , case4 "reset.close-race-stays-terminal" $ do
++        (conn, _, released) <- resetFixture resetTranscript
++        entered <- newEmptyMVar
++        proceed <- newEmptyMVar
++        done <- newEmptyMVar
++        worker <- forkFinally
++            (resetConnectionWith conn (\_ -> putMVar entered () >> takeMVar proceed)) (putMVar done)
++        flip finally (killThread worker) $ do
++            takeMVar entered
++            close conn
++            putMVar proceed ()
++            result <- takeMVar done
++            case result of Left _ -> pure (); _ -> fail "closed reset was reported successful"
++            equal "concurrent close stays terminal" Closed =<< connectionStatus conn
++            equal "concurrent close does not revive registry" Nothing . fmap C.registryMetadataBytes
++                =<< readIORef (C.connectionStatements conn)
++            equal "close race releases once" 1 =<< released
++    , case4 "reset.initializer-cancellation-and-exclusive-lease" $ do
++        (conn, _, released) <- resetFixture resetTranscript
++        entered <- newEmptyMVar
++        wait <- newEmptyMVar
++        done <- newEmptyMVar
++        worker <- forkFinally (resetConnectionWith conn (\_ -> putMVar entered () >> takeMVar wait)) (putMVar done)
++        takeMVar entered
++        expectRejection (ping conn)
++        killThread worker
++        result <- takeMVar done
++        case result of Left err | Just ThreadKilled <- fromException err -> pure (); _ -> fail "reset swallowed cancellation"
++        equal "cancelled initializer retires" Broken =<< connectionStatus conn
++        equal "cancellation releases once" 1 =<< released
++    ]
+diff --git a/validation/hs/Validation/Stage4Bench.hs b/validation/hs/Validation/Stage4Bench.hs
+new file mode 100644
+index 0000000000000000000000000000000000000000..2ca8b8d14b09078628fcb57ebe3421422575c015
+--- /dev/null
++++ b/validation/hs/Validation/Stage4Bench.hs
+@@ -0,0 +1,75 @@
++-- | Complete request-boundary costs: reset/restore/prepare versus opening,
++-- initializing, preparing and closing a new connection. Both paths perform the
++-- same application work and deliberately leave state for the next boundary.
++module Validation.Stage4Bench (run) where
++
++import Control.Exception (bracket, evaluate)
++import Control.Monad
++import Data.List (intercalate, isSuffixOf, isInfixOf)
++import Database.MySQL.Base
++import GHC.Clock
++import GHC.Stats
++import System.Mem
++import qualified System.IO.Streams as S
++import Validation.Common
++
++run :: String -> Int -> IO ()
++run ident iterations
++    | iterations <= 0 = fail "positive reuse benchmark count required"
++    | ident == "session.snapshot" = withConn $ \conn -> do
++        let loop 0 !total = pure (toInteger total)
++            loop remaining !total = do
++                state <- getSessionState conn
++                equal "autocommit observed" (Just True) (sessionAutocommit state)
++                equal "no transaction observed" (Just False) (sessionInTransaction state)
++                loop (remaining - 1) (total + (1 :: Int))
++        measure ident iterations (loop iterations 0)
++    | otherwise = do
++        ci <- config
++        path <- socketPath
++        name <- env "MB_TLS_NAME" "localhost"
++        let open | ".tcp." `isInfixOf` ident = connect ci
++                 | ".tls." `isInfixOf` ident = tlsConnect ci name
++                 | ".socket." `isInfixOf` ident = connectUnixSocket path ci
++                 | otherwise = fail "unknown reuse transport"
++            initialize conn = exec conn "SET time_zone='+00:00',sql_mode='STRICT_TRANS_TABLES',autocommit=1"
++            request conn = do
++                -- Preparation is intentionally inside timing. RESET and a new
++                -- connection both remove the preceding request's statement.
++                statement <- prepareStatement conn "SELECT 7,@@time_zone,@@sql_mode,@mb_stage4_bench IS NULL"
++                (_, stream) <- queryPrepared statement []
++                result <- S.toList stream
++                case result of
++                    [[n,MySQLText zone,MySQLText modes,clean]] -> do
++                        equal "request result" 7 (number n)
++                        equal "application timezone restored" "+00:00" zone
++                        equal "application SQL mode restored" "STRICT_TRANS_TABLES" modes
++                        equal "no prior request's variable" 1 (number clean)
++                    _ -> fail "reuse benchmark request shape mismatch"
++                exec conn "SET @mb_stage4_bench=7,time_zone='+01:00'"
++                pure 1
++        if ".reset" `isSuffixOf` ident
++        then withConnect open $ \conn -> measure ident iterations $ sum <$> replicateM iterations
++            (resetConnectionWith conn initialize >> request conn)
++        else if ".reconnect" `isSuffixOf` ident
++        then measure ident iterations $ sum <$> replicateM iterations
++            (bracket open close (\conn -> initialize conn >> request conn))
++        else fail "unknown reuse benchmark mode"
++
++-- Same warmups/GC/RTS convention as the native recorder. Units are complete
++-- requests, or snapshot calls for session.snapshot; the checksum is one/unit.
++measure :: String -> Int -> IO Integer -> IO ()
++measure ident count operation = do
++    void operation
++    void operation
++    performGC
++    before <- getRTSStats
++    start <- getMonotonicTimeNSec
++    checksum <- operation >>= evaluate
++    end <- getMonotonicTimeNSec
++    performGC
++    after <- getRTSStats
++    equal "reuse benchmark checksum" (toInteger count) checksum
++    putStrLn (intercalate "\t" ["STAGE4",ident,show count,show (end-start),
++        show (allocated_bytes after-allocated_bytes before),show (cpu_ns after-cpu_ns before),
++        show (gc_cpu_ns after-gc_cpu_ns before),show checksum])
+diff --git a/validation/linux/verify.py b/validation/linux/verify.py
+index 541f63dfe0bc058e28860ad23dfc3de2e4e7eaf9..45988ac1075536db4a45d115c017f258ef14412f 100644
+--- a/validation/linux/verify.py
++++ b/validation/linux/verify.py
+@@ -122,10 +122,10 @@ def main():
+         lost = [case['id'] for case in previous['correctness']
+                 if case['status']=='PASS' and current.get(case['id'])!='PASS']
+         added_failures = [case['id'] for case in data['correctness']
+-                          if case['id'].startswith(('stage2.', 'stage3.')) and case['status']!='PASS']
++                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.')) and case['status']!='PASS']
+         sys.path.insert(0, str(ROOT/'validation'))
+         import stage1_gates
+-        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS if current.get(ident) != 'PASS']
++        native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS + stage1_gates.SESSION_TARGETS if current.get(ident) != 'PASS']
+         if lost or added_failures or native_failures:
+             raise RuntimeError('Linux correctness regressions: '+repr(lost+added_failures+native_failures))
+         # Smoke all native benchmark paths on this compiler/server too. These
+@@ -136,6 +136,11 @@ def main():
+                         'prepared.narrow.cached', 'prepared.narrow.uncached',
+                         'prepared.wide.cached', 'prepared.wide.uncached']:
+             command([binary, 'stage3-bench', profile, '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
++        for transport in ['tcp', 'tls', 'socket']:
++            for mode in ['reset', 'reconnect']:
++                command([binary, 'stage4-bench', f'reuse.{transport}.{mode}', '1',
++                         '+RTS', '-N4', '-T', '-RTS'], env=native_env)
++        command([binary, 'stage4-bench', 'session.snapshot', '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
+         print('Linux correctness profile passed; frozen timings were not compared.', flush=True)
+     finally:
+         process.terminate()
+diff --git a/validation/publish_results.py b/validation/publish_results.py
+index 80633098623d1c842219a52c2ef08e72951b045c..ba3d0d21ea95b3f2ace8574f0ac1684390307756 100644
+--- a/validation/publish_results.py
++++ b/validation/publish_results.py
+@@ -39,7 +39,10 @@ def is_input(path):
+                         "validation/results/accepted.json", "validation/results/previous-stage.json",
+                         "validation/baselines/macos-arm64-native-statements/results.json",
+                         "validation/baselines/macos-arm64-native-statements/SUMMARY.md",
+-                        "validation/baselines/macos-arm64-native-statements/SHA256SUMS"}
++                        "validation/baselines/macos-arm64-native-statements/SHA256SUMS",
++                        "validation/baselines/macos-arm64-session-reuse/results.json",
++                        "validation/baselines/macos-arm64-session-reuse/SUMMARY.md",
++                        "validation/baselines/macos-arm64-session-reuse/SHA256SUMS"}
+             or path.startswith(".github/workflows/"))
+ 
+ 
+@@ -182,6 +185,8 @@ def render(document, baseline):
+                   f"Timing investigations above 5%: **{len(gate['timing_investigations'])}**; allocation investigations above 5%: **{len(gate['allocation_investigations'])}**. These are investigation signals, not automatically accepted costs.", "",
+                   "The frozen baseline retains its original meaning in all comparison tables. The last-accepted reference separately prevents an improvement being lost. [Acceptance evidence](results/stage1-gates.json) · [Confirmation history](results/stage1-confirmation.json) · [Supplementary evidence](results/references/stage1-after-final.json) · [Review notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).", "",
+                   "Confirmation and supplementary files identify their own input fingerprints. Evidence with a different fingerprint is historical and does not confirm the current source.", ""]
++        if gate.get('session_target_count'):
++            lines += [f"Stage 4 session/reset targets passing: **{gate['session_target_passes']} / {gate['session_target_count']}**. [Session reuse and observations](../docs/STAGE4_IMPLEMENTATION.md).", ""]
+         if gate.get('statement_target_count'):
+             lines += [f"Stage 3 prepared/native targets passing: **{gate['statement_target_passes']} / {gate['statement_target_count']}**. [Roadmap and continuation](../docs/ROADMAP.md) · [Stage 3 implementation and validation](../docs/STAGE3_IMPLEMENTATION.md).", ""]
+         if gate.get('previous_stage_reference'):
+@@ -277,6 +282,21 @@ def render(document, baseline):
+         comparison = native.get('baseline_comparison')
+         if comparison:
+             lines += [f"Native feature baseline comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [Immutable native baseline](baselines/macos-arm64-native-statements/results.json).", ""]
++    reuse = attempt.get('session_reuse')
++    if reuse and reuse.get('complete') and reuse.get('inputs', {}).get('sha256') == attempt['inputs']['sha256']:
++        lines += ["### Session reuse", "",
++                  "Baseline = reconnect, initialize, prepare, execute and close. Current = reset, restore, prepare and execute the same request on one connection. All application settings and absence of prior-request data are verified; preparation and restoration are inside timing. Changes are `(current / baseline - 1) × 100`; lower is better.", "",
++                  "| Transport | Baseline ns/request | Current ns/request | Change vs baseline | Allocation change |",
++                  "| --- | ---: | ---: | ---: | ---: |"]
++        for name, comparison in reuse['comparisons'].items():
++            old = reuse['profiles'][comparison['baseline']]['median_elapsed_ns_per_unit']
++            new = reuse['profiles'][comparison['current']]['median_elapsed_ns_per_unit']
++            changes = comparison['change_percent']
++            lines.append(f"| `{name}` | {old:,.1f} | {new:,.1f} | {changes['elapsed_ns']:+.1f}% | {changes['allocated_bytes']:+.1f}% |")
++        snapshot = reuse['profiles']['session.snapshot']
++        comparison = reuse['baseline_comparison']
++        lines += ["", f"Public snapshot read: **{snapshot['median_elapsed_ns_per_unit']:,.1f} ns/call**, **{snapshot['median_allocated_bytes_per_unit']:,.1f} allocated bytes/call**, no SQL. Seven or more independent processes per profile, with two warmups; raw samples and checksums are embedded in [current.json](results/current.json).", "",
++                  f"Immutable reuse baseline comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [First reuse baseline](baselines/macos-arm64-session-reuse/results.json).", ""]
+     engines = sorted({ident.partition("/")[0] for ident in data["benchmarks"]}, key=lambda engine: (engine != "haskell", engine))
+     for engine in engines:
+         title = {"haskell": "Haskell driver", "connector-c": "MariaDB Connector/C control"}.get(engine, engine)
+@@ -351,6 +371,9 @@ def verify(document, snapshot, *, allow_working_tree=False):
+     if document.get('stage1_acceptance', {}).get('statement_target_count'):
+         from stage3_benchmarks import verify_evidence
+         verify_evidence(attempt.get('native_features', {}), attempt['inputs'])
++    if any(case['id'].startswith('stage4.') for case in data['correctness']):
++        from stage4_benchmarks import verify_evidence as verify_reuse
++        verify_reuse(attempt.get('session_reuse', {}), attempt['inputs'])
+     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
+         raise ValueError("recorder and report disagree about the tested commit")
+ 
+diff --git a/validation/results/previous-stage.json b/validation/results/previous-stage.json
+index 95167118c4209dadd7631d96b05a3dc4d3324a49..cb524f665b08b0aa1a952ec31e63c02ac1636bcc 100644
+--- a/validation/results/previous-stage.json
++++ b/validation/results/previous-stage.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": 1,
+-  "reference": "references/stage2-publication-1.json",
+-  "sha256": "04ce6d4f5630079798bcd0fe3090aeb2951ddb0d623c2dee947be2377f34fead",
+-  "tested_commit": "d5c71bd59902e7350b773a306d93f1947626b1b0",
+-  "purpose": "Preserve every published Stage 2 PASS, including all prior Stage 1 improvements, and report incremental costs. The older accepted performance reference remains unchanged."
++  "reference": "references/stage3-publication-1.json",
++  "sha256": "d577035b8cd4b851bf234776162025cebfdd6d1cec61927f31a280e208bffe56",
++  "tested_commit": "ef4e52b234187435d1ea464834df629cea5f267a",
++  "purpose": "Preserve every published Stage 3 PASS, including all prior stages, while measuring incremental costs. Original, accepted and first-native performance baselines remain unchanged."
+ }
+diff --git a/validation/stage1_gates.py b/validation/stage1_gates.py
+index 30473e9b9bd56e2749b444f62d554f23fe2399d3..8e2bf30a8477cbbdeccfc56511dbdfc22d30d22c 100644
+--- a/validation/stage1_gates.py
++++ b/validation/stage1_gates.py
+@@ -33,6 +33,8 @@ STATEMENT_TARGETS = [
+     'capability.binary-bulk', 'capability.metadata-cache', 'capability.extended-metadata',
+ ]
+ 
++SESSION_TARGETS = ['capability.session-tracking', 'capability.reset-connection']
++
+ def results(document):
+     """Accept either a portable raw run or the live publication envelope."""
+     if "latest_completed_run" in document:
+@@ -126,6 +128,11 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
+             if new.get(ident, {}).get("status") != "PASS":
+                 failures.append("required statement target not passing: " + ident)
+ 
++    if require_targets and previous_stage is not None:
++        for ident in SESSION_TARGETS:
++            if new.get(ident, {}).get("status") != "PASS":
++                failures.append("required session target not passing: " + ident)
++
+     for ident, benchmark in candidate.get("benchmarks", {}).items():
+         prior_status = original.get("benchmarks", {}).get(ident, {}).get("status")
+         if benchmark["status"] not in statuses:
+@@ -169,6 +176,8 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
+         "native_target_count": len(NATIVE_TARGETS),
+         "statement_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in STATEMENT_TARGETS),
+         "statement_target_count": len(STATEMENT_TARGETS),
++        "session_target_passes": sum(new.get(ident, {}).get("status") == "PASS" for ident in SESSION_TARGETS),
++        "session_target_count": len(SESSION_TARGETS),
+         "correctness_accepted": not failures,
+         "performance_requires_confirmation": bool(timing or allocation),
+     }
+diff --git a/validation/stage3_benchmarks.py b/validation/stage3_benchmarks.py
+index 929b4cc4f067ee08bc55002f4ae4b25a6270eaf5..db9f326f6a3afa1165e958a4d1f4eaf7011fb13e 100644
+--- a/validation/stage3_benchmarks.py
++++ b/validation/stage3_benchmarks.py
+@@ -1,20 +1,8 @@
+ #!/usr/bin/env python3
+-"""Measure additive native features against alternatives on the same build.
+-
+-This never replaces or edits the frozen benchmark enumeration or its results.
+-A new output directory is required; every process log and sample is retained.
+-"""
+-import argparse
+-import json
+-import hashlib
+-import os
+-import platform
++"""Native statement workloads; the shared recorder preserves all evidence guards."""
+ from pathlib import Path
+-import random
+-import statistics
+-
+-import publish_results as live
+ import run
++import feature_benchmarks as features
+ 
+ PROFILES = {
+     'bulk.native': 5, 'bulk.units': 5, 'bulk.prepared': 5, 'bulk.text-batch': 5,
+@@ -35,195 +23,42 @@ BASELINE_DIRECTORY = Path('baselines/macos-arm64-native-statements')
+ WORKLOAD_PATHS = ('validation/hs/Validation/Stage3Bench.hs', 'validation/hs/Validation/Common.hs')
+ 
+ 
++def specification():
++    return features.FeatureSpec(
++        marker='STAGE3', command='stage3-bench', label='native',
++        profiles=PROFILES,
++        units={ident: count * (1000 if ident.startswith('bulk.') else 1) for ident,count in PROFILES.items()},
++        checksums={ident: count * (629500 if ident.startswith('bulk.') else 3847 if '.wide.' in ident else 7)
++                   for ident,count in PROFILES.items()},
++        pairs=PAIRS, baseline_directory=BASELINE_DIRECTORY, workload_paths=WORKLOAD_PATHS)
++
++
+ def sample(output, ident):
+-    """Require one complete record, positive work and the independent checksum."""
+-    lines = [line for line in output.splitlines() if line.startswith('STAGE3\t')]
+-    if len(lines) != 1:
+-        raise ValueError('expected exactly one native benchmark record')
+-    marker, name, *values = lines[0].split('\t')
+-    if marker != 'STAGE3' or name != ident or len(values) != 6:
+-        raise ValueError('native benchmark record shape/identity mismatch')
+-    result = dict(zip(('units', 'elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns', 'checksum'), map(int, values)))
+-    if (result['units'] <= 0 or result['elapsed_ns'] <= 0 or result['allocated_bytes'] <= 0
+-            or any(value < 0 for value in result.values())):
+-        raise ValueError('invalid native benchmark counters')
+-    iterations = PROFILES[ident]
+-    expected = iterations * (629500 if ident.startswith('bulk.') else 3847 if '.wide.' in ident else 7)
+-    if result['checksum'] != expected:
+-        raise ValueError('native benchmark checksum mismatch')
+-    expected_units = iterations * (1000 if ident.startswith('bulk.') else 1)
+-    if result['units'] != expected_units:
+-        raise ValueError('native benchmark unit count mismatch')
+-    return result
++    return features.sample(specification(), output, ident)
+ 
+ 
+ def verify_measurements(data, inputs):
+-    """Validate samples/units independently of any baseline comparison."""
+-    if (not data.get('complete') or data.get('repetitions', 0) < 7
+-            or data.get('inputs', {}).get('sha256') != inputs['sha256']):
+-        raise ValueError('native benchmark evidence is incomplete or stale')
+-    if set(data.get('profiles', {})) != set(PROFILES):
+-        raise ValueError('native benchmark profiles are incomplete')
+-    keys = ('units', 'elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns', 'checksum')
+-    for ident, profile in data['profiles'].items():
+-        if len(profile.get('samples', [])) != data['repetitions']:
+-            raise ValueError('native benchmark repetitions are incomplete')
+-        for entry in profile['samples']:
+-            sample('STAGE3\t' + ident + '\t' + '\t'.join(str(entry[k]) for k in keys), ident)
+-        for key in keys[1:-1]:
+-            expected = statistics.median(s[key] / s['units'] for s in profile['samples'])
+-            if profile.get('median_' + key + '_per_unit') != expected:
+-                raise ValueError('native benchmark summary disagrees with samples')
+-
+-    if set(data.get('comparisons', {})) != set(PAIRS):
+-        raise ValueError('native comparison profiles are incomplete')
+-    for name, (candidate, reference) in PAIRS.items():
+-        pair = data['comparisons'][name]
+-        if pair.get('current') != candidate or pair.get('baseline') != reference:
+-            raise ValueError('native comparison identity mismatch')
+-        for key in ('elapsed_ns', 'allocated_bytes'):
+-            expected = 100 * (data['profiles'][candidate]['median_' + key + '_per_unit'] /
+-                              data['profiles'][reference]['median_' + key + '_per_unit'] - 1)
+-            if pair.get('change_percent', {}).get(key) != expected:
+-                raise ValueError('native comparison disagrees with samples')
++    return features.verify_measurements(specification(), data, inputs)
+ 
+ 
+ def load_native_baseline():
+-    """Require the immutable capture, including both checksummed artifacts.
+-
+-    The baseline is versioned with this runner. A missing file is a damaged
+-    validation checkout, rather than permission to skip regression detection.
+-    Publication repeats this check so deleting/changing it after a run cannot
+-    leave an apparently valid report pointing to absent or different evidence.
+-    """
+-    directory = run.HERE / BASELINE_DIRECTORY
+-    try:
+-        entries = {}
+-        for line in (directory / 'SHA256SUMS').read_text().splitlines():
+-            parts = line.split()
+-            if len(parts) != 2:
+-                raise ValueError('invalid native baseline checksum manifest')
+-            digest, name = parts
+-            if name in entries:
+-                raise ValueError('duplicate native baseline checksum entry')
+-            entries[name] = digest
+-        contents = {name: (directory / name).read_bytes() for name in ('results.json', 'SUMMARY.md')}
+-    except OSError as error:
+-        raise ValueError('required native baseline is missing or unreadable') from error
+-    if set(entries) != set(contents):
+-        raise ValueError('native baseline checksum manifest is incomplete')
+-    for name, raw in contents.items():
+-        if hashlib.sha256(raw).hexdigest() != entries[name]:
+-            raise ValueError('native baseline checksum mismatch: ' + name)
+-    baseline = json.loads(contents['results.json'])
+-    verify_measurements(baseline, baseline['inputs'])
+-    return baseline, entries['results.json']
++    return features.load_baseline(specification())
+ 
+ 
+ def native_baseline_comparison(data):
+-    """Recalculate all deltas and alarms from the verified immutable capture."""
+-    baseline, expected_hash = load_native_baseline()
+-    # json round-trips tuples as lists. Compare dependency identities in a
+-    # canonical form, both before saving a run and during later publication.
+-    same_dependencies = sorted(map(tuple, data['dependencies'])) == sorted(map(tuple, baseline['dependencies']))
+-    same = (same_dependencies
+-            and all(data[key] == baseline[key] for key in ('server', 'machine', 'haskell_benchmark_rts'))
+-            and all(data['build'][key] == baseline['build'][key] for key in ('ghc', 'cabal'))
+-            and all(data['inputs']['files'][key] == baseline['inputs']['files'][key] for key in WORKLOAD_PATHS))
+-    comparison = {'reference': live.relative(run.HERE / BASELINE_DIRECTORY / 'results.json'),
+-                  'sha256': expected_hash, 'comparable': same,
+-                  'timing_investigations': [], 'allocation_investigations': [], 'profiles': {}}
+-    if same:
+-        for ident, profile in data['profiles'].items():
+-            old = baseline['profiles'][ident]
+-            changes = {key: 100 * (profile['median_' + key + '_per_unit'] / old['median_' + key + '_per_unit'] - 1)
+-                       for key in ('elapsed_ns', 'allocated_bytes')}
+-            comparison['profiles'][ident] = changes
+-            for metric, category in [('elapsed_ns', 'timing_investigations'), ('allocated_bytes', 'allocation_investigations')]:
+-                if changes[metric] > 5:
+-                    comparison[category].append({'id': ident, 'percent': changes[metric]})
+-    return comparison
++    return features.baseline_comparison(specification(), data)
+ 
+ 
+ def compare_native_baseline(data):
+-    """Attach the required baseline comparison after all measurements complete."""
+-    data['baseline_comparison'] = native_baseline_comparison(data)
++    return features.attach_baseline_comparison(specification(), data)
+ 
+ 
+ def verify_evidence(data, inputs):
+-    """Require current measurements and independently verified baseline deltas."""
+-    verify_measurements(data, inputs)
+-    if data.get('baseline_comparison') != native_baseline_comparison(data):
+-        raise ValueError('native baseline comparison is missing or disagrees with verified evidence')
++    return features.verify_evidence(specification(), data, inputs)
+ 
+ 
+ def main():
+-    parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument('--output', type=Path, required=True)
+-    parser.add_argument('--config', type=Path, default=run.HERE / '.local/environment.json')
+-    parser.add_argument('--repetitions', type=int, default=7)
+-    args = parser.parse_args()
+-    if args.repetitions < 7:
+-        parser.error('native confirmation requires at least seven process repetitions')
+-    if args.output.exists():
+-        parser.error('output directory exists; previous evidence must be retained')
+-    env = os.environ.copy()
+-    env.update(json.loads(args.config.read_text()))
+-    env['TZ'] = 'UTC'
+-    version = run.sql_client(env, 'SELECT VERSION()')
+-    if 'MariaDB' not in version:
+-        raise RuntimeError('expected MariaDB before build')
+-    load_native_baseline()
+-    inputs = live.input_snapshot()
+-    run.command(['cabal', 'build', 'exe:mariadb-validation', '-O2', '--enable-tests'], timeout=300)
+-    if any(live.input_snapshot()[key] != inputs[key] for key in ('files', 'commit')):
+-        raise RuntimeError('inputs changed during native benchmark build')
+-    binary = run.executable('exe:mariadb-validation')
+-    args.output.mkdir(parents=True)
+-    plan = json.loads((run.ROOT / 'dist-newstyle/cache/plan.json').read_text())
+-    dependencies = sorted({(p['pkg-name'], p['pkg-version']) for p in plan['install-plan'] if p['pkg-name'] != 'mysql-haskell'})
+-    data = {'schema': 1, 'recorded_at': live.now(), 'inputs': inputs,
+-            'server': run.server_metadata(env), 'repetitions': args.repetitions,
+-            'build': run.snapshot(), 'haskell_benchmark_rts': ['-N4', '-T'],
+-            'dependencies': dependencies,
+-            'dependency_plan_sha256': hashlib.sha256(json.dumps(dependencies).encode()).hexdigest(),
+-            'machine': {'system': platform.system(), 'release': platform.release(),
+-                        'machine': platform.machine(), 'processor': platform.processor(), 'cpu_count': os.cpu_count()},
+-            'policy': 'two in-process warmups; shuffled independent processes; same-build alternatives; all samples retained',
+-            'profiles': {ident: {'samples': []} for ident in PROFILES}, 'complete': False}
+-    destination = args.output / 'results.json'
+-    try:
+-        for repetition in range(args.repetitions):
+-            order = list(PROFILES)
+-            random.Random(20261107 + repetition).shuffle(order)
+-            for ident in order:
+-                output = run.command([binary, 'stage3-bench', ident, str(PROFILES[ident]),
+-                                      '+RTS', '-N4', '-T', '-RTS'], env=env, timeout=180, check=False)
+-                (args.output / f'{ident}.{repetition}.log').write_text(output.stdout + output.stderr)
+-                if output.returncode:
+-                    raise RuntimeError('native benchmark process failed: ' + ident)
+-                data['profiles'][ident]['samples'].append(sample(output.stdout, ident))
+-                print('NATIVE', repetition + 1, ident, flush=True)
+-        for profile in data['profiles'].values():
+-            for key in ('elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns'):
+-                profile['median_' + key + '_per_unit'] = statistics.median(s[key] / s['units'] for s in profile['samples'])
+-        data['comparisons'] = {}
+-        for name, (candidate, reference) in PAIRS.items():
+-            data['comparisons'][name] = {'current': candidate, 'baseline': reference,
+-                'change_percent': {key: 100 * (data['profiles'][candidate]['median_' + key + '_per_unit'] /
+-                    data['profiles'][reference]['median_' + key + '_per_unit'] - 1)
+-                    for key in ('elapsed_ns', 'allocated_bytes')}}
+-        if any(live.input_snapshot()[key] != inputs[key] for key in ('files', 'commit')):
+-            raise RuntimeError('inputs changed during native benchmark measurement')
+-        data['complete'] = True
+-        compare_native_baseline(data)
+-        verify_evidence(data, inputs)
+-    except Exception as error:
+-        data['complete'] = False
+-        data['error'] = str(error)
+-        raise
+-    finally:
+-        destination.write_text(json.dumps(data, indent=2) + '\n')
++    return features.main(specification())
+ 
+ 
+ if __name__ == '__main__':
+diff --git a/validation/stage4_benchmarks.py b/validation/stage4_benchmarks.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0badc8ff2ae52927890fad8bba1a1f65dc854130
+--- /dev/null
++++ b/validation/stage4_benchmarks.py
+@@ -0,0 +1,30 @@
++#!/usr/bin/env python3
++"""Complete reset/restore/prepare requests versus reconnects, plus snapshot cost."""
++from pathlib import Path
++import feature_benchmarks as features
++
++PROFILES = {**{f'reuse.{transport}.{mode}': 30
++              for transport in ('tcp', 'tls', 'socket') for mode in ('reset', 'reconnect')},
++            'session.snapshot': 100000}
++PAIRS = {transport: (f'reuse.{transport}.reset', f'reuse.{transport}.reconnect')
++         for transport in ('tcp', 'tls', 'socket')}
++BASELINE_DIRECTORY = Path('baselines/macos-arm64-session-reuse')
++WORKLOAD_PATHS = ('validation/hs/Validation/Stage4Bench.hs', 'validation/hs/Validation/Common.hs')
++
++
++def specification():
++    return features.FeatureSpec(marker='STAGE4', command='stage4-bench', label='session reuse',
++        profiles=PROFILES, units=PROFILES, checksums=PROFILES, pairs=PAIRS,
++        baseline_directory=BASELINE_DIRECTORY, workload_paths=WORKLOAD_PATHS)
++
++
++def verify_evidence(data, inputs):
++    return features.verify_evidence(specification(), data, inputs)
++
++
++def main():
++    return features.main(specification())
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/validation/test_check.py b/validation/test_check.py
+index 133e767d7beed0dfbf5ce94bab8aa84d6aea5ef7..366aa5cf910bf1745c7e7b94ff2980555e984fc6 100644
+--- a/validation/test_check.py
++++ b/validation/test_check.py
+@@ -194,5 +194,70 @@ class NativeWrapperTests(unittest.TestCase):
+                 self.assertTrue((output / 'results.json').exists())
+ 
+ 
++class SessionReuseWrapperTests(unittest.TestCase):
++    def test_success_is_attached(self):
++        self.check_reuse(None, 0)
++
++    def test_failure_retains_raw_candidate(self):
++        self.check_reuse(RuntimeError('reuse failed'), 1)
++
++    def test_interruption_is_recorded(self):
++        self.check_reuse(KeyboardInterrupt(), 130)
++
++    def test_large_timing_alarm_keeps_complete_measurements(self):
++        self.check_reuse(None, 1, timing=[{'id': 'reuse.tcp.reset', 'percent': 21}])
++
++    def test_strict_investigation_remains_open(self):
++        self.check_reuse(None, 0, timing=[{'id': 'reuse.tcp.reset', 'percent': 6}])
++
++    def check_reuse(self, failure, status, timing=None):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            (root / 'results').mkdir()
++            output = root / 'run'
++            config = root / 'config.json'
++            config.write_text('{}')
++            inputs = {'sha256': 'candidate', 'files': {}, 'commit': 'parent'}
++            candidate = {'complete_suite': True, 'correctness': [{'id': 'stage4.fixture', 'status': 'PASS'}]}
++            gate = {'correctness_accepted': True, 'evidence_accepted': True}
++            reuse_data = {'complete': True, 'inputs': inputs,
++                          'baseline_comparison': {'timing_investigations': timing or [], 'allocation_investigations': []}}
++
++            def recorder(*args, **kwargs):
++                output.mkdir()
++                (output / 'results.json').write_text(json.dumps(candidate))
++                return 0
++
++            with (patch('sys.argv', ['check.py', '--working-tree', '--config', str(config), '--output', str(output)]),
++                  patch.object(check.live, 'input_snapshot', return_value=inputs),
++                  patch.object(check.run, 'HERE', root),
++                  patch.object(check.run, 'sql_client', return_value='12.3.3-MariaDB'),
++                  patch.object(check.subprocess, 'run') as build,
++                  patch.object(check.subprocess, 'call', side_effect=recorder),
++                  patch.object(check, 'install_runtime_data', return_value=0),
++                  patch.object(check.stage1_gates, 'reference', return_value=({}, {})),
++                  patch.object(check.stage1_gates, 'compare', return_value=gate),
++                  patch.object(check, 'native_benchmarks', return_value={'complete': True}),
++                  patch('stage3_benchmarks.verify_evidence'),
++                  patch('stage4_benchmarks.verify_evidence'),
++                  patch.object(check, 'session_reuse_benchmarks', return_value=reuse_data, side_effect=failure) as reuse_call,
++                  patch.object(check.live, 'publish') as publish):
++                build.return_value.returncode = 0
++                self.assertEqual(status, check.main())
++            reuse_call.assert_called_once_with(output.resolve(), 7, config)
++            attempt, data = publish.call_args.args
++            if failure is None:
++                self.assertEqual('COMPLETED', attempt['state'])
++                self.assertEqual(candidate, data)
++                self.assertEqual(reuse_data, attempt['session_reuse'])
++                if timing:
++                    self.assertTrue(gate['performance_requires_confirmation'])
++            else:
++                self.assertEqual('FAILED', attempt['state'])
++                self.assertEqual('session reuse benchmarks', attempt['stage'])
++                self.assertIsNone(data)
++                self.assertTrue((output / 'results.json').is_file())
++
++
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/validation/test_publication.py b/validation/test_publication.py
+index 906b8701affe41b1155ed3943a8e1723d3717856..6afcf84fe8e22685059560b81f878b34a31b5d9b 100644
+--- a/validation/test_publication.py
++++ b/validation/test_publication.py
+@@ -37,6 +37,11 @@ class PublicationTests(unittest.TestCase):
+         with self.assertRaisesRegex(ValueError, 'native benchmark'):
+             live.verify(document, self.inputs)
+ 
++    def test_session_stage_cannot_publish_without_session_measurements(self):
++        self.data['correctness'].append({'id': 'stage4.required', 'status': 'PASS'})
++        with self.assertRaisesRegex(ValueError, 'session reuse benchmark'):
++            live.verify(self.publish(), self.inputs)
++
+     def test_complete_run_includes_failures_and_performance_deltas(self):
+         document = self.publish()
+         live.verify(document, self.inputs)
+diff --git a/validation/test_stage1_gates.py b/validation/test_stage1_gates.py
+index 11fdefc1f2c4b21641d97382147fd985a3d4f832..689672d9a0d89341261cb67cac2c37f902d13205 100644
+--- a/validation/test_stage1_gates.py
++++ b/validation/test_stage1_gates.py
+@@ -29,6 +29,11 @@ class RatchetTests(unittest.TestCase):
+         self.assertFalse(report['correctness_accepted'])
+         self.assertTrue(any('required statement target' in item for item in report['correctness_failures']))
+ 
++    def test_session_targets_are_required_with_previous_stage(self):
++        report = compare(data(), data(), data(), previous_stage=data())
++        self.assertFalse(report['correctness_accepted'])
++        self.assertTrue(any('required session target' in item for item in report['correctness_failures']))
++
+     def test_native_targets_are_required_with_previous_stage(self):
+         report = compare(data(), data(), data(), previous_stage=data())
+         self.assertFalse(report['correctness_accepted'])
+diff --git a/validation/test_stage4_benchmarks.py b/validation/test_stage4_benchmarks.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a8ce4de9cd567e17072d63921249d3c333a67464
+--- /dev/null
++++ b/validation/test_stage4_benchmarks.py
+@@ -0,0 +1,159 @@
++"""Independently verify reuse work, immutable baselines and publication evidence."""
++import copy
++import hashlib
++import json
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++
++import feature_benchmarks as features
++import stage4_benchmarks as reuse
++
++
++class ReuseEvidenceTests(unittest.TestCase):
++    def setUp(self):
++        self.spec = reuse.specification()
++        self.inputs = {'sha256': 'current', 'commit': 'code',
++                       'files': {name: 'digest' for name in reuse.WORKLOAD_PATHS}}
++        self.data = {'complete': True, 'repetitions': 7, 'inputs': copy.deepcopy(self.inputs),
++                     'server': {}, 'machine': {}, 'dependencies': [],
++                     'haskell_benchmark_rts': ['-N4', '-T'],
++                     'build': {'ghc': 'compiler', 'cabal': 'tool', 'git_commit': 'code'},
++                     'profiles': {}, 'comparisons': {}}
++        for ident, count in reuse.PROFILES.items():
++            sample = {'units': count, 'elapsed_ns': count * 100, 'allocated_bytes': count * 200,
++                      'cpu_ns': count * 80, 'gc_cpu_ns': count * 10, 'checksum': count}
++            profile = {'samples': [copy.deepcopy(sample) for _ in range(7)]}
++            for key in ('elapsed_ns', 'allocated_bytes', 'cpu_ns', 'gc_cpu_ns'):
++                profile['median_' + key + '_per_unit'] = sample[key] / count
++            self.data['profiles'][ident] = profile
++        for name, (current, baseline) in reuse.PAIRS.items():
++            self.data['comparisons'][name] = {'current': current, 'baseline': baseline,
++                'change_percent': {'elapsed_ns': 0.0, 'allocated_bytes': 0.0}}
++        folder = tempfile.TemporaryDirectory()
++        self.addCleanup(folder.cleanup)
++        root = Path(folder.name)
++        self.directory = root / reuse.BASELINE_DIRECTORY
++        self.directory.mkdir(parents=True)
++        artifacts = {'results.json': json.dumps(self.data).encode(), 'SUMMARY.md': b'first reuse capture\n'}
++        for name, raw in artifacts.items():
++            (self.directory / name).write_bytes(raw)
++        (self.directory / 'SHA256SUMS').write_text(''.join(
++            hashlib.sha256(raw).hexdigest() + '  ' + name + '\n' for name, raw in artifacts.items()))
++        location = patch.object(features.run, 'HERE', root)
++        location.start()
++        self.addCleanup(location.stop)
++        features.attach_baseline_comparison(self.spec, self.data)
++
++    def verify(self):
++        reuse.verify_evidence(self.data, self.inputs)
++
++    def test_complete_data(self):
++        self.verify()
++
++    def test_wrong_units_for_same_checksum(self):
++        self.data['profiles']['reuse.tcp.reset']['samples'][0]['units'] = 1
++        with self.assertRaisesRegex(ValueError, 'unit count'):
++            self.verify()
++
++    def test_wrong_checksum(self):
++        self.data['profiles']['reuse.tls.reset']['samples'][0]['checksum'] = 0
++        with self.assertRaisesRegex(ValueError, 'checksum'):
++            self.verify()
++
++    def test_snapshot_has_its_own_unit_count(self):
++        self.data['profiles']['session.snapshot']['samples'][0]['units'] = 30
++        with self.assertRaisesRegex(ValueError, 'unit count'):
++            self.verify()
++
++    def test_missing_transport(self):
++        del self.data['profiles']['reuse.socket.reconnect']
++        with self.assertRaisesRegex(ValueError, 'profiles'):
++            self.verify()
++
++    def test_missing_repetition(self):
++        self.data['profiles']['reuse.tcp.reset']['samples'].pop()
++        with self.assertRaisesRegex(ValueError, 'repetitions'):
++            self.verify()
++
++    def test_edited_median(self):
++        self.data['profiles']['reuse.tcp.reset']['median_elapsed_ns_per_unit'] = 1
++        with self.assertRaisesRegex(ValueError, 'summary'):
++            self.verify()
++
++    def test_missing_comparison(self):
++        del self.data['comparisons']['tls']
++        with self.assertRaisesRegex(ValueError, 'comparison profiles'):
++            self.verify()
++
++    def test_reversed_comparison(self):
++        self.data['comparisons']['tcp']['baseline'] = 'reuse.tcp.reset'
++        with self.assertRaisesRegex(ValueError, 'identity'):
++            self.verify()
++
++    def test_edited_change(self):
++        self.data['comparisons']['tcp']['change_percent']['elapsed_ns'] = -50
++        with self.assertRaisesRegex(ValueError, 'comparison'):
++            self.verify()
++
++    def test_old_input_fingerprint(self):
++        self.data['inputs']['sha256'] = 'old'
++        with self.assertRaisesRegex(ValueError, 'stale'):
++            self.verify()
++
++    def test_same_digest_cannot_hide_different_files(self):
++        self.data['inputs']['files'][reuse.WORKLOAD_PATHS[0]] = 'fake mismatch'
++        with self.assertRaisesRegex(ValueError, 'input file'):
++            self.verify()
++
++    def test_wrong_tested_commit(self):
++        self.data['build']['git_commit'] = 'old'
++        with self.assertRaisesRegex(ValueError, 'tested commit'):
++            self.verify()
++
++    def test_missing_baseline_is_rejected(self):
++        (self.directory / 'results.json').unlink()
++        with self.assertRaisesRegex(ValueError, 'required session reuse baseline'):
++            self.verify()
++
++    def test_changed_baseline_is_rejected(self):
++        (self.directory / 'results.json').write_text('{}')
++        with self.assertRaisesRegex(ValueError, 'checksum'):
++            self.verify()
++
++    def test_changed_summary_is_rejected(self):
++        (self.directory / 'SUMMARY.md').write_text('different')
++        with self.assertRaisesRegex(ValueError, 'checksum'):
++            self.verify()
++
++    def test_omitted_baseline_comparison(self):
++        del self.data['baseline_comparison']
++        with self.assertRaisesRegex(ValueError, 'baseline comparison'):
++            self.verify()
++
++    def test_cannot_hide_comparability(self):
++        self.data['baseline_comparison']['comparable'] = False
++        with self.assertRaisesRegex(ValueError, 'baseline comparison'):
++            self.verify()
++
++    def test_cannot_hide_timing_alarm(self):
++        self.data['baseline_comparison']['timing_investigations'] = [{'id': 'x', 'percent': 99}]
++        with self.assertRaisesRegex(ValueError, 'baseline comparison'):
++            self.verify()
++
++    def test_environment_change_withholds_deltas(self):
++        self.data['server'] = {'different': True}
++        comparison = features.baseline_comparison(self.spec, self.data)
++        self.assertFalse(comparison['comparable'])
++        self.assertEqual({}, comparison['profiles'])
++
++    def test_duplicate_and_wrong_markers(self):
++        line = 'STAGE4\treuse.tcp.reset\t30\t100\t200\t80\t10\t30\n'
++        for content in (line * 2, line.replace('STAGE4', 'STAGE3')):
++            with self.assertRaises(ValueError):
++                features.sample(self.spec, content, 'reuse.tcp.reset')
++
++
++if __name__ == '__main__':
++    unittest.main()

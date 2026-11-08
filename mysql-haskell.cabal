@@ -90,6 +90,7 @@ library
   autogen-modules:    Paths_mysql_haskell
   hs-source-dirs:     src
   other-modules:      Database.MySQL.Query
+                      Database.MySQL.Session
   build-depends:
     asn1-encoding >=0.9 && <0.10,
     asn1-types >=0.3 && <0.4,
@@ -294,6 +295,8 @@ executable mariadb-validation
     Validation.Stage2
     Validation.Stage3
     Validation.Stage3Bench
+    Validation.Stage4
+    Validation.Stage4Bench
     Validation.FaultTransport
   build-depends:
     binary, bytestring, containers, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector

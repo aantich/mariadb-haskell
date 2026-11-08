@@ -1,0 +1,34 @@
+"""Recreate the isolated Stage 4 Docker context from a full Git clone.
+
+Run: python3 stage4-linux-context.py.txt REPOSITORY NEW_CONTEXT_DIRECTORY
+Then: docker build -f NEW_CONTEXT_DIRECTORY/Stage4Evidence.Dockerfile --target evidence --output type=local,dest=NEW_EVIDENCE_DIRECTORY NEW_CONTEXT_DIRECTORY
+Private ignored files are excluded. The published Cabal file only primes the
+unchanged dependency cache; the actual working Cabal file replaces it before
+compilation. The Docker exporter writes status.json even on test failure, so
+check that status rather than treating Docker build success as test success.
+"""
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+repository = Path(sys.argv[1]).resolve()
+context = Path(sys.argv[2]).resolve()
+context.mkdir(exist_ok=False)
+paths = set(subprocess.check_output(
+    ['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+    cwd=repository).decode().split('\0')) - {''}
+for name in sorted(paths):
+    source = repository / name
+    if source.is_file():
+        target = context / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+shutil.copytree(repository / '.git', context / '.git')
+current = (context / 'mysql-haskell.cabal').read_bytes()
+(context / 'validation/linux/mysql-haskell.stage4.cabal.txt').write_bytes(current)
+(context / 'mysql-haskell.cabal').write_bytes(subprocess.check_output(
+    ['git', 'show', '7b545e873ea108d9de96cef43a04d771a51341df:mysql-haskell.cabal'],
+    cwd=repository))
+shutil.copy2(repository / 'validation/results/experiments/stage4-linux-evidence.Dockerfile.txt',
+             context / 'Stage4Evidence.Dockerfile')

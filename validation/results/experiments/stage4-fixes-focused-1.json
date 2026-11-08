@@ -1,0 +1,416 @@
+[
+  {
+    "id": "stage4.tracking.initial-state",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.initial-state\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.all-kinds-and-wire-order",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.all-kinds-and-wire-order\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.repeated-variable-last-wins",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.repeated-variable-last-wins\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.snapshot-does-no-io",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.snapshot-does-no-io\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.owns-receive-bytes",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.owns-receive-bytes\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.malformed-known-kinds",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.malformed-known-kinds\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.item-count-bound",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.item-count-bound\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.length-overflow-rejected",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.length-overflow-rejected\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.accumulated-budget",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.accumulated-budget\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.replacement-releases-budget",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.replacement-releases-budget\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.explicit-facts-retained-envelope-budget",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.explicit-facts-retained-envelope-budget\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.explicit-facts-do-not-forge-events",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.explicit-facts-do-not-forge-events\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.subscription-invalidates-values",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.subscription-invalidates-values\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.schema-and-transaction-controls",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.schema-and-transaction-controls\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.collation-direct-live",
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "user error (direct collation change is current: expected Just \"utf8mb4_bin\", got Nothing)\nHasCallStack backtrace:\n  collectBacktraces, called at libraries/ghc-internal/src/GHC/Internal/Exception.hs:169:13 in ghc-internal:GHC.Internal.Exception\n  toExceptionWithBacktrace, called at libraries/ghc-internal/src/GHC/Internal/IO.hs:260:11 in ghc-internal:GHC.Internal.IO\n  throwIO, called at libraries/ghc-internal/src/GHC/Internal/Control/Exception/Base.hs:195:43 in ghc-internal:GHC.Internal.Control.Exception.Base\n\n\n"
+  },
+  {
+    "id": "stage4.tracking.collation-set-names-live",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.collation-set-names-live\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.collation-delta-order",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.collation-delta-order\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.collation-invalidation-releases-budget",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.collation-invalidation-releases-budget\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.collation-explicit-selection",
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "user error (explicitly subscribed collation observed: expected Just \"utf8mb4_bin\", got Nothing)\nHasCallStack backtrace:\n  collectBacktraces, called at libraries/ghc-internal/src/GHC/Internal/Exception.hs:169:13 in ghc-internal:GHC.Internal.Exception\n  toExceptionWithBacktrace, called at libraries/ghc-internal/src/GHC/Internal/IO.hs:260:11 in ghc-internal:GHC.Internal.IO\n  throwIO, called at libraries/ghc-internal/src/GHC/Internal/Control/Exception/Base.hs:195:43 in ghc-internal:GHC.Internal.Control.Exception.Base\n\n\n"
+  },
+  {
+    "id": "stage4.tracking.transaction-characteristics-downgrade",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.transaction-characteristics-downgrade\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.transaction-characteristics-downgrade-live",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.transaction-characteristics-downgrade-live\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.live-schema",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.live-schema\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.live-transaction-details",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.live-transaction-details\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.multiple-results-retain-real-envelope",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.multiple-results-retain-real-envelope\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.disabled-transaction-flags",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.disabled-transaction-flags\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.error-invalidates",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.error-invalidates\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.tracking.disabled-honest-unknowns",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.tracking.disabled-honest-unknowns\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.same-session-and-cleanup",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.same-session-and-cleanup\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.rolls-back-open-transaction",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.rolls-back-open-transaction\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.restores-constructor-database",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.restores-constructor-database\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.restores-charset-and-rendering",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.restores-charset-and-rendering\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.custom-initializer",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.custom-initializer\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.role-none-before-initializer",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.role-none-before-initializer\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.role-default-before-database",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.role-default-before-database\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.role-initializer-and-refresh",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.role-initializer-and-refresh\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.role-without-tracking",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.role-without-tracking\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.role-latin1-client",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.role-latin1-client\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.role-tls-and-socket",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.role-tls-and-socket\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.tls",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.tls\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.socket",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.socket\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.tracking-disabled",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.tracking-disabled\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.raw-command-uses-guarded-restoration",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.raw-command-uses-guarded-restoration\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.no-database-unchanged-is-safe",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.no-database-unchanged-is-safe\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.autocommit-and-isolation-defaults",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.autocommit-and-isolation-defaults\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.after-transaction-tracking",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.after-transaction-tracking\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.releases-advisory-locks",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.releases-advisory-locks\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.empty-database-after-use-rejected",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.empty-database-after-use-rejected\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.stale-handle-and-id-reuse",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.stale-handle-and-id-reuse\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.registry-bounded-over-reuse",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.registry-bounded-over-reuse\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.pending-stream-rejected-before-send",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.pending-stream-rejected-before-send\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.transaction-helper-rejected",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.transaction-helper-rejected\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.initializer-error-retires",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.initializer-error-retires\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.initializer-stream-retires",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.initializer-stream-retires\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.initializer-transaction-retires",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.initializer-transaction-retires\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.malformed-reply-retires",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.malformed-reply-retires\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.server-error-retires",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.server-error-retires\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.restore-error-retires",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.restore-error-retires\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.wire-byte-and-no-redundant-setup",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.wire-byte-and-no-redundant-setup\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.role-restoration-error-retires",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.role-restoration-error-retires\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.role-snapshot-value-bound",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.role-snapshot-value-bound\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.role-restoration-deadline",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.role-restoration-deadline\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.known-unsupported-version-no-send",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.known-unsupported-version-no-send\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.no-database-unsafe-restore-rejected",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.no-database-unsafe-restore-rejected\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.closed-and-broken-never-revived",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.closed-and-broken-never-revived\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.buffered-initializer-deadline",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.buffered-initializer-deadline\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.wire-and-restoration-deadlines",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.wire-and-restoration-deadlines\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.wire-cancellation",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.wire-cancellation\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.close-race-stays-terminal",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.close-race-stays-terminal\n",
+    "stderr": ""
+  },
+  {
+    "id": "stage4.reset.initializer-cancellation-and-exclusive-lease",
+    "exit_code": 0,
+    "stdout": "PASS\tstage4.reset.initializer-cancellation-and-exclusive-lease\n",
+    "stderr": ""
+  }
+]
