@@ -1,0 +1,73 @@
+mysql-integration
+  select 1:                                              OK
+    connecting...
+    executing SELECT 1...
+  roundtrip MySQLBit:                                    OK
+    roundtrip MySQLBit via binary protocol
+    roundtrip MySQLBit zero
+    roundtrip MySQLBit max for BIT(16)
+  roundtrip MySQLYear:                                   OK
+    roundtrip MySQLYear via binary protocol
+    roundtrip MySQLYear min (1901)
+    roundtrip MySQLYear max (2155)
+    roundtrip MySQLYear zero
+  mysql-haskell test suit:                               OK (3.35s)
+    preparing table...                     (0.10s)
+    testing executeMany                    (3.03s)
+    testing text protocol                  (0.08s)
+    testing binary protocol                (0.13s)
+    testing MySQL5.7 extra text protocol
+    testing MySQL5.7 extra binary protocol
+    testing binlog protocol
+    testing password change                (0.01s)
+  query functions given an INSERT
+    query_:                                              OK
+    queryVector_:                                        OK
+    queryStmt:                                           OK
+    queryStmtVector:                                     OK
+  statements with several results
+    query_ with two INSERTs:                             OK
+    execute_ with two INSERTs:                           OK
+    execute_ with a SELECT:                              OK
+    executeStmt with a SELECT:                           OK
+    execute_ with a CALL returning one result set:       OK (0.04s)
+    query_ with a CALL returning one result set:         OK (0.04s)
+    query_ with an INSERT before a SELECT:               OK
+    query_ with two SELECTs:                             OK
+    query_ with a failing statement after a SELECT:      OK
+    execute_ with a failing statement after a SELECT:    OK
+    queryMulti_ with an INSERT and two SELECTs:          OK
+    queryMulti_ with a CALL returning two result sets:   OK (0.03s)
+    queryMulti with a parameter:                         OK
+    queryMulti_ with a failing statement after a SELECT: OK
+    executeMany_ with a SELECT after a DO:               OK
+    executeMany with a SELECT:                           OK
+    executeMany with two statements per parameter set:   OK
+    executeMany with no parameter sets:                  OK
+  unix-socket
+    connectUnixSocket: SELECT 1:                         OK
+      connecting via unix socket...
+      executing SELECT 1...
+    connectUnixSocketDetail: returns greeting:           OK
+      connecting via unix socket with detail...
+      checking greeting version...
+      executing query to verify connection...
+    unix socket: prepared statement roundtrip:           OK
+      connecting via unix socket...
+      executing prepared statement...
+  tls-connection
+    TLS connectDetail: SELECT 1:                         OK (0.04s)
+      creating TLS client params...
+      connecting via TLS...         (0.03s)
+      checking greeting version...
+      executing SELECT 1...
+    TLS connection: verify encryption active:            OK (0.03s)
+      creating TLS client params...
+      connecting via TLS...         (0.03s)
+      checking SSL cipher...
+    TLS connection: prepared statement roundtrip:        OK (0.04s)
+      creating TLS client params...
+      connecting via TLS...           (0.04s)
+      executing prepared statement...
+
+All 32 tests passed (3.59s)

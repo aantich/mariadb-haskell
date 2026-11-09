@@ -1,0 +1,4 @@
+unpacking 'https://releases.nixos.org/nixpkgs/nixpkgs-26.05pre958799.917fec990948/nixexprs.tar.xz' into the Git cache...
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
+/nix/store/y0xh87dnqkkrb9xacv46pdfp3ivyip0p-mariadb-haskell-0.1.0.0.drv
+/nix/store/516bn2zj7iki389il82hhxb1vv73aywk-vm-test-run-mariadb-haskell-test.drv

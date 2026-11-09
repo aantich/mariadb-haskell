@@ -1,0 +1,84 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.59kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#3 DONE 0.7s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 156B done
+#4 DONE 0.0s
+
+#5 [stage-1 1/8] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#5 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 0.0s done
+#5 DONE 0.0s
+
+#6 [stage-1 2/8] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     ghc cabal-install build-essential libgmp-dev zlib1g-dev libffi-dev pkg-config     libmariadb-dev openssl python3 git ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#6 CACHED
+
+#7 [tooling 1/1] FROM docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#7 resolve docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32 0.0s done
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 ...
+
+#9 [stage-1 3/8] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     libkrb5-dev krb5-kdc krb5-admin-server krb5-user libpam0g-dev mariadb-plugin-gssapi-server     && rm -rf /var/lib/apt/lists/*
+#9 0.381 Get:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease [256 kB]
+#9 0.392 Get:2 http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble InRelease [27.9 kB]
+#9 0.528 Err:2 http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble InRelease
+#9 0.528   At least one invalid signature was encountered.
+#9 0.584 Get:3 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease [126 kB]
+#9 0.633 Get:4 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease [126 kB]
+#9 0.659 Err:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+#9 0.659   At least one invalid signature was encountered.
+#9 0.686 Get:5 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease [126 kB]
+#9 0.695 Err:3 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+#9 0.695   At least one invalid signature was encountered.
+#9 0.730 Err:4 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+#9 0.730   At least one invalid signature was encountered.
+#9 0.764 Err:5 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+#9 0.764   At least one invalid signature was encountered.
+#9 0.771 Reading package lists...
+#9 0.783 W: GPG error: http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble InRelease: At least one invalid signature was encountered.
+#9 0.783 E: The repository 'http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble InRelease' is not signed.
+#9 0.783 W: GPG error: http://ports.ubuntu.com/ubuntu-ports noble InRelease: At least one invalid signature was encountered.
+#9 0.783 E: The repository 'http://ports.ubuntu.com/ubuntu-ports noble InRelease' is not signed.
+#9 0.783 W: GPG error: http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease: At least one invalid signature was encountered.
+#9 0.783 E: The repository 'http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease' is not signed.
+#9 0.783 W: GPG error: http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease: At least one invalid signature was encountered.
+#9 0.783 E: The repository 'http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease' is not signed.
+#9 0.783 W: GPG error: http://ports.ubuntu.com/ubuntu-ports noble-security InRelease: At least one invalid signature was encountered.
+#9 0.783 E: The repository 'http://ports.ubuntu.com/ubuntu-ports noble-security InRelease' is not signed.
+#9 ERROR: process "/bin/sh -c apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     libkrb5-dev krb5-kdc krb5-admin-server krb5-user libpam0g-dev mariadb-plugin-gssapi-server     && rm -rf /var/lib/apt/lists/*" did not complete successfully: exit code: 100
+
+#8 [internal] load build context
+#8 transferring context: 47.25MB 0.9s done
+#8 CANCELED
+------
+ > [stage-1 3/8] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     libkrb5-dev krb5-kdc krb5-admin-server krb5-user libpam0g-dev mariadb-plugin-gssapi-server     && rm -rf /var/lib/apt/lists/*:
+0.783 W: GPG error: http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble InRelease: At least one invalid signature was encountered.
+0.783 E: The repository 'http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble InRelease' is not signed.
+0.783 W: GPG error: http://ports.ubuntu.com/ubuntu-ports noble InRelease: At least one invalid signature was encountered.
+0.783 E: The repository 'http://ports.ubuntu.com/ubuntu-ports noble InRelease' is not signed.
+0.783 W: GPG error: http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease: At least one invalid signature was encountered.
+0.783 E: The repository 'http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease' is not signed.
+0.783 W: GPG error: http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease: At least one invalid signature was encountered.
+0.783 E: The repository 'http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease' is not signed.
+0.783 W: GPG error: http://ports.ubuntu.com/ubuntu-ports noble-security InRelease: At least one invalid signature was encountered.
+0.783 E: The repository 'http://ports.ubuntu.com/ubuntu-ports noble-security InRelease' is not signed.
+------
+Dockerfile:10
+--------------------
+   9 |     # Keep the reusable compiler layer separate from external-login fixtures.
+  10 | >>> RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  11 | >>>     libkrb5-dev krb5-kdc krb5-admin-server krb5-user libpam0g-dev mariadb-plugin-gssapi-server \
+  12 | >>>     && rm -rf /var/lib/apt/lists/*
+  13 |     COPY --from=tooling /usr/local/bin/cabal /usr/local/bin/cabal
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     libkrb5-dev krb5-kdc krb5-admin-server krb5-user libpam0g-dev mariadb-plugin-gssapi-server     && rm -rf /var/lib/apt/lists/*" did not complete successfully: exit code: 100

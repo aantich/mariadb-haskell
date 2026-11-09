@@ -301,3 +301,17 @@ fixture startup for protocol-only runs. All five are now fixed with 11 added
 driver regressions and eight policy tests;
 the current source passes all 48 Stage 7 cases and all 173 policy tests. The
 review report retains the original probes and describes each correction.
+
+
+## Alpha package preparation — 9 November 2026
+
+The independent package is `mariadb-haskell 0.1.0.0`, maintained by Anton Antich.
+[Release preparation and evidence](RELEASING.md) records package/CA/diagnostic
+changes, native CI, source-archive checks, user/migration/benchmark guides and
+exact measurement provenance. Status is **Alpha**: automated validation is
+extensive, but real-world application validation is outstanding.
+
+Prepare a Hackage candidate and rendered documentation for Anton to review.
+**Do not publish to the Hackage main index until Anton reviews the preview and
+explicitly approves publication.** The existing timing investigations remain
+open; no reference or threshold is advanced by release preparation.

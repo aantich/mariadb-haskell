@@ -1,0 +1,89 @@
+Resolving dependencies...
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mariadb-haskell-0.1.0.0 (lib) (first run)
+ - mariadb-haskell-0.1.0.0 (test:test) (first run)
+Configuring library for mariadb-haskell-0.1.0.0...
+Preprocessing library for mariadb-haskell-0.1.0.0...
+Building library for mariadb-haskell-0.1.0.0...
+<no location info>: warning: [GHC-42258] [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id dt-dflt-clss-0.2.0.0-aac0c9c2)
+      - monad-loops-0.4.3 (exposed by flag -package-id mnd-lps-0.4.3-ff24b47c)
+
+[ 1 of 31] Compiling Data.Binary.Parser.Word8 ( src/Data/Binary/Parser/Word8.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Binary/Parser/Word8.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Binary/Parser/Word8.dyn_o )
+[ 2 of 31] Compiling Data.Binary.Parser.Numeric ( src/Data/Binary/Parser/Numeric.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Binary/Parser/Numeric.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Binary/Parser/Numeric.dyn_o )
+[ 3 of 31] Compiling Data.Binary.Parser ( src/Data/Binary/Parser.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Binary/Parser.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Binary/Parser.dyn_o )
+[ 4 of 31] Compiling Data.Connection  ( src/Data/Connection.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Connection.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Connection.dyn_o )
+[ 5 of 31] Compiling Data.Word.Word24 ( src/Data/Word/Word24.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Word/Word24.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Word/Word24.dyn_o )
+[ 6 of 31] Compiling Data.Int.Int24   ( src/Data/Int/Int24.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Int/Int24.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/Int/Int24.dyn_o )
+[ 7 of 31] Compiling Database.MySQL.Authentication ( src/Database/MySQL/Authentication.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Authentication.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Authentication.dyn_o )
+[ 8 of 31] Compiling Database.MySQL.Authentication.GSSAPI ( src/Database/MySQL/Authentication/GSSAPI.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Authentication/GSSAPI.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Authentication/GSSAPI.dyn_o )
+[ 9 of 31] Compiling Database.MySQL.Protocol.Compression ( src/Database/MySQL/Protocol/Compression.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Compression.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Compression.dyn_o )
+[10 of 31] Compiling Database.MySQL.Protocol.Escape ( src/Database/MySQL/Protocol/Escape.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Escape.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Escape.dyn_o )
+[11 of 31] Compiling Database.MySQL.Protocol.Packet ( src/Database/MySQL/Protocol/Packet.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Packet.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Packet.dyn_o )
+[12 of 31] Compiling Database.MySQL.Protocol.ColumnDef ( src/Database/MySQL/Protocol/ColumnDef.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/ColumnDef.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/ColumnDef.dyn_o )
+[13 of 31] Compiling Database.MySQL.Protocol.MySQLValue ( src/Database/MySQL/Protocol/MySQLValue.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/MySQLValue.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/MySQLValue.dyn_o )
+[14 of 31] Compiling Database.MySQL.Protocol.Command ( src/Database/MySQL/Protocol/Command.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Command.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Command.dyn_o )
+[15 of 31] Compiling Database.MySQL.Field ( src/Database/MySQL/Field.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Field.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Field.dyn_o )
+[16 of 31] Compiling Database.MySQL.BinLogProtocol.BinLogMeta ( src/Database/MySQL/BinLogProtocol/BinLogMeta.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLogProtocol/BinLogMeta.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLogProtocol/BinLogMeta.dyn_o )
+src/Database/MySQL/BinLogProtocol/BinLogMeta.hs:130:13: warning: [GHC-63397] [-Wname-shadowing]
+    This binding for ‘label’ shadows the existing binding
+      imported from ‘Data.Binary.Get’ at src/Database/MySQL/BinLogProtocol/BinLogMeta.hs:32:1-32
+      (and originally defined in ‘Data.Binary.Get.Internal’)
+    |
+130 | checkedByte label valid = do
+    |             ^^^^^
+
+[17 of 31] Compiling Database.MySQL.Protocol.Auth ( src/Database/MySQL/Protocol/Auth.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Auth.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Auth.dyn_o )
+[18 of 31] Compiling Database.MySQL.BinLogProtocol.BinLogValue ( src/Database/MySQL/BinLogProtocol/BinLogValue.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLogProtocol/BinLogValue.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLogProtocol/BinLogValue.dyn_o )
+[19 of 31] Compiling Database.MySQL.Protocol.Progress ( src/Database/MySQL/Protocol/Progress.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Progress.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Protocol/Progress.dyn_o )
+[20 of 31] Compiling Database.MySQL.Query ( src/Database/MySQL/Query.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Query.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Query.dyn_o )
+[21 of 31] Compiling Database.MySQL.BinLogProtocol.BinLogEvent ( src/Database/MySQL/BinLogProtocol/BinLogEvent.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLogProtocol/BinLogEvent.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLogProtocol/BinLogEvent.dyn_o )
+[22 of 31] Compiling Database.MySQL.BinLogProtocol.CDC ( src/Database/MySQL/BinLogProtocol/CDC.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLogProtocol/CDC.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLogProtocol/CDC.dyn_o )
+[23 of 31] Compiling Database.MySQL.Session ( src/Database/MySQL/Session.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Session.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Session.dyn_o )
+[24 of 31] Compiling Paths_mariadb_haskell ( dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/autogen/Paths_mariadb_haskell.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Paths_mariadb_haskell.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Paths_mariadb_haskell.dyn_o )
+[25 of 31] Compiling Data.TLSSetting  ( src/Data/TLSSetting.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/TLSSetting.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Data/TLSSetting.dyn_o )
+[26 of 31] Compiling System.IO.Streams.TCP ( src/System/IO/Streams/TCP.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/System/IO/Streams/TCP.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/System/IO/Streams/TCP.dyn_o )
+[27 of 31] Compiling Database.MySQL.Connection ( src/Database/MySQL/Connection.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Connection.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Connection.dyn_o )
+[28 of 31] Compiling Database.MySQL.Base ( src/Database/MySQL/Base.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Base.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/Base.dyn_o )
+[29 of 31] Compiling Database.MySQL.BinLog ( src/Database/MySQL/BinLog.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLog.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/BinLog.dyn_o )
+[30 of 31] Compiling System.IO.Streams.TLS ( src/System/IO/Streams/TLS.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/System/IO/Streams/TLS.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/System/IO/Streams/TLS.dyn_o )
+[31 of 31] Compiling Database.MySQL.TLS ( src/Database/MySQL/TLS.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/TLS.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/opt/build/Database/MySQL/TLS.dyn_o )
+Configuring test suite 'test' for mariadb-haskell-0.1.0.0...
+Preprocessing test suite 'test' for mariadb-haskell-0.1.0.0...
+Building test suite 'test' for mariadb-haskell-0.1.0.0...
+[ 1 of 15] Compiling Aeson            ( test/Aeson.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/Aeson.o )
+test/Aeson.hs:9:1: warning: [GHC-66111] [-Wunused-imports]
+    The import of ‘Control.Applicative’ is redundant
+      except perhaps to import instances from ‘Control.Applicative’
+    To import instances alone, use: import Control.Applicative()
+  |
+9 | import Control.Applicative (liftA2)
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+[ 2 of 15] Compiling AesonBP          ( test/AesonBP.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/AesonBP.o )
+test/AesonBP.hs:9:1: warning: [GHC-66111] [-Wunused-imports]
+    The import of ‘Control.Applicative’ is redundant
+      except perhaps to import instances from ‘Control.Applicative’
+    To import instances alone, use: import Control.Applicative()
+  |
+9 | import Control.Applicative (liftA2)
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+[ 3 of 15] Compiling BoundsCheck      ( test/BoundsCheck.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/BoundsCheck.o )
+[ 4 of 15] Compiling ConnectInfo      ( test/ConnectInfo.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/ConnectInfo.o )
+[ 5 of 15] Compiling FieldRoundtrip   ( test/FieldRoundtrip.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/FieldRoundtrip.o )
+[ 6 of 15] Compiling JSON             ( test/JSON.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/JSON.o )
+[ 7 of 15] Compiling Orphans          ( test/Orphans.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/Orphans.o )
+[ 8 of 15] Compiling QC.Common        ( test/QC/Common.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/QC/Common.o )
+[ 9 of 15] Compiling QC.Combinator    ( test/QC/Combinator.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/QC/Combinator.o )
+[10 of 15] Compiling QC.ByteString    ( test/QC/ByteString.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/QC/ByteString.o )
+[11 of 15] Compiling Sha1Scramble     ( test/Sha1Scramble.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/Sha1Scramble.o )
+[12 of 15] Compiling Sha256Scramble   ( test/Sha256Scramble.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/Sha256Scramble.o )
+[13 of 15] Compiling TCPStreams       ( test/TCPStreams.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/TCPStreams.o )
+[14 of 15] Compiling Word24           ( test/Word24.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/Word24.o )
+[15 of 15] Compiling Main             ( test/Main.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test-tmp/Main.o )
+[16 of 16] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/build/test/test
+ld: warning: -U option is redundant when using -undefined dynamic_lookup

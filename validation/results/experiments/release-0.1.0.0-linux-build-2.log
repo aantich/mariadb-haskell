@@ -1,0 +1,250 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.59kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 156B done
+#4 DONE 0.0s
+
+#5 [stage-1 1/8] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#5 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 done
+#5 DONE 0.0s
+
+#6 [stage-1 2/8] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     ghc cabal-install build-essential libgmp-dev zlib1g-dev libffi-dev pkg-config     libmariadb-dev openssl python3 git ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#6 CACHED
+
+#7 [tooling 1/1] FROM docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#7 resolve docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32 done
+#7 CACHED
+
+#8 [internal] load build context
+#8 transferring context: 110.27MB 1.7s done
+#8 DONE 1.7s
+
+#9 [stage-1 3/8] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     libkrb5-dev krb5-kdc krb5-admin-server krb5-user libpam0g-dev mariadb-plugin-gssapi-server     && rm -rf /var/lib/apt/lists/*
+#9 0.321 Get:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease [256 kB]
+#9 0.343 Get:2 http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble InRelease [27.9 kB]
+#9 0.513 Get:3 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease [126 kB]
+#9 0.561 Get:4 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease [126 kB]
+#9 0.610 Get:5 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease [126 kB]
+#9 0.639 Get:6 http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble/main arm64 Packages [15.7 kB]
+#9 0.664 Get:7 http://ports.ubuntu.com/ubuntu-ports noble/restricted arm64 Packages [113 kB]
+#9 0.720 Get:8 http://ports.ubuntu.com/ubuntu-ports noble/universe arm64 Packages [19.0 MB]
+#9 0.755 Get:9 http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble/main/debug arm64 Packages [10.1 kB]
+#9 1.051 Get:10 http://ports.ubuntu.com/ubuntu-ports noble/multiverse arm64 Packages [274 kB]
+#9 1.053 Get:11 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 Packages [1776 kB]
+#9 1.089 Get:12 http://ports.ubuntu.com/ubuntu-ports noble-updates/multiverse arm64 Packages [107 kB]
+#9 1.089 Get:13 http://ports.ubuntu.com/ubuntu-ports noble-updates/restricted arm64 Packages [3325 kB]
+#9 1.132 Get:14 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 Packages [1823 kB]
+#9 1.158 Get:15 http://ports.ubuntu.com/ubuntu-ports noble-updates/universe arm64 Packages [2232 kB]
+#9 1.184 Get:16 http://ports.ubuntu.com/ubuntu-ports noble-backports/multiverse arm64 Packages [669 B]
+#9 1.184 Get:17 http://ports.ubuntu.com/ubuntu-ports noble-backports/main arm64 Packages [49.0 kB]
+#9 1.185 Get:18 http://ports.ubuntu.com/ubuntu-ports noble-backports/universe arm64 Packages [36.3 kB]
+#9 1.186 Get:19 http://ports.ubuntu.com/ubuntu-ports noble-security/universe arm64 Packages [1655 kB]
+#9 1.204 Get:20 http://ports.ubuntu.com/ubuntu-ports noble-security/main arm64 Packages [1489 kB]
+#9 1.220 Get:21 http://ports.ubuntu.com/ubuntu-ports noble-security/multiverse arm64 Packages [102 kB]
+#9 1.221 Get:22 http://ports.ubuntu.com/ubuntu-ports noble-security/restricted arm64 Packages [3148 kB]
+#9 2.465 Fetched 35.8 MB in 2s (16.1 MB/s)
+#9 2.465 Reading package lists...
+#9 3.146 Reading package lists...
+#9 3.817 Building dependency tree...
+#9 3.979 Reading state information...
+#9 4.171 The following additional packages will be installed:
+#9 4.171   bind9-host bind9-libs comerr-dev krb5-config krb5-multidev libevent-2.1-7t64
+#9 4.171   libgssrpc4t64 libicu74 libjson-c5 libkadm5clnt-mit12 libkadm5srv-mit12
+#9 4.171   libkdb5-10t64 liblmdb0 libmaxminddb0 libuv1t64 libverto-libevent1t64
+#9 4.171   libverto1t64 libxml2
+#9 4.172 Suggested packages:
+#9 4.172   doc-base krb5-kdc-ldap krb5-kpropd krb5-doc krb5-k5tls mmdb-bin
+#9 4.204 The following NEW packages will be installed:
+#9 4.204   bind9-host bind9-libs comerr-dev krb5-admin-server krb5-config krb5-kdc
+#9 4.204   krb5-multidev krb5-user libevent-2.1-7t64 libgssrpc4t64 libicu74 libjson-c5
+#9 4.204   libkadm5clnt-mit12 libkadm5srv-mit12 libkdb5-10t64 libkrb5-dev liblmdb0
+#9 4.205   libmaxminddb0 libpam0g-dev libuv1t64 libverto-libevent1t64 libverto1t64
+#9 4.205   libxml2 mariadb-plugin-gssapi-server
+#9 4.305 0 upgraded, 24 newly installed, 0 to remove and 5 not upgraded.
+#9 4.305 Need to get 14.1 MB of archives.
+#9 4.305 After this operation, 49.2 MB of additional disk space will be used.
+#9 4.305 Get:1 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libuv1t64 arm64 1.48.0-1.1build1 [95.3 kB]
+#9 4.347 Get:2 http://archive.mariadb.org/mariadb-12.3.3/repo/ubuntu noble/main arm64 mariadb-plugin-gssapi-server arm64 1:12.3.3+maria~ubu2404 [7492 B]
+#9 4.462 Get:3 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libjson-c5 arm64 0.17-1build1 [36.4 kB]
+#9 4.472 Get:4 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 liblmdb0 arm64 0.9.31-1build1 [48.1 kB]
+#9 4.489 Get:5 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libmaxminddb0 arm64 1.9.1-1build1 [24.6 kB]
+#9 4.501 Get:6 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libicu74 arm64 74.2-1ubuntu3.1 [10.8 MB]
+#9 4.797 Get:7 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libxml2 arm64 2.9.14+dfsg-1.3ubuntu3.10 [736 kB]
+#9 4.806 Get:8 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 bind9-libs arm64 1:9.18.39-0ubuntu0.24.04.9 [1224 kB]
+#9 4.823 Get:9 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 bind9-host arm64 1:9.18.39-0ubuntu0.24.04.9 [50.1 kB]
+#9 4.824 Get:10 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 krb5-config all 2.7 [22.0 kB]
+#9 4.824 Get:11 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libgssrpc4t64 arm64 1.20.1-6ubuntu2.10 [57.9 kB]
+#9 4.825 Get:12 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libkadm5clnt-mit12 arm64 1.20.1-6ubuntu2.10 [39.9 kB]
+#9 4.825 Get:13 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libkdb5-10t64 arm64 1.20.1-6ubuntu2.10 [40.5 kB]
+#9 4.826 Get:14 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libkadm5srv-mit12 arm64 1.20.1-6ubuntu2.10 [53.4 kB]
+#9 4.826 Get:15 http://ports.ubuntu.com/ubuntu-ports noble-updates/universe arm64 krb5-user arm64 1.20.1-6ubuntu2.10 [108 kB]
+#9 4.839 Get:16 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libevent-2.1-7t64 arm64 2.1.12-stable-9ubuntu2.2 [141 kB]
+#9 4.849 Get:17 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libverto1t64 arm64 0.3.1-1.2ubuntu3 [10.4 kB]
+#9 4.866 Get:18 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libverto-libevent1t64 arm64 0.3.1-1.2ubuntu3 [6328 B]
+#9 4.867 Get:19 http://ports.ubuntu.com/ubuntu-ports noble-updates/universe arm64 krb5-kdc arm64 1.20.1-6ubuntu2.10 [180 kB]
+#9 4.870 Get:20 http://ports.ubuntu.com/ubuntu-ports noble-updates/universe arm64 krb5-admin-server arm64 1.20.1-6ubuntu2.10 [94.8 kB]
+#9 4.872 Get:21 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 comerr-dev arm64 2.1-1.47.0-2.4~exp1ubuntu4.1 [44.1 kB]
+#9 4.872 Get:22 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 krb5-multidev arm64 1.20.1-6ubuntu2.10 [125 kB]
+#9 4.874 Get:23 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libpam0g-dev arm64 1.5.3-5ubuntu5.7 [116 kB]
+#9 4.877 Get:24 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libkrb5-dev arm64 1.20.1-6ubuntu2.10 [11.9 kB]
+#9 4.967 debconf: delaying package configuration, since apt-utils is not installed
+#9 4.986 Fetched 14.1 MB in 1s (21.2 MB/s)
+#9 4.998 Selecting previously unselected package libuv1t64:arm64.
+#9 4.998 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 19395 files and directories currently installed.)
+#9 5.020 Preparing to unpack .../00-libuv1t64_1.48.0-1.1build1_arm64.deb ...
+#9 5.021 Unpacking libuv1t64:arm64 (1.48.0-1.1build1) ...
+#9 5.034 Selecting previously unselected package libjson-c5:arm64.
+#9 5.035 Preparing to unpack .../01-libjson-c5_0.17-1build1_arm64.deb ...
+#9 5.036 Unpacking libjson-c5:arm64 (0.17-1build1) ...
+#9 5.045 Selecting previously unselected package liblmdb0:arm64.
+#9 5.046 Preparing to unpack .../02-liblmdb0_0.9.31-1build1_arm64.deb ...
+#9 5.047 Unpacking liblmdb0:arm64 (0.9.31-1build1) ...
+#9 5.056 Selecting previously unselected package libmaxminddb0:arm64.
+#9 5.058 Preparing to unpack .../03-libmaxminddb0_1.9.1-1build1_arm64.deb ...
+#9 5.058 Unpacking libmaxminddb0:arm64 (1.9.1-1build1) ...
+#9 5.067 Selecting previously unselected package libicu74:arm64.
+#9 5.068 Preparing to unpack .../04-libicu74_74.2-1ubuntu3.1_arm64.deb ...
+#9 5.069 Unpacking libicu74:arm64 (74.2-1ubuntu3.1) ...
+#9 5.209 Selecting previously unselected package libxml2:arm64.
+#9 5.211 Preparing to unpack .../05-libxml2_2.9.14+dfsg-1.3ubuntu3.10_arm64.deb ...
+#9 5.212 Unpacking libxml2:arm64 (2.9.14+dfsg-1.3ubuntu3.10) ...
+#9 5.228 Selecting previously unselected package bind9-libs:arm64.
+#9 5.230 Preparing to unpack .../06-bind9-libs_1%3a9.18.39-0ubuntu0.24.04.9_arm64.deb ...
+#9 5.230 Unpacking bind9-libs:arm64 (1:9.18.39-0ubuntu0.24.04.9) ...
+#9 5.252 Selecting previously unselected package bind9-host.
+#9 5.254 Preparing to unpack .../07-bind9-host_1%3a9.18.39-0ubuntu0.24.04.9_arm64.deb ...
+#9 5.255 Unpacking bind9-host (1:9.18.39-0ubuntu0.24.04.9) ...
+#9 5.265 Selecting previously unselected package krb5-config.
+#9 5.266 Preparing to unpack .../08-krb5-config_2.7_all.deb ...
+#9 5.267 Unpacking krb5-config (2.7) ...
+#9 5.276 Selecting previously unselected package libgssrpc4t64:arm64.
+#9 5.278 Preparing to unpack .../09-libgssrpc4t64_1.20.1-6ubuntu2.10_arm64.deb ...
+#9 5.279 Unpacking libgssrpc4t64:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.289 Selecting previously unselected package libkadm5clnt-mit12:arm64.
+#9 5.290 Preparing to unpack .../10-libkadm5clnt-mit12_1.20.1-6ubuntu2.10_arm64.deb ...
+#9 5.291 Unpacking libkadm5clnt-mit12:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.301 Selecting previously unselected package libkdb5-10t64:arm64.
+#9 5.302 Preparing to unpack .../11-libkdb5-10t64_1.20.1-6ubuntu2.10_arm64.deb ...
+#9 5.303 Unpacking libkdb5-10t64:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.312 Selecting previously unselected package libkadm5srv-mit12:arm64.
+#9 5.313 Preparing to unpack .../12-libkadm5srv-mit12_1.20.1-6ubuntu2.10_arm64.deb ...
+#9 5.314 Unpacking libkadm5srv-mit12:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.323 Selecting previously unselected package krb5-user.
+#9 5.324 Preparing to unpack .../13-krb5-user_1.20.1-6ubuntu2.10_arm64.deb ...
+#9 5.325 Unpacking krb5-user (1.20.1-6ubuntu2.10) ...
+#9 5.337 Selecting previously unselected package libevent-2.1-7t64:arm64.
+#9 5.338 Preparing to unpack .../14-libevent-2.1-7t64_2.1.12-stable-9ubuntu2.2_arm64.deb ...
+#9 5.339 Unpacking libevent-2.1-7t64:arm64 (2.1.12-stable-9ubuntu2.2) ...
+#9 5.349 Selecting previously unselected package libverto1t64:arm64.
+#9 5.351 Preparing to unpack .../15-libverto1t64_0.3.1-1.2ubuntu3_arm64.deb ...
+#9 5.351 Unpacking libverto1t64:arm64 (0.3.1-1.2ubuntu3) ...
+#9 5.359 Selecting previously unselected package libverto-libevent1t64:arm64.
+#9 5.361 Preparing to unpack .../16-libverto-libevent1t64_0.3.1-1.2ubuntu3_arm64.deb ...
+#9 5.362 Unpacking libverto-libevent1t64:arm64 (0.3.1-1.2ubuntu3) ...
+#9 5.371 Selecting previously unselected package krb5-kdc.
+#9 5.372 Preparing to unpack .../17-krb5-kdc_1.20.1-6ubuntu2.10_arm64.deb ...
+#9 5.374 Unpacking krb5-kdc (1.20.1-6ubuntu2.10) ...
+#9 5.389 Selecting previously unselected package krb5-admin-server.
+#9 5.390 Preparing to unpack .../18-krb5-admin-server_1.20.1-6ubuntu2.10_arm64.deb ...
+#9 5.391 Unpacking krb5-admin-server (1.20.1-6ubuntu2.10) ...
+#9 5.401 Selecting previously unselected package comerr-dev:arm64.
+#9 5.403 Preparing to unpack .../19-comerr-dev_2.1-1.47.0-2.4~exp1ubuntu4.1_arm64.deb ...
+#9 5.405 Unpacking comerr-dev:arm64 (2.1-1.47.0-2.4~exp1ubuntu4.1) ...
+#9 5.416 Selecting previously unselected package krb5-multidev:arm64.
+#9 5.417 Preparing to unpack .../20-krb5-multidev_1.20.1-6ubuntu2.10_arm64.deb ...
+#9 5.418 Unpacking krb5-multidev:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.430 Selecting previously unselected package libpam0g-dev:arm64.
+#9 5.432 Preparing to unpack .../21-libpam0g-dev_1.5.3-5ubuntu5.7_arm64.deb ...
+#9 5.432 Unpacking libpam0g-dev:arm64 (1.5.3-5ubuntu5.7) ...
+#9 5.442 Selecting previously unselected package mariadb-plugin-gssapi-server.
+#9 5.443 Preparing to unpack .../22-mariadb-plugin-gssapi-server_1%3a12.3.3+maria~ubu2404_arm64.deb ...
+#9 5.444 Unpacking mariadb-plugin-gssapi-server (1:12.3.3+maria~ubu2404) ...
+#9 5.453 Selecting previously unselected package libkrb5-dev:arm64.
+#9 5.455 Preparing to unpack .../23-libkrb5-dev_1.20.1-6ubuntu2.10_arm64.deb ...
+#9 5.456 Unpacking libkrb5-dev:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.470 Setting up liblmdb0:arm64 (0.9.31-1build1) ...
+#9 5.472 Setting up libpam0g-dev:arm64 (1.5.3-5ubuntu5.7) ...
+#9 5.474 Setting up libmaxminddb0:arm64 (1.9.1-1build1) ...
+#9 5.476 Setting up libuv1t64:arm64 (1.48.0-1.1build1) ...
+#9 5.478 Setting up libevent-2.1-7t64:arm64 (2.1.12-stable-9ubuntu2.2) ...
+#9 5.480 Setting up libgssrpc4t64:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.482 Setting up comerr-dev:arm64 (2.1-1.47.0-2.4~exp1ubuntu4.1) ...
+#9 5.484 Setting up libicu74:arm64 (74.2-1ubuntu3.1) ...
+#9 5.486 Setting up libjson-c5:arm64 (0.17-1build1) ...
+#9 5.488 Setting up libxml2:arm64 (2.9.14+dfsg-1.3ubuntu3.10) ...
+#9 5.490 Setting up mariadb-plugin-gssapi-server (1:12.3.3+maria~ubu2404) ...
+#9 5.493 Setting up libkadm5clnt-mit12:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.495 Setting up libkdb5-10t64:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.497 Setting up bind9-libs:arm64 (1:9.18.39-0ubuntu0.24.04.9) ...
+#9 5.499 Setting up libkadm5srv-mit12:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.500 Setting up bind9-host (1:9.18.39-0ubuntu0.24.04.9) ...
+#9 5.502 Setting up krb5-multidev:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.504 Setting up libkrb5-dev:arm64 (1.20.1-6ubuntu2.10) ...
+#9 5.506 Setting up krb5-config (2.7) ...
+#9 5.632 Setting up krb5-user (1.20.1-6ubuntu2.10) ...
+#9 5.637 update-alternatives: using /usr/bin/kinit.mit to provide /usr/bin/kinit (kinit) in auto mode
+#9 5.637 update-alternatives: warning: skip creation of /usr/share/man/man1/kinit.1.gz because associated file /usr/share/man/man1/kinit.mit.1.gz (of link group kinit) doesn't exist
+#9 5.639 update-alternatives: using /usr/bin/klist.mit to provide /usr/bin/klist (klist) in auto mode
+#9 5.639 update-alternatives: warning: skip creation of /usr/share/man/man1/klist.1.gz because associated file /usr/share/man/man1/klist.mit.1.gz (of link group klist) doesn't exist
+#9 5.640 update-alternatives: using /usr/bin/kswitch.mit to provide /usr/bin/kswitch (kswitch) in auto mode
+#9 5.640 update-alternatives: warning: skip creation of /usr/share/man/man1/kswitch.1.gz because associated file /usr/share/man/man1/kswitch.mit.1.gz (of link group kswitch) doesn't exist
+#9 5.642 update-alternatives: using /usr/bin/ksu.mit to provide /usr/bin/ksu (ksu) in auto mode
+#9 5.642 update-alternatives: warning: skip creation of /usr/share/man/man1/ksu.1.gz because associated file /usr/share/man/man1/ksu.mit.1.gz (of link group ksu) doesn't exist
+#9 5.643 update-alternatives: using /usr/bin/kpasswd.mit to provide /usr/bin/kpasswd (kpasswd) in auto mode
+#9 5.643 update-alternatives: warning: skip creation of /usr/share/man/man1/kpasswd.1.gz because associated file /usr/share/man/man1/kpasswd.mit.1.gz (of link group kpasswd) doesn't exist
+#9 5.644 update-alternatives: using /usr/bin/kdestroy.mit to provide /usr/bin/kdestroy (kdestroy) in auto mode
+#9 5.644 update-alternatives: warning: skip creation of /usr/share/man/man1/kdestroy.1.gz because associated file /usr/share/man/man1/kdestroy.mit.1.gz (of link group kdestroy) doesn't exist
+#9 5.645 update-alternatives: using /usr/bin/kadmin.mit to provide /usr/bin/kadmin (kadmin) in auto mode
+#9 5.645 update-alternatives: warning: skip creation of /usr/share/man/man1/kadmin.1.gz because associated file /usr/share/man/man1/kadmin.mit.1.gz (of link group kadmin) doesn't exist
+#9 5.646 update-alternatives: using /usr/bin/ktutil.mit to provide /usr/bin/ktutil (ktutil) in auto mode
+#9 5.646 update-alternatives: warning: skip creation of /usr/share/man/man1/ktutil.1.gz because associated file /usr/share/man/man1/ktutil.mit.1.gz (of link group ktutil) doesn't exist
+#9 5.648 Setting up libverto1t64:arm64 (0.3.1-1.2ubuntu3) ...
+#9 5.650 Setting up libverto-libevent1t64:arm64 (0.3.1-1.2ubuntu3) ...
+#9 5.652 Setting up krb5-kdc (1.20.1-6ubuntu2.10) ...
+#9 5.691 invoke-rc.d: could not determine current runlevel
+#9 5.693 invoke-rc.d: policy-rc.d denied execution of start.
+#9 5.850 Setting up krb5-admin-server (1.20.1-6ubuntu2.10) ...
+#9 5.887 invoke-rc.d: could not determine current runlevel
+#9 5.889 invoke-rc.d: policy-rc.d denied execution of start.
+#9 5.955 Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+#9 5.964 Processing triggers for mariadb-server (1:12.3.3+maria~ubu2404) ...
+#9 5.996 invoke-rc.d: could not determine current runlevel
+#9 5.998 invoke-rc.d: policy-rc.d denied execution of restart.
+#9 DONE 6.1s
+
+#10 [stage-1 4/8] COPY --from=tooling /usr/local/bin/cabal /usr/local/bin/cabal
+#10 DONE 0.1s
+
+#11 [stage-1 5/8] WORKDIR /workspace
+#11 DONE 0.0s
+
+#12 [stage-1 6/8] COPY . .
+#12 DONE 0.2s
+
+#13 [stage-1 7/8] RUN mkdir -p /opt/driver-auth && gcc -Wall -Wextra -Werror -fPIC -shared     validation/auth_fixture/pam_fixture.c -lpam -o /opt/driver-auth/pam_fixture.so
+#13 DONE 0.1s
+
+#14 [stage-1 8/8] RUN touch /opt/driver-auth/disposable-fixture
+#14 DONE 0.1s
+
+#15 exporting to image
+#15 exporting layers
+#15 exporting layers 3.1s done
+#15 exporting manifest sha256:ffbde1450e9e088f468a3928202e7a93ebd1e5beecfb5cc0d136b0d3b4bb8fbd done
+#15 exporting config sha256:63793dc92c00418030dc59cfb6d799e86e1b19c2a491f3eccbc8880ddb965738 done
+#15 exporting attestation manifest sha256:e761984b23059e261848bb0c9345a9c3500f6a3c183e9b8466db60bdac945278 done
+#15 exporting manifest list sha256:1cafa269934111752f16229da695a1d87ed616bbb64e2c90b63f508a285dfc78 done
+#15 naming to docker.io/library/mariadb-haskell-release-linux:20261109 done
+#15 unpacking to docker.io/library/mariadb-haskell-release-linux:20261109
+#15 unpacking to docker.io/library/mariadb-haskell-release-linux:20261109 3.9s done
+#15 DONE 7.1s

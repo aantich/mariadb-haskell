@@ -1,0 +1,22 @@
+{
+  "package": "mariadb-haskell-0.1.0.0",
+  "complete": true,
+  "checks": [
+    "cabal-check",
+    "ca-bundle",
+    "sdist",
+    "archive-ca",
+    "archive-build",
+    "archive-install-data",
+    "installed-ca-build",
+    "installed-ca",
+    "archive-unit",
+    "guide-examples",
+    "quickstart",
+    "haddock"
+  ],
+  "artifacts": {
+    "mariadb-haskell-0.1.0.0-docs.tar.gz": "050e9bccaeb3647012093084abc505a8218ff5360af9d8bdaba09b8d1edaa13d",
+    "mariadb-haskell-0.1.0.0.tar.gz": "0003390c0e6969912fcb4bf1196b02a26333de435c040ea8eeb2316d25f98d0c"
+  }
+}

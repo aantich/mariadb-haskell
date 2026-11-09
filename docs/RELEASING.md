@@ -4,6 +4,15 @@ Release preparation, 9 November 2026. Package **mariadb-haskell 0.1.0.0**;
 maintainer **Anton Antich <anton.antich@gmail.com>**. Public imports remain
 `Database.MySQL.*`. No public Hackage release has been uploaded.
 
+**Readiness: Alpha.** Automated tests and benchmarks do not replace real-world
+application validation, which is still outstanding. The Cabal stability field,
+description, README, user guide and main API documentation identify this status.
+
+**Publication gate:** upload a candidate and its documentation for Anton to review
+as rendered on Hackage. Do not publish to the main Hackage index until Anton has
+reviewed that preview and explicitly approved publication. Candidate upload and
+documentation inspection do not grant permission to publish the release.
+
 ## Implemented release work
 
 * Independent Cabal manifest, self-dependencies, generated `Paths` module,
@@ -89,9 +98,22 @@ Results-only and ordinary documentation updates do not require an endless rerun.
 ## Candidate inspection and publication
 
 The public package lookup returned HTTP 404 during preparation; this is not a
-name reservation. Local Cabal currently has no Hackage authentication configured.
-Upload requires Anton's authenticated account/API token, configured locally.
+name reservation. Anton's locally configured token was verified by a read-only Hackage request
+as account **aantich**, and uploader-group membership is confirmed. The
+configuration is owner-only and its Hackage repository uses HTTPS.
 Do not put passwords/tokens in source, logs or this chat.
+
+For local access, sign in to Hackage's
+[account-management page](https://hackage.haskell.org/users/account-management)
+and create an authentication token. `cabal path --config-file` identifies the
+active configuration (this Mac uses `/Users/aantich/.cabal/config`). Add an
+unindented `token: YOUR_TOKEN` there using a local editor and restrict the
+file to its owner (`chmod 600`). Cabal 3.16.1 supports this global token field.
+Never pass the actual token through a committed script or chat. New accounts
+require uploader approval; Hackage's
+[registration page](https://hackage.haskell.org/users/register-request) explains
+endorsements and trustee requests. Candidate access is not guaranteed merely by
+setting the public maintainer email.
 
 After technical checks pass, upload a **candidate** using the exact checksummed
 artifacts (without `--publish`):
@@ -121,6 +143,40 @@ is compatibility, not a MySQL server support promise.
 
 ## Evidence checkpoint
 
-Implementation and focused checks are in progress. Final source-archive,
-Mac/Linux correctness, full benchmark and freshness outcomes are recorded here
-when complete. Candidate upload/remote inspection remains pending authentication.
+Committed release inputs: `c6838dfb262aaa938692fa753ff77c1f1d6c85d2`,
+209 input files, SHA-256
+`76ceed62fb6aafbcf1b62c260692afe744055c01ef5c6141d2d69fad065d7bd8`.
+
+* Mac correctness: **844 PASS / 0 FAIL / 0 unsupported / 0 unavailable**.
+  Inherited suites: **183 unit/property cases** (182 pass, one inherited
+  external-HTTPS ignore) and **32 passing integration tests**.
+* **180 policy tests pass**. The archive rejection test was tightened to match
+  its intended error reason; the interrupted earlier capture remains retained.
+* Full Mac measurements: **63 runnable profiles × seven repetitions**,
+  including all five additive families. Frozen workloads/references and the
+  149-entry dependency plan remain unchanged. The strict publication guard passes.
+* The full command exits 1 because performance acceptance remains open:
+  16 ordinary/reference, 0 native, 3 reuse, 0 CDC, 2 wire and
+  0 authentication timing signals; no
+  allocation signals. Hearthstone/Zoom were active, and Anton explicitly requested
+  continuation with timing contention labeled. Linux compilation was paused
+  during the Mac capture. The pre-Alpha run is retained; this final run follows the newly committed
+  Alpha metadata/API documentation, rather than selecting better timings.
+* Both Nix CI derivations instantiate on isolated Linux; dummy credential/build
+  directories are absent from the filtered source. This is **evaluation**, not
+  a completed Nix VM test. Remote compiler/OS jobs remain pending.
+* The independent archive check passes all 12 steps, including installed-CA
+  lookup outside Cabal, 183 unit/property cases, both examples and Hackage-format Haddock.
+  Final artifacts are regenerated after these release notes/results are finalized.
+* Main application API Haddock item coverage is complete; all 117 authored local
+  API links across the six main pages resolve. Generated instance links and
+  experimental low-level helpers retain some documentation/link debt.
+
+The Linux profile at `250ad82` passes all 844 correctness records, 180 policy
+tests and 39 native benchmark smoke paths. Its raw revision is retained; the
+subsequent Alpha change is readiness metadata and API documentation. Linux
+smoke timings are never compared with Mac baselines.
+
+The final Alpha capture and strict freshness check pass their correctness/evidence
+gates. Final archive checks and candidate inspection are in progress.
+Authentication is ready. Public release awaits Anton's explicit approval.

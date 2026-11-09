@@ -1,0 +1,5 @@
+Resolving dependencies...
+Loaded package environment from /private/tmp/mariadb-haskell-release-20261109/alpha-final-check/source/mariadb-haskell-0.1.0.0/dist-newstyle/tmp/environment.-42962/.ghc.environment.aarch64-darwin-9.10.3
+[1 of 2] Compiling Main             ( /private/tmp/mariadb-haskell-release-20261109/alpha-final-check/InstalledCA.hs, /private/tmp/mariadb-haskell-release-20261109/alpha-final-check/ca-objects/Main.o )
+[2 of 2] Linking /private/tmp/mariadb-haskell-release-20261109/alpha-final-check/installed-ca
+ld: warning: -U option is redundant when using -undefined dynamic_lookup

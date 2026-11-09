@@ -1,0 +1,73 @@
+Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+..Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+..Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+...............................................................................................................................Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+........Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.Server verified before build: 12.3.3-MariaDB
+Live results updated: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/RESULTS.md
+.........External authentication fixture preflight failed: fixture startup failed
+.External authentication fixture preflight failed: Authentication fixture setup interrupted.
+.....External authentication fixture preflight failed: fixture failed
+External authentication fixture preflight failed: Authentication fixture setup interrupted.
+External authentication fixture preflight failed: fixture failed
+External authentication fixture preflight failed: Authentication fixture setup interrupted.
+External authentication fixture preflight failed: fixture failed
+External authentication fixture preflight failed: Authentication fixture setup interrupted.
+External authentication fixture preflight failed: fixture failed
+External authentication fixture preflight failed: Authentication fixture setup interrupted.
+External authentication fixture preflight failed: fixture failed
+External authentication fixture preflight failed: Authentication fixture setup interrupted.
+External authentication fixture preflight failed: fixture failed
+External authentication fixture preflight failed: Authentication fixture setup interrupted.
+....
+----------------------------------------------------------------------
+Ran 180 tests in 1.697s
+
+OK

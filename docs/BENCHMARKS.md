@@ -1,7 +1,7 @@
 # Benchmarks: choosing the right API
 
-This is a dated **9 November 2026** snapshot of the retained Stage 7 review
-capture. [The live report](https://github.com/aantich/mariadb-haskell/blob/main/validation/RESULTS.md)
+This is the **9 November 2026** release-input capture from committed source
+`c6838df`. [The live report](https://github.com/aantich/mariadb-haskell/blob/main/validation/RESULTS.md)
 contains all profiles, failures, allocations, latency percentiles and open
 investigations. Values here are not refreshed merely because documentation or
 package metadata changes.
@@ -16,13 +16,13 @@ less time. Allocation change uses the same comparison and GHC allocation counts.
 
 | Comparison (Current vs Baseline) | Unit | Baseline | Current | Time change vs baseline | Allocation change vs baseline |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Native bulk vs sequential prepared | ns/row | 41,783.20 | 1,940.80 | -95.36% | -91.13% |
-| Native bulk vs text batch | ns/row | 11,215.20 | 1,940.80 | -82.69% | -78.18% |
-| Wide prepared metadata cache | ns/execution | 76,068.00 | 55,788.00 | -26.66% | -73.49% |
-| TLS reset vs reconnect | ns/request | 38,097,800.00 | 472,400.00 | -98.76% | -77.11% |
-| Streamed upload vs buffered | ns/byte | 5.19 | 5.22 | +0.62% | +97.14% |
-| Cursor batch 512 vs ordinary stream | ns/row | 373.50 | 875.70 | +134.46% | +4.85% |
-| Wide zlib vs plain transport | ns/row | 4,705.00 | 10,574.50 | +124.75% | +42.87% |
+| Native bulk vs sequential prepared | ns/row | 40,327.00 | 1,826.20 | -95.47% | -91.12% |
+| Native bulk vs text batch | ns/row | 10,557.00 | 1,826.20 | -82.70% | -77.91% |
+| Wide prepared metadata cache | ns/execution | 72,896.00 | 54,240.00 | -25.59% | -73.49% |
+| TLS reset vs reconnect | ns/request | 38,945,033.33 | 461,166.67 | -98.82% | -77.11% |
+| Streamed upload vs buffered | ns/byte | 5.04 | 5.05 | +0.24% | +97.23% |
+| Cursor batch 512 vs ordinary stream | ns/row | 356.30 | 860.30 | +141.45% | +4.49% |
+| Wide zlib vs plain transport | ns/row | 4,612.00 | 10,271.00 | +122.70% | +42.66% |
 
 Bulk reduces command round trips; wide metadata caching avoids repeated metadata
 transfer/decoding. Reuse measures complete equivalent request boundaries,
@@ -58,7 +58,9 @@ not interchangeable measures of authentication mechanisms.
   seven reuse, eight CDC, thirteen wire-feature and three authentication profiles.
   Two frozen historical unsupported placeholders remain as history; actual APIs
   have separate executable measurements.
-* The host was **not idle**: other CPU-intensive applications were active.
+* The host was **not idle**: Hearthstone and Zoom were active. The isolated
+  Linux compiler was paused during Mac measurements. Anton requested that
+  validation continue with timing contention explicitly labeled.
   Original-baseline and previous-stage timing investigations remain open,
   including ordinary narrow reads, text writes and setup/helper costs.
   Unchanged C controls also slowed, but contention is not proven to explain
@@ -69,16 +71,27 @@ not interchangeable measures of authentication mechanisms.
 
 ## Evidence and provenance
 
-The immutable [capture JSON](https://github.com/aantich/mariadb-haskell/blob/d5a005c9e2adf753b5f6b2a4d04763d309159130/validation/results/references/stage7-fixes-full-1-live.json)
-contains these numbers under `latest_completed_run.attempt`. The
-[confirmation receipt](https://github.com/aantich/mariadb-haskell/blob/d5a005c9e2adf753b5f6b2a4d04763d309159130/validation/results/stage7-confirmation.json)
-links the Mac/Linux/policy evidence. The capture fingerprints 198 executable
-inputs with digest
-`23d359d9d3550220aeb8532dc977df242c6a6d79319148ec1186b1f7d1870bcf`.
-It was measured before the reviewed inputs were committed: the recorded parent
-revision and dirty-input list remain intact. Commit `d5a005c` preserves the
-measured contents/evidence; it is not falsely recorded as a new benchmark run.
-Final release inputs require fresh validation under the committed-input policy.
+The retained [capture JSON](https://github.com/aantich/mariadb-haskell/blob/main/validation/results/references/release-0.1.0.0-alpha-live.json)
+contains these numbers under `latest_completed_run.attempt`. The tested source
+is commit `c6838dfb262aaa938692fa753ff77c1f1d6c85d2` with **209 committed executable
+inputs**, fingerprint `76ceed62fb6aafbcf1b62c260692afe744055c01ef5c6141d2d69fad065d7bd8`. All families preserve
+seven repetitions and the matching 149-entry dependency plan. Source/workload
+inputs remained stable throughout the run.
+
+The package rename uses a separately recorded metadata adapter around the
+byte-for-byte frozen original recorder; see
+[release provenance](https://github.com/aantich/mariadb-haskell/blob/main/docs/RELEASING.md#preserve-benchmark-history-through-the-rename).
+It changes only the manifest filename/self-package exclusion and entry-point
+dispatch. Sampling, workload bodies and comparison policy remain frozen.
+
+All 844 correctness records pass. The complete command exits 1 because timing
+gates remain open: **16 ordinary/reference, 0 native, 3 reuse, 0 CDC,
+2 wire and 0 authentication timing signals**, with no allocation signals.
+These are not silently waived or presented as accepted performance. The original
+and each feature baseline, failed/interrupted attempts, and the earlier
+[Stage 7 review capture](https://github.com/aantich/mariadb-haskell/blob/d5a005c9e2adf753b5f6b2a4d04763d309159130/validation/results/references/stage7-fixes-full-1-live.json)
+remain intact. A final full capture was required by the new Alpha manifest/documentation inputs;
+the pre-Alpha full capture is retained, not discarded to select better timings.
 
 The live report also compares **Baseline** (immutable original-driver capture),
 **Current** (latest complete capture), and **Change vs baseline** for the frozen

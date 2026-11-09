@@ -1,5 +1,9 @@
 # MariaDB Haskell
 
+**Status: Alpha.** Extensive automated tests and benchmarks cover the documented
+MariaDB capabilities, but the driver has not yet been validated in real-world
+applications. Evaluate it in your own environment; APIs and behavior may change.
+
 A streaming Haskell driver for **MariaDB only**, forked from
 [mysql-haskell](https://github.com/winterland1989/mysql-haskell). This fork adds
 MariaDB's native statement, session, authentication and replication capabilities,
@@ -77,10 +81,14 @@ authentication, failures and durable CDC consumers.
 
 ## Validation and performance
 
-The latest retained capture, recorded on **9 November 2026**, reports
-**844 PASS, 0 FAIL, 0 unsupported API inventory entries and 0 unavailable
-fixtures** on macOS and a separate Linux correctness profile. The tooling also
-passes 173 policy tests. This closes the original suite's missing driver APIs
+The committed release-input capture from `c6838df`, recorded on **9 November
+2026**, reports **844 PASS, 0 FAIL, 0 unsupported API inventory entries and 0 unavailable
+fixtures** on macOS. The inherited suites cover **183 unit/property cases** (182 pass and one
+inherited external-HTTPS case is ignored) and **32 passing integration tests**;
+**180 policy tests** pass. A separate Linux profile also passes all 844 checks
+and 39 native benchmark smoke paths; its exact revision is retained in the
+[release evidence](https://github.com/aantich/mariadb-haskell/blob/main/docs/RELEASING.md#evidence-checkpoint).
+This closes the original suite's missing driver APIs
 and authentication fixtures; it does not certify every version or platform.
 
 The Mac run measures **63 profiles, seven process repetitions each**. Selected
@@ -88,10 +96,10 @@ comparisons use alternatives in the **same current build**:
 
 | Comparison (Current vs Baseline) | Time unit | Baseline | Current | Change vs baseline |
 | --- | --- | ---: | ---: | ---: |
-| Native bulk vs sequential prepared insert | ns/row | 41,783.2 | 1,940.8 | −95.4% |
-| Native bulk vs text batch insert | ns/row | 11,215.2 | 1,940.8 | −82.7% |
-| Cached vs uncached wide prepared metadata | ns/execution | 76,068.0 | 55,788.0 | −26.7% |
-| Reset/restore vs reconnect/prepare TLS session | ns/request | 38,097,800 | 472,400 | −98.8% |
+| Native bulk vs sequential prepared insert | ns/row | 40,327.00 | 1,826.20 | -95.47% |
+| Native bulk vs text batch insert | ns/row | 10,557.00 | 1,826.20 | -82.70% |
+| Cached vs uncached wide prepared metadata | ns/execution | 72,896.00 | 54,240.00 | -25.59% |
+| Reset/restore vs reconnect/prepare TLS session | ns/request | 38,945,033.33 | 461,166.67 | -98.82% |
 
 Baseline means the named alternative in this build. Change is
 `(current / baseline − 1) × 100`; negative means less elapsed time.
@@ -100,14 +108,15 @@ promises for other applications.
 The host was **not idle** and timing investigations remain open. Streaming
 uploads allocate more in the measured case; cursors and compression cost time
 on local transfers. Some ordinary workloads remain slower than the original
-fork baseline.
+fork baseline. No allocation-regression signals were found against the frozen
+references; this differs from comparing two alternatives within this build.
 
 See the [benchmark guide](https://github.com/aantich/mariadb-haskell/blob/main/docs/BENCHMARKS.md)
 for environment, tradeoffs and immutable data. The
 **[live report on main](https://github.com/aantich/mariadb-haskell/blob/main/validation/RESULTS.md)**
 is refreshed from complete captures, retaining failures, baselines and exact
-source provenance. This dated README snapshot is not a fresh measurement of
-later edits.
+source provenance. This dated snapshot describes the recorded release inputs;
+ordinary documentation/results commits do not claim another measurement.
 
 [![Live validation status](https://raw.githubusercontent.com/aantich/mariadb-haskell/main/validation/results/overview.svg)](https://github.com/aantich/mariadb-haskell/blob/main/validation/RESULTS.md)
 

@@ -1,0 +1,367 @@
+Resolving dependencies...
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mariadb-haskell-0.1.0.0 (test:test) (ephemeral targets)
+Preprocessing test suite 'test' for mariadb-haskell-0.1.0.0...
+Building test suite 'test' for mariadb-haskell-0.1.0.0...
+Running 1 test suites...
+Test suite test: RUNNING...
+tests
+  binary-parser
+    bs
+      anyWord8:                                                                   OK
+        +++ OK, passed 100 tests.
+      endOfInput:                                                                 OK
+        +++ OK, passed 100 tests.
+      endOfLine:                                                                  OK
+        +++ OK, failed as expected. Falsified, Falsified (after 6 tests and 1 shrink):
+        "\NUL"
+        '\NUL' /= '\n'
+        
+        ('\NUL',Nothing) /= ('\r',Just '\n')
+      peekMaybe:                                                                  OK
+        +++ OK, passed 100 tests.
+      peek:                                                                       OK
+        +++ OK, passed 100 tests.
+      satisfy:                                                                    OK
+        +++ OK, passed 100 tests.
+      satisfyWith:                                                                OK
+        +++ OK, passed 100 tests.
+      scan:                                                                       OK
+        +++ OK, passed 100 tests.
+      skipWord8:                                                                  OK
+        +++ OK, failed as expected. Falsified (after 3 tests and 1 shrink):
+        0
+        "\NUL"
+        not (0 < 0)
+      skipWhile:                                                                  OK
+        +++ OK, passed 100 tests.
+      string:                                                                     OK
+        +++ OK, passed 100 tests.
+      strings:                                                                    OK
+        +++ OK, passed 100 tests.
+      take:                                                                       OK
+        +++ OK, passed 100 tests.
+      takeCount:                                                                  OK
+        +++ OK, passed 100 tests.
+      remaining:                                                                  OK
+        +++ OK, passed 100 tests.
+      takeTill:                                                                   OK
+        +++ OK, passed 100 tests.
+      takeWhile:                                                                  OK
+        +++ OK, passed 100 tests.
+      takeWhile1:                                                                 OK
+        +++ OK, passed 100 tests.
+      takeWhile1_empty:                                                           OK
+        +++ OK, passed 100 tests.
+      word8:                                                                      OK
+        +++ OK, passed 100 tests.
+      decimal:                                                                    OK
+        +++ OK, passed 100 tests.
+      double:                                                                     OK
+        +++ OK, passed 100 tests.
+      scientific:                                                                 OK
+        +++ OK, passed 100 tests.
+    combinator
+      asum:                                                                       OK
+        +++ OK, passed 100 tests.
+      replicateM:                                                                 OK
+        +++ OK, passed 100 tests.
+      lookAhead:                                                                  OK
+        +++ OK, passed 100 tests.
+    JSON
+      buffer-builder.json:                                                        OK
+      dates-fract.json:                                                           OK
+      dates.json:                                                                 OK
+      example.json:                                                               OK
+      geometry.json:                                                              OK
+      integers.json:                                                              OK
+      jp10.json:                                                                  OK
+      jp100.json:                                                                 OK
+      jp50.json:                                                                  OK
+      numbers.json:                                                               OK
+      twitter1.json:                                                              OK
+      twitter10.json:                                                             OK
+      twitter100.json:                                                            OK
+      twitter20.json:                                                             OK
+      twitter50.json:                                                             OK
+  word24
+    Word24
+      basic
+        add. identity:                                                            OK
+          +++ OK, passed 100 tests.
+        mult. identity:                                                           OK
+          +++ OK, passed 100 tests.
+        unsigned:                                                                 OK
+          +++ OK, passed 100 tests.
+        Word16/Word24 conversion:                                                 OK
+          +++ OK, passed 100 tests.
+        Show:                                                                     OK
+          +++ OK, passed 100 tests.
+        Read:                                                                     OK
+          +++ OK, passed 100 tests.
+        addition:                                                                 OK
+          +++ OK, passed 100 tests; 190 discarded.
+        negate identity:                                                          OK
+          +++ OK, passed 100 tests.
+        absolute value:                                                           OK
+          +++ OK, passed 100 tests.
+        signum:                                                                   OK
+          +++ OK, passed 100 tests.
+        Real identity:                                                            OK
+          +++ OK, passed 100 tests.
+      Integral instance
+        quot:                                                                     OK
+          +++ OK, passed 100 tests.
+        rem:                                                                      OK
+          +++ OK, passed 100 tests.
+        div:                                                                      OK
+          +++ OK, passed 100 tests.
+        mod:                                                                      OK
+          +++ OK, passed 100 tests.
+        quotRem:                                                                  OK
+          +++ OK, passed 100 tests.
+        divmod:                                                                   OK
+          +++ OK, passed 100 tests.
+      Enum instance
+        enum succ:                                                                OK
+          +++ OK, passed 100 tests.
+        enum pred:                                                                OK
+          +++ OK, passed 100 tests.
+        toEnum:                                                                   OK
+          +++ OK, passed 100 tests.
+        enumFrom :                                                                OK
+          +++ OK, passed 100 tests.
+        enumFromTo:                                                               OK
+          +++ OK, passed 100 tests.
+        enumFromThen:                                                             OK
+          +++ OK, passed 100 tests.
+      Bits instance
+        binary and:                                                               OK
+          +++ OK, passed 100 tests.
+        binary or:                                                                OK
+          +++ OK, passed 100 tests.
+        binary xor:                                                               OK
+          +++ OK, passed 100 tests.
+        binary xor identity:                                                      OK
+          +++ OK, passed 100 tests.
+        binary shiftL:                                                            OK
+          +++ OK, passed 100 tests.
+        binary shiftL identity:                                                   OK
+          +++ OK, passed 100 tests.
+        binary shift right:                                                       OK
+          +++ OK, passed 100 tests; 114 discarded.
+        binary shiftR:                                                            OK
+          +++ OK, passed 100 tests; 114 discarded.
+        binary rotate:                                                            OK
+          +++ OK, passed 100 tests.
+        binary complement:                                                        OK
+          +++ OK, passed 100 tests.
+        binary byteSwap24:                                                        OK
+          +++ OK, passed 100 tests.
+        binary countLeadingZeros:                                                 OK
+          +++ OK, passed 100 tests.
+        binary countTrailingZeros:                                                OK
+          +++ OK, passed 100 tests.
+        binary countTrailingZeros 0:                                              OK
+          +++ OK, passed 100 tests.
+        bit/testBit:                                                              OK
+          +++ OK, passed 100 tests.
+        popCount:                                                                 OK
+          +++ OK, passed 100 tests.
+      Storable instance
+        sizeOf Word24:                                                            OK
+          +++ OK, passed 100 tests.
+        aligntment:                                                               OK
+          +++ OK, passed 100 tests.
+    Int24
+      basic
+        add. identity:                                                            OK
+          +++ OK, passed 100 tests.
+        mult. identity:                                                           OK
+          +++ OK, passed 100 tests.
+        Int16/Int24 conversion:                                                   OK
+          +++ OK, passed 100 tests.
+        Show:                                                                     OK
+          +++ OK, passed 100 tests.
+        Read:                                                                     OK
+          +++ OK, passed 100 tests.
+        addition:                                                                 OK
+          +++ OK, passed 100 tests.
+        negate identity:                                                          OK
+          +++ OK, passed 100 tests.
+        absolute value:                                                           OK
+          +++ OK, passed 100 tests.
+        signum:                                                                   OK
+          +++ OK, passed 100 tests.
+        Real identity:                                                            OK
+          +++ OK, passed 100 tests.
+      Integral instance
+        quot:                                                                     OK
+          +++ OK, passed 100 tests.
+        rem:                                                                      OK
+          +++ OK, passed 100 tests.
+        div:                                                                      OK
+          +++ OK, passed 100 tests.
+        mod:                                                                      OK
+          +++ OK, passed 100 tests.
+        quotRem:                                                                  OK
+          +++ OK, passed 100 tests.
+        divmod:                                                                   OK
+          +++ OK, passed 100 tests.
+      Enum instance
+        enum succ:                                                                OK
+          +++ OK, passed 100 tests.
+        enum pred:                                                                OK
+          +++ OK, passed 100 tests.
+        toEnum:                                                                   OK
+          +++ OK, passed 100 tests.
+        enumFrom :                                                                OK
+          +++ OK, passed 100 tests.
+        enumFromTo:                                                               OK
+          +++ OK, passed 100 tests.
+        enumFromThen:                                                             OK
+          +++ OK, passed 100 tests.
+      Bits instance
+        binary and:                                                               OK
+          +++ OK, passed 100 tests.
+        binary or:                                                                OK
+          +++ OK, passed 100 tests.
+        binary xor:                                                               OK
+          +++ OK, passed 100 tests.
+        binary xor identity:                                                      OK
+          +++ OK, passed 100 tests.
+        binary shiftL:                                                            OK
+          +++ OK, passed 100 tests.
+        binary shiftL identity:                                                   OK
+          +++ OK, passed 100 tests.
+        binary shift right:                                                       OK
+          +++ OK, passed 100 tests; 73 discarded.
+        binary shiftR:                                                            OK
+          +++ OK, passed 100 tests; 114 discarded.
+        binary rotate:                                                            OK
+          +++ OK, passed 100 tests.
+        binary complement:                                                        OK
+          +++ OK, passed 100 tests.
+        binary countLeadingZeros:                                                 OK
+          +++ OK, passed 100 tests.
+        binary countTrailingZeros:                                                OK
+          +++ OK, passed 100 tests.
+        binary countTrailingZeros 0:                                              OK
+          +++ OK, passed 100 tests.
+        bit/testBit:                                                              OK
+          +++ OK, passed 100 tests.
+        popCount:                                                                 OK
+          +++ OK, passed 100 tests.
+      Storable instance
+        sizeOf Int24:                                                             OK
+          +++ OK, passed 100 tests.
+        aligntment:                                                               OK
+          +++ OK, passed 100 tests.
+  tcp-streams
+    tests
+      TCP
+        network/socket:                                                           OK
+      TLS
+        network/socket:                                                           OK
+      HTTPS
+        network/https:                                                            IGNORED
+          can't connect to socket in a nix container, the build becomes no longer reproducible.
+  SHA1 Scramble
+    empty password returns empty:                                                 OK
+    non-empty password returns 20 bytes:                                          OK
+    different salts produce different scrambles:                                  OK
+    different passwords produce different scrambles:                              OK
+    scramble is deterministic:                                                    OK
+    golden: salt=12345678901234567890 pass=password:                              OK
+    golden: salt=ABCDEFGHIJKLMNOPQRST pass=secret:                                OK
+  SHA256 Scramble
+    empty password returns empty:                                                 OK
+    non-empty password returns 32 bytes:                                          OK
+    different salts produce different scrambles:                                  OK
+    different passwords produce different scrambles:                              OK
+    scramble is deterministic:                                                    OK
+    golden: salt=12345678901234567890 pass=password:                              OK
+    golden: salt=ABCDEFGHIJKLMNOPQRST pass=secret:                                OK
+  bounds-check
+    text-protocol
+      timestamp: date-only no time part:                                          OK
+      timestamp: truncated time:                                                  OK
+      datetime: date-only no time part:                                           OK
+      time: empty input:                                                          OK
+      date: missing separator:                                                    OK
+      time: missing separator:                                                    OK
+    binlog-value
+      NEWDECIMAL: precision < scale causes underflow:                             OK
+    binlog-event
+      eventHeaderLen: BINLOG_UNKNOWN_EVENT (negative index):                      OK
+  Field
+    roundtrip
+      Int8:                                                                       OK
+        +++ OK, passed 100 tests.
+      Word8:                                                                      OK
+        +++ OK, passed 100 tests.
+      Int16:                                                                      OK
+        +++ OK, passed 100 tests.
+      Word16:                                                                     OK
+        +++ OK, passed 100 tests.
+      Int32:                                                                      OK
+        +++ OK, passed 100 tests.
+      Word32:                                                                     OK
+        +++ OK, passed 100 tests.
+      Int64:                                                                      OK
+        +++ OK, passed 100 tests.
+      Word64:                                                                     OK
+        +++ OK, passed 100 tests.
+      Float:                                                                      OK
+        +++ OK, passed 100 tests.
+      Double:                                                                     OK
+        +++ OK, passed 100 tests.
+      Scientific:                                                                 OK
+        +++ OK, passed 100 tests.
+      Text:                                                                       OK
+        +++ OK, passed 100 tests.
+      lazy Text:                                                                  OK
+        +++ OK, passed 100 tests.
+      String:                                                                     OK
+        +++ OK, passed 100 tests.
+      ByteString:                                                                 OK
+        +++ OK, passed 100 tests.
+      lazy ByteString:                                                            OK
+        +++ OK, passed 100 tests.
+      Day:                                                                        OK
+        +++ OK, passed 100 tests.
+      LocalTime:                                                                  OK
+        +++ OK, passed 100 tests.
+      TimeOfDay:                                                                  OK
+        +++ OK, passed 100 tests.
+      Bool:                                                                       OK
+        +++ OK, passed 100 tests.
+      Maybe Int32:                                                                OK
+        +++ OK, passed 100 tests.
+      Maybe Text:                                                                 OK
+        +++ OK, passed 100 tests.
+    decode failures
+      NULL into a non-Maybe type is DecodeUnexpectedNull:                         OK
+      wrong constructor is DecodeTypeMismatch:                                    OK
+      no implicit widening: INT32 value into Int64 fails:                         OK
+      negative TIME into TimeOfDay fails:                                         OK
+    decode alternatives
+      NULL into Maybe is Nothing:                                                 OK
+      TIMESTAMP decodes into LocalTime:                                           OK
+      nonzero TINYINT decodes as True:                                            OK
+      unsigned TINYINT decodes into Bool:                                         OK
+      nested Maybe collapses Just Nothing to Nothing (documented NULL lossiness): OK
+      NaN encodes losslessly (roundtrip == fails only since NaN /= NaN):          OK
+      lone surrogate in String is rejected by encodeString:                       OK
+  connection diagnostics
+    redact empty, textual and arbitrary binary passwords:                         OK
+    redaction does not evaluate a password:                                       OK
+    retain useful endpoint and account diagnostics:                               OK
+    respect Show precedence without exposing credentials:                         OK
+
+All 183 tests passed (0.06s)
+Test suite test: PASS
+Test suite logged to:
+/private/tmp/mariadb-haskell-release-20261109/alpha-final-check/source/mariadb-haskell-0.1.0.0/./dist-newstyle/build/aarch64-osx/ghc-9.10.3/mariadb-haskell-0.1.0.0/t/test/opt/test/mariadb-haskell-0.1.0.0-test.log
+1 of 1 test suites (1 of 1 test cases) passed.

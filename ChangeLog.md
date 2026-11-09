@@ -25,7 +25,7 @@ module names remain, with no MySQL server support target.
 * Stateful bounded CDC decoding, checksums/compressed events, MariaDB GTID resume,
   complete-group checkpoints and consumer-controlled semisync ACKs.
 * Full correctness/benchmark history with frozen original/feature references;
-  latest retained Mac/Linux review capture: 844 passing records and 63 Mac profiles.
+  retained Mac/Linux validation: 844 passing records and 63 Mac profiles.
 * Independent package identity, GHC 9.4+ bounds, opt-in developer executable,
   native-dependency/source-archive CI, a verified November 2026 Mozilla CA snapshot
   with MPL-2.0 notices, and password-redacted connection diagnostics.

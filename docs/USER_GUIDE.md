@@ -1,5 +1,10 @@
 # MariaDB Haskell user guide
 
+**Alpha software:** automated validation is extensive, but real-world application
+validation is still outstanding. Evaluate the driver with your own workloads;
+APIs and behavior may change. The documented test scope is not a production
+readiness claim.
+
 Start with `Database.MySQL.Base`; add `Database.MySQL.TLS`,
 `Database.MySQL.Field` and `Database.MySQL.BinLog` as needed. The historical
 `MySQL` names are API/wire identifiers, not a server support claim.
