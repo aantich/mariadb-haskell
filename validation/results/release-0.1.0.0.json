@@ -264,7 +264,18 @@
     "status": "Full package build and all 32 MariaDB VM integration tests PASS",
     "run_url": "https://github.com/aantich/mariadb-haskell/actions/runs/42645834954/job/129258710100"
   },
-  "candidate": "Initial Alpha preview uploaded; corrected final archive is being regenerated",
+  "candidate": {
+    "status": "Uploaded and inspected; Alpha; awaiting Anton documentation review",
+    "url": "https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0/candidate",
+    "api_url": "https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0/candidate/docs/Database-MySQL-Base.html",
+    "source_download_matches_sha256": true,
+    "description_paragraphs_render_correctly": true,
+    "alpha_notice_verified": true,
+    "corrected_api_wording_verified": true,
+    "haddock_source_http_status": 200,
+    "public_index_http_status": 404,
+    "publication_approval": "Required from Anton after documentation review; not granted"
+  },
   "evidence_sha256": {
     "results/references/release-0.1.0.0-full-live.json": "e39faee48946161b4b0b8189c24df7853f300da6d83fa3e785c8214c20369c44",
     "results/references/release-0.1.0.0-final-live.json": "7c08449c53e9f600fd4956deb915da4dea395f569a0e033479d8b032fc1de854",
@@ -297,9 +308,187 @@
       "haddock"
     ],
     "artifacts": {
-      "mariadb-haskell-0.1.0.0-docs.tar.gz": "050e9bccaeb3647012093084abc505a8218ff5360af9d8bdaba09b8d1edaa13d",
-      "mariadb-haskell-0.1.0.0.tar.gz": "0003390c0e6969912fcb4bf1196b02a26333de435c040ea8eeb2316d25f98d0c"
+      "mariadb-haskell-0.1.0.0-docs.tar.gz": "eef8bcd8e274ae079c5cbd1e3287bcf1fcda4cccf321cde070ebc43dfd9714d6",
+      "mariadb-haskell-0.1.0.0.tar.gz": "ba6758e8a544bcc740916798c147fa3f348daed5a66546abebe117acae9d52b5"
     }
   },
-  "artifact_directory": "/private/tmp/mariadb-haskell-release-20261109/alpha-final-check/artifacts"
+  "artifact_directory": "/private/tmp/mariadb-haskell-release-20261109/preview-final-check/artifacts",
+  "recorded_at": "2026-11-09T15:49:24.153230+00:00",
+  "ci": {
+    "current_run": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216",
+    "tested_source_commit": "9cc2197ba7b49b7b8473df8f9009ab0a873e71b5",
+    "status_at_capture": "queued",
+    "jobs": [
+      {
+        "name": "nix",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265863710"
+      },
+      {
+        "name": "cabal (9.12, ubuntu-latest)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864096"
+      },
+      {
+        "name": "cabal (9.8, macos-latest)",
+        "status": "queued",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864129"
+      },
+      {
+        "name": "crypton (^>=2.0)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864161"
+      },
+      {
+        "name": "cabal (9.6, macos-latest)",
+        "status": "queued",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864169"
+      },
+      {
+        "name": "cabal (9.8, ubuntu-latest)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864196"
+      },
+      {
+        "name": "source-package (macos-latest)",
+        "status": "queued",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864212"
+      },
+      {
+        "name": "cabal (9.4.7, ubuntu-24.04)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864244"
+      },
+      {
+        "name": "crypton (^>=2.1)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864281"
+      },
+      {
+        "name": "cabal (9.12, macos-latest)",
+        "status": "queued",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864401"
+      },
+      {
+        "name": "cabal (9.4.7, macos-latest)",
+        "status": "queued",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864426"
+      },
+      {
+        "name": "cabal (9.10, macos-latest)",
+        "status": "queued",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864435"
+      },
+      {
+        "name": "cabal (9.10, ubuntu-latest)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864458"
+      },
+      {
+        "name": "source-package (ubuntu-latest)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864675"
+      },
+      {
+        "name": "cabal (9.6, ubuntu-latest)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/aantich/mariadb-haskell/actions/runs/42647854216/job/129265864792"
+      }
+    ],
+    "first_run": "https://github.com/aantich/mariadb-haskell/actions/runs/42645834954",
+    "first_run_jobs": [
+      {
+        "name": "crypton (^>=2.1)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "source-package (macos-latest)",
+        "status": "in_progress",
+        "conclusion": ""
+      },
+      {
+        "name": "crypton (^>=2.0)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "source-package (ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "cabal (9.6, ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "cabal (9.12, ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "nix",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "cabal (9.8, ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "cabal (9.8, macos-latest)",
+        "status": "queued",
+        "conclusion": ""
+      },
+      {
+        "name": "cabal (9.4.7, ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "failure"
+      },
+      {
+        "name": "cabal (9.10, ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "cabal (9.6, macos-latest)",
+        "status": "queued",
+        "conclusion": ""
+      },
+      {
+        "name": "cabal (9.12, macos-latest)",
+        "status": "queued",
+        "conclusion": ""
+      },
+      {
+        "name": "cabal (9.10, macos-latest)",
+        "status": "queued",
+        "conclusion": ""
+      },
+      {
+        "name": "cabal (9.4.7, macos-latest)",
+        "status": "queued",
+        "conclusion": ""
+      }
+    ],
+    "known_first_failure": "GHC 9.4 bindist selected unavailable Gold on Ubuntu 26.04; corrected job uses Ubuntu 24.04",
+    "scope": "CI status is a timestamped snapshot, not a claim that queued jobs passed."
+  }
 }

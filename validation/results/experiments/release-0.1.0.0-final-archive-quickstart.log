@@ -1,0 +1,4 @@
+Loaded package environment from /private/tmp/mariadb-haskell-release-20261109/preview-final-check/source/mariadb-haskell-0.1.0.0/dist-newstyle/tmp/environment.-58822/.ghc.environment.aarch64-darwin-9.10.3
+[1 of 2] Compiling Main             ( examples/Quickstart.hs, /private/tmp/mariadb-haskell-release-20261109/preview-final-check/objects/Main.o )
+[2 of 2] Linking /private/tmp/mariadb-haskell-release-20261109/preview-final-check/quickstart
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
