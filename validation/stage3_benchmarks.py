@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Native statement workloads; the shared recorder preserves all evidence guards."""
 from pathlib import Path
-import run
+import release_recorder as run
 import feature_benchmarks as features
 
 PROFILES = {

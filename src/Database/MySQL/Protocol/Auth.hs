@@ -6,7 +6,7 @@ Module      : Database.MySQL.Protocol.Auth
 Description : Native MariaDB handshake and authentication packets
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
 Portability : PORTABLE
 

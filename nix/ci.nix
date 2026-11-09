@@ -8,7 +8,7 @@ in
 {
   build = package;
   integrated-checks = pkgs.testers.nixosTest {
-    name = "mysql-haskell-test";
+    name = "mariadb-haskell-test";
     testScript = ''
       server.start()
       server.wait_for_unit("mysql.service")

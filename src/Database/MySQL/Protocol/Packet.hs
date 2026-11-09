@@ -2,10 +2,10 @@
 
 {-|
 Module      : Database.MySQL.Protocol.Packet
-Description : MySQL packet type and various helpers.
+Description : MariaDB packet framing, replies and limits
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
 Portability : PORTABLE
 
@@ -132,7 +132,7 @@ putToPacket seqN payload =
 --------------------------------------------------------------------------------
 -- OK, ERR, EOF
 
--- | You may get interested in 'OK' packet because it provides information about
+-- | You may get interested in t'OK' packet because it provides information about
 -- successful operations.
 --
 data OK = OK

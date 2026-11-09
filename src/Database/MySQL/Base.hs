@@ -4,26 +4,60 @@ Module      : Database.MySQL.Base
 Description : Public MariaDB connection, query and transaction API
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
-Portability : PORTABLE
+Portability : macOS and Linux tested
+
+Start here for MariaDB application code. The historical @MySQL@ module/type
+names are retained API identifiers; MySQL servers are not a support target.
+See the <https://github.com/aantich/mariadb-haskell/blob/main/docs/USER_GUIDE.md user guide>
+and <https://github.com/aantich/mariadb-haskell/tree/main/examples complete examples>.
+
+= Choosing an API
+
+* Use 'connect' for TCP, 'connectUnixSocket' for local sockets, or
+  "Database.MySQL.TLS" for verified TLS. Defaults select @utf8mb4@.
+* Use 'withPreparedStatement' and 'queryPrepared'/'executePrepared' for checked
+  binary bindings. Placeholders bind values, never identifiers or SQL fragments.
+* Use 'query_' for literal SQL, 'query' for session-aware text bindings, and
+  'queryPreparedMulti' for bounded multi-result procedures/OUT parameters.
+* Use 'executeBulk' for native batches, 'executePreparedStream' for one-shot
+  large inputs, and 'withCursor' for application-controlled server fetches.
+* Use 'resetConnectionWith' for clean external-pool reuse and 'getSessionState'
+  for no-SQL observations. Reset invalidates prepared handles and cursors.
+* Use "Database.MySQL.BinLog" on a dedicated connection for CDC.
+
+Managed metadata caching/session tracking default on. Compression and progress
+negotiation default off; set t'ConnectionOptions' before connecting. Native
+capabilities depend on the server's offered flags/version and configuration.
+
+= Ownership and failures
+
+With @OverloadedStrings@, a typical prepared row consumer is:
+
+> withPreparedStatement conn "SELECT name FROM customers WHERE id = ?" $ \statement -> do
+>     (_, rows) <- queryPrepared statement [MySQLInt64 customerId]
+>     Stream.foldM (\() row -> print row) () rows
+
+Here @conn@ is bracketed by the caller and @Stream@ is a qualified import of
+"System.IO.Streams". Never let @rows@ escape the statement bracket.
 
 One connection admits one command or unfinished result stream at a time. Read a
 stream on the thread that created it and consume it before issuing another
 command. Use separate connections for concurrent work.
 
-A complete 'ERRException' leaves the wire synchronized, but invalidates cached
+A complete t'ERRException' leaves the wire synchronized, but invalidates cached
 session facts. Explicitly call 'refreshSessionState' before rendering further
 text parameters. Transport failures, malformed replies and cancellation during
 I/O retire the connection; inspect 'connectionStatus' and open a new connection.
 
-'WrongParamsCount' reports placeholder arity errors. 'ExtraResultSets' means a
+t'WrongParamsCount' reports placeholder arity errors. t'ExtraResultSets' means a
 single-result API drained results that it could not return. 'withTransaction'
 documents rollback and uncertain-COMMIT behavior separately.
 
 -}
 module Database.MySQL.Base
-    ( -- * Setting up and control connection
+    ( -- * Connections, lifecycle and session state
       MySQLConn
     , ConnectInfo(..)
     , ConnectionOptions(..)
@@ -65,7 +99,7 @@ module Database.MySQL.Base
     , connectUnixSocketDetail
     , close
     , ping
-      -- * Direct query
+      -- * Text queries and results
     , execute
     , executeMany
     , executeMany_
@@ -77,7 +111,7 @@ module Database.MySQL.Base
     , queryMulti_
     , queryMulti
     , StatementResult(..)
-      -- * Prepared query statement
+      -- * Binary prepared statements, uploads, cursors and bulk
     , prepareStmt
     , prepareStmtDetail
     , executeStmt
@@ -130,7 +164,7 @@ module Database.MySQL.Base
     , CompressionException(..)
     , WrongParamsCount(..)
     , ExtraResultSets(..)
-      -- * MySQL protocol
+      -- * MariaDB wire types (historical identifiers retained)
     , module  Database.MySQL.Protocol.Auth
     , module  Database.MySQL.Protocol.Command
     , module  Database.MySQL.Protocol.ColumnDef
@@ -171,7 +205,7 @@ import qualified Data.Vector                        as V
 
 
 -- | Render parameters with the connection's current session context and execute
--- one statement. Unexpected row results are drained before 'ExtraResultSets'.
+-- one statement. Unexpected row results are drained before t'ExtraResultSets'.
 execute :: QueryParam p => MySQLConn -> Query -> [p] -> IO OK
 execute conn qry values = withCommand conn $ do
     rendered <- connectedRender conn qry values
@@ -180,7 +214,7 @@ execute conn qry values = withCommand conn $ do
 execute_ :: MySQLConn -> Query -> IO OK
 execute_ conn (Query qry) = withCommand conn (executeCore conn (COM_QUERY qry))
 -- | Execute raw multi-statement SQL and return its OK replies. Row results are
--- drained before reporting 'ExtraResultSets'; this operation is not atomic.
+-- drained before reporting t'ExtraResultSets'; this operation is not atomic.
 executeMany_ :: MySQLConn -> Query -> IO [OK]
 executeMany_ conn (Query qry) = withCommand conn $ do
     sendCommand conn (COM_QUERY qry)
@@ -229,7 +263,7 @@ connectedRender conn qry values = do
 
 -- | Stream the first row result using checked text parameters. The stream owns
 -- the connection until EOF and must be consumed on the calling thread. Later
--- row results are drained before 'ExtraResultSets'; use 'queryMulti' to keep them.
+-- row results are drained before t'ExtraResultSets'; use 'queryMulti' to keep them.
 query :: QueryParam p => MySQLConn -> Query -> [p] -> IO ([ColumnDef], InputStream [MySQLValue])
 query conn qry values = withCommand conn $ do
     rendered <- connectedRender conn qry values
@@ -594,7 +628,7 @@ resetPrepared statement@(PreparedStatement conn ident _) = withCommand conn $ do
     readConnPacket conn >>= consumeCommandOK conn >> pure ()
 
 -- | Stream the first binary row set; later row sets are drained and reported as
--- 'ExtraResultSets'. Use 'queryPreparedMulti' to retain procedure OUT/results.
+-- t'ExtraResultSets'. Use 'queryPreparedMulti' to retain procedure OUT/results.
 queryPrepared :: PreparedStatement -> [MySQLValue] -> IO ([ColumnDef], InputStream [MySQLValue])
 queryPrepared statement@(PreparedStatement conn ident _) values = withCommand conn $ do
     state <- checkedStatement statement
@@ -602,7 +636,7 @@ queryPrepared statement@(PreparedStatement conn ident _) values = withCommand co
     queryCore conn (COM_STMT_EXECUTE ident values (makeNullMap values)) True
 
 -- | Execute a non-row statement. Unexpected row results are completely drained
--- before 'ExtraResultSets', preserving a synchronized connection.
+-- before t'ExtraResultSets', preserving a synchronized connection.
 executePrepared :: PreparedStatement -> [MySQLValue] -> IO OK
 executePrepared statement@(PreparedStatement conn ident _) values = withCommand conn $ do
     state <- checkedStatement statement
@@ -616,8 +650,11 @@ executePrepared statement@(PreparedStatement conn ident _) values = withCommand 
 -- the corresponding binary or text type/collation.
 data PreparedParameter
     = PreparedValue !MySQLValue
+      -- ^ An inline scalar. Use 'MySQLNull' for SQL NULL.
     | PreparedBytes !(InputStream B.ByteString)
+      -- ^ A one-shot binary source, including an empty non-NULL source.
     | PreparedText !(InputStream T.Text)
+      -- ^ A one-shot text source encoded in the current client charset.
 
 -- Upload and EXECUTE hold the same command lease. A no-reply upload command
 -- cannot acknowledge server acceptance: MariaDB can defer its error to EXECUTE.
@@ -925,6 +962,7 @@ queryStmtMulti conn ident values = withCommand conn $ do
     readPreparedResults conn
 
 -- | Collect every prepared result, including OUT parameters and trailing OK.
+-- All rows are buffered; use 'queryPrepared' for an unbounded single row result.
 queryPreparedMulti :: PreparedStatement -> [MySQLValue] -> IO [PreparedResult]
 queryPreparedMulti statement@(PreparedStatement conn ident _) values = withCommand conn $ do
     state <- checkedStatement statement

@@ -1,4 +1,38 @@
-# Revision history for mysql-haskell
+# Revision history
+
+## mariadb-haskell 0.1.0.0 — release preparation
+
+MariaDB-only fork of [mysql-haskell](https://github.com/winterland1989/mysql-haskell),
+maintained by Anton Antich. This starts an independent release series; the
+upstream changelog below is retained as history. Public `Database.MySQL.*`
+module names remain, with no MySQL server support target.
+
+* Bounded framing/metadata/cleanup and explicit command/stream ownership,
+  cancellation retirement, generation-safe handles and uncertain-COMMIT diagnostics.
+* MariaDB extended capability negotiation, utf8mb4 defaults, strict session-aware
+  bindings, raw dates, unsigned 64-bit IDs and exact fixed-width Field conversions.
+* Verified TLS/SNI, client certificates, native/ed25519/PARSEC/SHA-2 authentication,
+  explicit PAM dialogs and principal-pinned Kerberos GSSAPI.
+* Managed prepared statements, complete multiple/OUT results, native binary bulk
+  with indicators/per-unit results and cached/extended metadata.
+* Session/change observations and reset/restoration with exclusive initialization.
+* One-shot long-data sources, server cursor batches, progress callbacks and opt-in
+  zlib transport compression.
+* Stateful bounded CDC decoding, checksums/compressed events, MariaDB GTID resume,
+  complete-group checkpoints and consumer-controlled semisync ACKs.
+* Full correctness/benchmark history with frozen original/feature references;
+  latest retained Mac/Linux review capture: 844 passing records and 63 Mac profiles.
+* Independent package identity, GHC 9.4+ bounds, opt-in developer executable,
+  native-dependency/source-archive CI, a verified November 2026 Mozilla CA snapshot
+  with MPL-2.0 notices, and password-redacted connection diagnostics.
+* Packaged user, migration and benchmark guides with compilable examples and
+  expanded Haddock ownership/lifetime/error contracts.
+
+See the [migration guide](https://github.com/aantich/mariadb-haskell/blob/main/docs/MIGRATION.md)
+for behavior changes, and [release readiness](https://github.com/aantich/mariadb-haskell/blob/main/docs/RELEASING.md)
+for final validation evidence and Hackage candidate/publication status.
+
+## Upstream mysql-haskell history
 
 ## 1.3.3 -- 2026.10.07
 

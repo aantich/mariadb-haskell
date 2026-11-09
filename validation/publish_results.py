@@ -34,6 +34,8 @@ def is_input(path):
     return (p.suffix in {".hs", ".hsc", ".c", ".h", ".cabal", ".nix"}
             or path.startswith(("test/", "npins/"))
             or (path.startswith("validation/") and p.suffix == ".py")
+            or (path.startswith("tools/") and p.suffix == ".py")
+            or path in {"ca-bundle.json", "LICENSE", "LICENSE-MPL-2.0"}
             or p.name.startswith("cabal.project") or path == "mozillaCAStore.pem"
             or path in {".dockerignore", "validation/linux/Dockerfile", "validation/auth_fixture/Dockerfile", "validation/auth_fixture/.dockerignore",
                         "validation/results/accepted.json", "validation/results/previous-stage.json",
@@ -179,6 +181,12 @@ def run_details(attempt, data):
                   f"| MariaDB Connector/C | {data.get('connector_c_version', 'not recorded')} |",
                   f"| Complete suite / repetitions | {data['complete_suite']} / {data['repetitions']} |",
                   f"| Driver/workloads stable during execution | {data['source_unchanged_during_run']} |"]
+        adapter = data['build'].get('recorder_adapter')
+        if adapter:
+            lines += [f"| Frozen recorder source | `{adapter['frozen_source_sha256']}` |",
+                      f"| Package metadata adapter | `{adapter['adapter_sha256']}` |",
+                      f"| Adapted recorder body | `{adapter['adapted_source_sha256']}` |"]
+            lines += ["", "The independent package uses a separately fingerprinted metadata adapter. It substitutes only the manifest filename and self-package exclusion in the digest-pinned original recorder; entry-point dispatch is handled by the adapter. Frozen workload bodies, sampling and comparison policy remain unchanged. The original file hash is not presented as the adapter's hash.", ""]
     lines += ["", "Committed runs identify their tested revision. An uncommitted review run identifies its parent revision plus SHA-256 hashes of the actual working-tree inputs; it does not claim the parent commit contains these changes. A following results-only commit does not claim another test run. CI checks that the report, graphic and raw results match the current inputs.", "",
               "Full `python3 validation/check.py` runs refresh this live document, [overview.svg](results/overview.svg) and [current.json](results/current.json), including failed attempts. Commit all three with each tested change. Git history retains previous results.", "", "</details>"]
     return lines
@@ -456,6 +464,9 @@ def verify(document, snapshot, *, allow_working_tree=False):
         verify_auth(attempt.get('external_authentication', {}), attempt['inputs'])
     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
         raise ValueError("recorder and report disagree about the tested commit")
+    if 'mariadb-haskell.cabal' in attempt['inputs']['files']:
+        from release_recorder import verify_identity
+        verify_identity(data['build'], attempt['inputs']['files'])
 
 
 def main():

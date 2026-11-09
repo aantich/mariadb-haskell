@@ -16,9 +16,13 @@ import Database.MySQL.Protocol.Packet
 -- copied out of the wire buffer. A report does not guarantee eventual success.
 data Progress = Progress
     { progressStage :: !Word8
+      -- ^ One-based current stage number, not overall completion.
     , progressStageCount :: !Word8
+      -- ^ Server-reported number of stages.
     , progressThousandths :: !Word32
+      -- ^ Current stage percentage multiplied by 1000 (100000 means 100%).
     , progressInfo :: !B.ByteString
+      -- ^ Owned server description bytes; decode using the relevant charset.
     } deriving (Eq, Show)
 
 -- | Recognize the reserved marker without flattening an ordinary packet.

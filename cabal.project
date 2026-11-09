@@ -1,0 +1,7 @@
+-- This checkout is the developer workspace. Cabal does not include this file
+-- in the Hackage source distribution; the package flag defaults to False there.
+packages: .
+optimization: 2
+
+package mariadb-haskell
+  flags: +validation

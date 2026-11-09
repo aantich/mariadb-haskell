@@ -1,160 +1,144 @@
-# mariadb-haskell
+# MariaDB Haskell
 
-A streaming Haskell database driver focused **exclusively on MariaDB**.
+A streaming Haskell driver for **MariaDB only**, forked from
+[mysql-haskell](https://github.com/winterland1989/mysql-haskell). This fork adds
+MariaDB's native statement, session, authentication and replication capabilities,
+with bounded decoding and explicit connection ownership. MySQL servers are not
+a support target.
 
-This project is a fork of [mysql-haskell](https://github.com/winterland1989/mysql-haskell), originally created by Winterland and maintained by its upstream contributors. We are building on that work to make a reliable, well-tested and efficient MariaDB driver. **Supporting MySQL servers is outside the scope of this fork.**
+**[User guide and examples](https://github.com/aantich/mariadb-haskell/blob/main/docs/USER_GUIDE.md)** ·
+**[Live test and benchmark report](https://github.com/aantich/mariadb-haskell/blob/main/validation/RESULTS.md)** ·
+**[Benchmark guide](https://github.com/aantich/mariadb-haskell/blob/main/docs/BENCHMARKS.md)** ·
+**[Migration guide](https://github.com/aantich/mariadb-haskell/blob/main/docs/MIGRATION.md)**
 
-## Live test and benchmark results
+## Features
 
-**[Read the current correctness and benchmark results](validation/RESULTS.md).** This live document is maintained on `main` and refreshed for each tested code change. It identifies the tested commit, shows outstanding failures and compares performance with the [original unchanged-driver baseline](validation/baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md). Earlier results remain in Git history; the original reference remains available.
+| Area | What the driver provides |
+| --- | --- |
+| Connections | TCP, Unix sockets, verified TLS and client certificates; full Unicode (`utf8mb4`) by default |
+| Queries | Streaming list/vector rows, checked text parameters, managed binary prepared statements, multiple results and stored-procedure OUT parameters |
+| Native statements | MariaDB binary bulk execution, NULL/DEFAULT/IGNORE indicators, per-unit results, cached and extended column metadata |
+| Large data | One-shot streamed byte/text parameters, bounded upload chunks and server cursor fetches |
+| Sessions | Public session observations and connection reset with role/schema/charset restoration and an initialization hook for pools |
+| Operations | Progress callbacks and opt-in zlib transport compression |
+| Authentication | Native password, Unix-socket accounts, ed25519, PARSEC, SHA-2, TLS certificate accounts, explicit PAM dialogs and Kerberos GSSAPI |
+| MariaDB values | Signed/unsigned integers, exact decimals, Unicode and bytes, raw zero/partial dates, and wire representations for JSON, UUID, INET, VECTOR and geometry |
+| CDC | Row-based binlog decoding, checksums and compressed events, MariaDB GTID resume, complete-transaction checkpoints and consumer-controlled semisync ACKs |
+| Reliability | One command owner per connection, bounded messages/metadata/cleanup, stale-handle rejection, cancellation retirement and uncertain-COMMIT diagnostics |
 
-Every full `python3 validation/check.py` run updates the live document and its [raw results](validation/results/current.json), including failed runs. The [validation guide](validation/README.md) describes the required test-and-publish workflow. CI flags results that no longer match the current source.
+SQL features such as CTEs, window functions, sequences, `RETURNING`, Oracle mode
+and system-versioned tables pass through to MariaDB. The driver does not need
+a separate API for every server function. This is not an ORM or a collection
+of Haskell domain types for every SQL type.
 
-## What we want to achieve
+## Quick start
 
-- **Make correctness dependable.** Preserve values accurately, handle large results and unusual data, and report errors clearly.
-- **Work well with MariaDB.** Test supported MariaDB releases, authentication methods, data types, stored procedures and transaction behavior.
-- **Stay reliable when things go wrong.** Handle timeouts, cancelled queries, broken connections and unfinished results without leaving a connection in an unsafe state.
-- **Read and write efficiently.** Improve result decoding, reduce unnecessary allocations, and use MariaDB features such as binary bulk operations and prepared statement metadata caching.
-- **Measure before optimizing.** Establish correctness and performance baselines for the current fork, then run the same checks against every improvement. Record failures and unsupported features as well as successes.
-- **Keep the library practical.** Provide clear documentation, repeatable local setup and an API that higher-level Haskell libraries can build on.
+The package is `mariadb-haskell`, starting with version `0.1.0.0`.
+Public modules retain `Database.MySQL.*` names, which do not imply MySQL support.
+See [release status](https://github.com/aantich/mariadb-haskell/blob/main/docs/RELEASING.md)
+for candidate/publication status. Build the checkout as follows; after publication,
+add `mariadb-haskell >=0.1 && <0.2` to your application's Cabal dependencies.
 
-These are current goals, not a claim that all of them are implemented. The comprehensive MariaDB suite and unchanged-driver baseline are in place; the live results track progress from that starting point. Historical upstream benchmarks do not establish this fork's performance on MariaDB.
-
-## Current status
-
-The inherited driver supports streaming results, prepared statements, TLS and Unix sockets. The [live results](validation/RESULTS.md) record current correctness failures, unsupported functionality and measured performance. The [initial MariaDB baseline](validation/baselines/macos-arm64-mariadb-12.3.3/SUMMARY.md) records the starting point before implementation changes.
-
-Stage 1 implements connection ownership, cancellation, transaction cleanup, exact values and session-aware parameter rendering. Read the [migration notes](docs/STAGE1_MIGRATION.md) and [implementation/review evidence](docs/STAGE1_IMPLEMENTATION_NOTES.md) before adopting these API changes. The live results identify the committed inputs tested for publication; earlier review measurements retain their working-tree fingerprints.
-
-The remaining performance investigations are deferred by project decision on 7 November 2026. Their measurements remain visible, and the original baseline is unchanged. This is permission to publish the reviewed correctness work, not a claim that every performance goal has passed.
-
-Stage 2 adds the native MariaDB handshake, ed25519/PARSEC/SHA-2 authentication, bounded connection establishment, certificate helpers and installed CA data. The [Stage 2 implementation report](docs/STAGE2_IMPLEMENTATION.md) records the retained review measurements, committed publication results and Linux coverage. The live report identifies the actual tested inputs.
-
-The [core-query code review report](docs/STAGE1_CODE_REVIEW_2.md) records the subsequent correctness fixes, Haskell readability/comment improvements and remaining performance investigations.
-
-The Cabal package is still named `mysql-haskell`, and public modules still use `Database.MySQL.*`. We are keeping those names while hardening the driver and stabilizing its API. Some protocol identifiers containing `mysql` are also used by MariaDB itself; those names do not imply support for MySQL servers.
-
-The [development roadmap](docs/ROADMAP.md) records the accepted implementation
-order, current stage and remaining work so development can resume between sessions.
-Stage 3's prepared/native APIs are described in the [implementation and migration
-notes](docs/STAGE3_IMPLEMENTATION.md). The live report records the tested commit
-or working-tree fingerprint; historical evidence keeps its original identity.
-
-[Stage 4 session reuse and public session-state APIs](docs/STAGE4_IMPLEMENTATION.md)
-are implemented and validated, including the role/charset/tracker review fixes.
-The live results identify the committed inputs tested for publication.
-The [Stage 4 review report](docs/STAGE4_CODE_REVIEW.md) records the resolved findings
-and retained reproductions. Open timing investigations remain visible.
-
-[Stage 5 MariaDB CDC](docs/STAGE5_IMPLEMENTATION.md) adds checked binlog decoding,
-transaction checkpoints, GTID resume and consumer-controlled semisynchronous
-acknowledgements. It is implemented and validated on macOS and Linux. The
-implementation report and live results identify the exact tested source,
-measurements and remaining limits; historical review captures retain their
-working-tree fingerprints.
-
-The [Stage 5 follow-up review](docs/STAGE5_CODE_REVIEW.md) records temporal-value,
-GTID-history, extension and resource-limit corrections, with independent
-reproductions and a migration note for the `CDCGtidList` payload. The fixes are
-committed on main; the [publication evidence](validation/results/stage5-review-publication.json)
-records the fresh full run on those committed inputs.
-
-[Stage 6](docs/STAGE6_IMPLEMENTATION.md) adds streamed binary/text parameters,
-read-only cursor fetching, optional progress callbacks and optional zlib
-transport compression. The reviewed implementation is committed on main.
-Complete macOS and exact-source Linux checks record **793 PASS / 1 known
-timeout-contract FAIL / 0 UNSUPPORTED / 2 unavailable**, including all 95
-Stage 6 checks. The [live report](validation/RESULTS.md) now records the full
-committed-input run: all 60 benchmark profiles with seven repetitions.
-Timing alarms remain open; all earlier references and review measurements are
-preserved. See the [publication record](validation/results/stage6-publication.json).
-See the [final validation checkpoint](docs/STAGE6_IMPLEMENTATION.md#final-review-fix-validation--9-november-2026)
-and [resolved follow-up review](docs/STAGE6_CODE_REVIEW.md) for ownership,
-compression/ACK sequencing, memory controls and measured costs.
-
-
-[Stage 7](docs/STAGE7_IMPLEMENTATION.md) implements PAM dialog authentication and
-principal-pinned Kerberos/GSSAPI with isolated, reproducible fixtures. Current
-Mac/Linux correctness records **844 PASS / 0 FAIL / 0 UNSUPPORTED / 0 unavailable**.
-The timeout test now verifies safe retirement under an explicitly approved
-contract correction; its original baseline/history remain intact. All 48 new
-security checks and 173 policy tests pass. The full workflow retains the original
-60 profiles and adds three independent authentication setup benchmarks. The
-[live report](validation/RESULTS.md) preserves the pre-commit review capture and
-identifies its exact input fingerprint and open timing investigations. Publication
-reuses those measurements; it does not claim a new run on the committed revision.
-
-## A first query
-
-```haskell
-{-# LANGUAGE OverloadedStrings #-}
-
-import Control.Exception (bracket)
-import Database.MySQL.Base
-import qualified System.IO.Streams as Streams
-
-main :: IO ()
-main = bracket
-    (connect defaultConnectInfoMB4
-        { ciUser = "app"
-        , ciPassword = "password"
-        , ciDatabase = "app"
-        })
-    close
-    (\conn -> do
-        (_, rows) <- query_ conn "SELECT 1"
-        print =<< Streams.toList rows)
-```
-
-Consume or explicitly discard the entire result stream before issuing another command on the same connection. Use a separate connection for each concurrent worker. Prefer prepared statements for parameterized queries.
-
-## Building
-
-With GHC and Cabal installed:
+On Linux install a C toolchain, zlib development files and MIT Kerberos
+(`libkrb5-dev` on Debian/Ubuntu), even when not using GSSAPI. macOS uses the
+system GSS framework and Apple's command-line tools. The driver itself does
+not require Connector/C.
 
 ```sh
 cabal update
-cabal build all --enable-tests
-cabal test test
+cabal build lib:mariadb-haskell
 ```
 
-Install, start and verify MariaDB before running integration tests or benchmarks. The [managed macOS setup](validation/MACOS.md) uses Homebrew and requires no server source build. The [validation guide](validation/README.md) covers the comprehensive suite, initial baseline capture and comparison commands; [coverage](validation/COVERAGE.md) lists the tested surfaces and explicit gaps.
+The complete [Quickstart.hs](https://github.com/aantich/mariadb-haskell/blob/main/examples/Quickstart.hs)
+reads connection settings from the environment. For an existing `ConnectInfo`,
+a prepared query looks like this:
 
-## Upstream and attribution
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+import Control.Exception (bracket)
+import qualified Database.MySQL.Base as DB
+import qualified System.IO.Streams as Streams
 
-The original project is [winterland1989/mysql-haskell](https://github.com/winterland1989/mysql-haskell). This fork retains its BSD 3-Clause license and the original copyright notices. See [LICENSE](LICENSE).
+printCustomer ci customerId =
+  bracket (DB.connect ci) DB.close $ \conn ->
+    DB.withPreparedStatement conn
+      "SELECT name FROM customers WHERE id = ?" $ \statement -> do
+        (_, rows) <- DB.queryPrepared statement [DB.MySQLInt64 customerId]
+        Streams.foldM (\() row -> print row) () rows
+```
 
-License
--------
+Consume every result stream within the connection and statement brackets,
+before issuing another command. A connection and its stream have one owning
+thread; use separate connections for concurrent workers. Use TLS or a Unix
+socket for sensitive credentials. The
+[user guide](https://github.com/aantich/mariadb-haskell/blob/main/docs/USER_GUIDE.md)
+covers connections, values, transactions, bulk, uploads, cursors, pooling,
+authentication, failures and durable CDC consumers.
 
-Copyright (c) 2016, winterland1989
+## Validation and performance
 
-All rights reserved.
+The latest retained capture, recorded on **9 November 2026**, reports
+**844 PASS, 0 FAIL, 0 unsupported API inventory entries and 0 unavailable
+fixtures** on macOS and a separate Linux correctness profile. The tooling also
+passes 173 policy tests. This closes the original suite's missing driver APIs
+and authentication fixtures; it does not certify every version or platform.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+The Mac run measures **63 profiles, seven process repetitions each**. Selected
+comparisons use alternatives in the **same current build**:
 
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+| Comparison (Current vs Baseline) | Time unit | Baseline | Current | Change vs baseline |
+| --- | --- | ---: | ---: | ---: |
+| Native bulk vs sequential prepared insert | ns/row | 41,783.2 | 1,940.8 | −95.4% |
+| Native bulk vs text batch insert | ns/row | 11,215.2 | 1,940.8 | −82.7% |
+| Cached vs uncached wide prepared metadata | ns/execution | 76,068.0 | 55,788.0 | −26.7% |
+| Reset/restore vs reconnect/prepare TLS session | ns/request | 38,097,800 | 472,400 | −98.8% |
 
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
+Baseline means the named alternative in this build. Change is
+`(current / baseline − 1) × 100`; negative means less elapsed time.
+The benchmark guide also records allocations. These local measurements are not
+promises for other applications.
+The host was **not idle** and timing investigations remain open. Streaming
+uploads allocate more in the measured case; cursors and compression cost time
+on local transfers. Some ordinary workloads remain slower than the original
+fork baseline.
 
-    * Neither the name of winterland1989 nor the names of other
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
+See the [benchmark guide](https://github.com/aantich/mariadb-haskell/blob/main/docs/BENCHMARKS.md)
+for environment, tradeoffs and immutable data. The
+**[live report on main](https://github.com/aantich/mariadb-haskell/blob/main/validation/RESULTS.md)**
+is refreshed from complete captures, retaining failures, baselines and exact
+source provenance. This dated README snapshot is not a fresh measurement of
+later edits.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+[![Live validation status](https://raw.githubusercontent.com/aantich/mariadb-haskell/main/validation/results/overview.svg)](https://github.com/aantich/mariadb-haskell/blob/main/validation/RESULTS.md)
+
+## Tested scope and limits
+
+Full recorded profiles use **MariaDB 12.3.3**, macOS arm64/GHC 9.10.3 and
+Linux/GHC 9.4.7. Other server/compiler versions need separate profiles.
+Capabilities depend on the server version/configuration. Windows is not a
+verified release platform and its GSSAPI implementation is unavailable.
+
+CDC fails closed on unsupported non-ignorable events. Advanced XA checkpointing,
+two-phase ALTER and storage-engine-binlog GTID semisync are unsupported by the
+transaction-aware API. Checkpoints are not persisted by the driver; ACKs alone
+do not provide exactly-once destination writes. Text codecs cover UTF-8, ASCII
+and MariaDB latin1; other result charsets remain bytes.
+
+Timeouts/cancellation during protocol I/O retire the connection. Reconnect;
+never blindly replay a transaction with an uncertain COMMIT. There is no built-in
+pool or automatic SQL replay.
+
+## Development and license
+
+Unit/property tests: `cabal test test --enable-tests`. Integration/benchmarks
+require a provisioned server first; follow the
+[validation instructions](https://github.com/aantich/mariadb-haskell/blob/main/validation/README.md)
+and [managed macOS setup](https://github.com/aantich/mariadb-haskell/blob/main/validation/MACOS.md).
+Implementation history remains in `docs/`.
+
+Driver code: BSD 3-Clause; see [LICENSE](https://github.com/aantich/mariadb-haskell/blob/main/LICENSE).
+Bundled Mozilla CA data: MPL-2.0; see [CA provenance](https://github.com/aantich/mariadb-haskell/blob/main/docs/CA_BUNDLE.md).
+Original work by Winterland and upstream contributors retains its copyright
+notices. Report reproducible problems through
+[GitHub issues](https://github.com/aantich/mariadb-haskell/issues), including
+server/compiler versions and sanitized diagnostics.

@@ -2,13 +2,33 @@
   pkgs ? import ./pkgs.nix { },
 }:
 let
+  # Cabal source trees may contain local database credentials and large build
+  # caches. Never copy those into Nix's readable store, even for nix-shell.
+  source = pkgs.lib.cleanSourceWith {
+    src = ../.;
+    filter = path: type:
+      let
+        relative = pkgs.lib.removePrefix (toString ../. + "/") (toString path);
+        parts = pkgs.lib.splitString "/" relative;
+        private = builtins.any (name: builtins.elem name [ ".git" ".local" "__pycache__" ]) parts;
+      in pkgs.lib.cleanSourceFilter path type
+        && !private
+        && relative != "cabal.project.local"
+        && relative != "dist"
+        && !(pkgs.lib.hasPrefix "dist-" relative)
+        && !(pkgs.lib.hasPrefix "validation/results/runs" relative);
+  };
   # Dependencies are taken as working, so their test suites are skipped.
   fromHackage = hnew: release: pkgs.haskell.lib.dontCheck (hnew.callHackageDirect release { });
 in
 pkgs.haskellPackages.override {
   overrides = hnew: hold: {
-    mysql-haskell =
-      pkgs.haskell.lib.overrideCabal (hnew.callCabal2nix "mysql-haskell" ../. { })
+    mariadb-haskell =
+      pkgs.haskell.lib.overrideCabal (hnew.callCabal2nix "mariadb-haskell" source {
+        # cabal2nix preserves this unmapped C library name. Supply MIT's
+        # development output explicitly so headers and linkage both resolve.
+        gssapi_krb5 = pkgs.libkrb5;
+      })
         {
           postBuild = ''
             mkdir -p $out/bin/integration

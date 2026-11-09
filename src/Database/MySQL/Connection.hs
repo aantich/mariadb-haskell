@@ -5,19 +5,17 @@ Module      : Database.MySQL.Connection
 Description : Internal MariaDB transport and connection lifecycle
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
-Portability : PORTABLE
+Portability : macOS and Linux tested
 
-Applications should use the abstract 'MySQLConn' exported by
+Applications should use the abstract t'MySQLConn' exported by
 "Database.MySQL.Base". This exposed internal module also supports deterministic
 transport fixtures; modifying its records bypasses the public safety contract.
 
 -}
 
-module Database.MySQL.Connection
-    ( module Database.MySQL.Connection
-    ) where
+module Database.MySQL.Connection where
 
 import           Control.Exception hiding (handle)
 import           Control.Monad
@@ -508,16 +506,34 @@ beginTransactionLease conn = do
 endTransactionLease :: MySQLConn -> IO ()
 endTransactionLease conn = atomicModifyIORef' (connectionRuntime conn) (\rt -> (rt {transactionOwner=Nothing},()))
 
--- | Endpoint, credentials and initial one-byte protocol collation ID. Do not
--- log this value: its inherited Show instance includes the password.
+-- | Endpoint, credentials and initial one-byte protocol collation ID. The
+-- 'Show' instance always redacts the password, including an empty password.
 data ConnectInfo = ConnectInfo
     { ciHost :: HostName
+      -- ^ TCP address; TLS certificate identity is passed separately.
     , ciPort :: PortNumber
+      -- ^ TCP port (default 3306); ignored by Unix-socket constructors.
     , ciDatabase :: ByteString
+      -- ^ Initial schema bytes; choose an explicit schema for pooled reset.
     , ciUser :: ByteString
+      -- ^ MariaDB account name, interpreted according to server authentication.
     , ciPassword :: ByteString
+      -- ^ Password bytes, excluded from the diagnostic 'Show' representation.
     , ciCharset :: Word8
-    } deriving Show
+      -- ^ Handshake collation ID; defaults to utf8mb4_unicode_ci (224).
+    }
+
+-- Preserve ordinary record-style diagnostics without ever evaluating or
+-- rendering credential bytes. Do not implement this by replacing a substring
+-- in derived output: quoting/escaping or overlapping fields could leak secrets.
+instance Show ConnectInfo where
+    showsPrec precedence ci = showParen (precedence > 10) $
+        showString "ConnectInfo {ciHost = " . shows (ciHost ci)
+        . showString ", ciPort = " . shows (ciPort ci)
+        . showString ", ciDatabase = " . shows (ciDatabase ci)
+        . showString ", ciUser = " . shows (ciUser ci)
+        . showString ", ciPassword = <redacted>, ciCharset = "
+        . shows (ciCharset ci) . showChar '}'
 
 -- | Local TCP defaults using full Unicode (utf8mb4). MB4 is a compatibility alias.
 defaultConnectInfo, defaultConnectInfoMB4 :: ConnectInfo
@@ -1296,7 +1312,7 @@ classifyQueryEffect conn qry@(Query input) = do
 ping :: MySQLConn -> IO OK
 ping conn = command conn COM_PING
 -- | Low-level command expecting one OK/ERR reply. Commands producing rows or no
--- reply require their dedicated APIs instead (for example 'closeStmt' in Base).
+-- reply require their dedicated APIs instead (for example 'Database.MySQL.Base.closeStmt' in Base).
 command :: MySQLConn -> Command -> IO OK
 command conn COM_RESET_CONNECTION = resetConnection conn
 command conn cmd = withCommand conn $ sendCommand conn cmd >> readConnPacket conn >>= consumeCommandOK conn

@@ -1,6 +1,10 @@
 {-# LANGUAGE BangPatterns #-}
 -- | Stateful MariaDB event decoding. The decoder retains table metadata, never
 -- transactions or row history; consumers control backpressure by reading once.
+-- Application code normally uses the managed stream reexported by
+-- "Database.MySQL.BinLog", which adds connection ownership, terminal failure
+-- handling, GTID setup and acknowledgement validation. The pure/wire decoder
+-- alone does not establish downstream durability.
 module Database.MySQL.BinLogProtocol.CDC
     ( CDCError(..), Gtid(..), GtidSet, gtidSet, parseGtidSet, renderGtidSet, gtidSetEntries
     , GtidList(..)
@@ -42,7 +46,9 @@ instance Exception CDCError
 
 -- | MariaDB identity, domain-server-sequence (not a UUID interval).
 data Gtid = Gtid
-    { gtidDomainId :: !Word32, gtidServerId :: !Word32, gtidSequence :: !Word64
+    { gtidDomainId :: !Word32 -- ^ Independent MariaDB replication domain.
+    , gtidServerId :: !Word32 -- ^ Originating server, not the consumer replica ID.
+    , gtidSequence :: !Word64 -- ^ Positive sequence number in the domain history.
     } deriving (Eq, Show)
 
 -- | One last completed transaction per replication domain. Construction rejects
@@ -87,7 +93,7 @@ gtidSetEntries :: GtidSet -> [Gtid]
 gtidSetEntries (GtidSet entries) = M.elems entries
 
 -- | Binlog history advertised by a GTID_LIST event. A domain can contain
--- several originating servers after failover; collapsing it into 'GtidSet'
+-- several originating servers after failover; collapsing it into t'GtidSet'
 -- would discard history or guess a resume position. This informational event
 -- does not advance a transaction checkpoint.
 data GtidList = GtidList
@@ -98,14 +104,16 @@ data GtidList = GtidList
 -- | Binlog coordinates retain 64 bits. Traditional COM_BINLOG_DUMP accepts only
 -- 32 bits; the connection API checks that boundary rather than truncating it.
 data BinLogPosition = BinLogPosition
-    { binlogFile :: !B.ByteString, binlogNextPosition :: !Word64
+    { binlogFile :: !B.ByteString -- ^ Exact source binlog filename bytes.
+    , binlogNextPosition :: !Word64 -- ^ Next event offset after the represented boundary.
     } deriving (Eq, Show)
 
 -- | Independent retained-metadata and event expansion budgets. Exceeding a
 -- budget fails the stream; eviction would make later row images ambiguous.
 data DecodeLimits = DecodeLimits
-    { maxTableMaps :: !Int, maxTableMapBytes :: !Int
-    , maxExpandedEventBytes :: !Int
+    { maxTableMaps :: !Int -- ^ Concurrent table-map identities retained by the decoder.
+    , maxTableMapBytes :: !Int -- ^ Aggregate owned table metadata; no silent eviction.
+    , maxExpandedEventBytes :: !Int -- ^ Expanded/reassembled bytes for one event.
     } deriving (Eq, Show)
 
 -- | 4096 maps, 16 MiB retained metadata and 64 MiB expanded/reassembled events.
@@ -135,11 +143,15 @@ checkpointGtids :: CDCCheckpoint -> Maybe GtidSet
 checkpointGtids (CDCCheckpoint _ _ _ gtids) = gtids
 
 -- | Decoded event plus an optional complete-group checkpoint. Row images retain
--- present-column bitmaps; a missing column is distinct from 'BinLogNull'.
+-- present-column bitmaps; a missing column is distinct from @BinLogNull@.
 data CDCEvent = CDCEvent
-    { cdcEventPosition :: !BinLogPosition, cdcEventTimestamp :: !Word32
-    , cdcEventPayload :: !CDCPayload, cdcEventCheckpoint :: !(Maybe CDCCheckpoint)
+    { cdcEventPosition :: !BinLogPosition -- ^ Source next-event coordinate.
+    , cdcEventTimestamp :: !Word32 -- ^ Source header timestamp in Unix seconds.
+    , cdcEventPayload :: !CDCPayload -- ^ Decoded row/control event; sparse columns remain explicit.
+    , cdcEventCheckpoint :: !(Maybe CDCCheckpoint)
+      -- ^ Present only at a complete-group boundary, before destination persistence.
     , cdcEventAckRequested :: !Bool
+      -- ^ Source requested semisync receipt; this alone never sends an ACK.
     } deriving (Eq, Show)
 
 -- | Events needed to reproduce the change stream. Unsupported non-ignorable

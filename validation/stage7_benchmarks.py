@@ -6,7 +6,7 @@ import json
 import re
 import feature_benchmarks as features
 import auth_fixture
-import run
+import release_recorder as run
 
 PROFILES = {'auth.pam.password': 10, 'auth.pam.multiple': 10,
             'auth.gssapi.cached-ticket': 10}

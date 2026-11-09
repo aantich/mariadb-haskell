@@ -2,10 +2,10 @@
 
 {-|
 Module      : Database.MySQL.Protocol.Command
-Description : MySQL commands
+Description : MariaDB command encodings and bulk indicators
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
 Portability : PORTABLE
 
@@ -49,7 +49,9 @@ executeParameterValue (ExecuteValue value) = value
 executeParameterValue UploadedBytes = MySQLBytes ""
 executeParameterValue UploadedText = MySQLText ""
 
--- | All support MySQL commands.
+-- | Wire commands used by MariaDB. Prefer managed operations in
+-- "Database.MySQL.Base"; constructing/sending these directly can bypass arity,
+-- cache-generation, ownership and negotiated-capability checks.
 --
 data Command
     = COM_QUIT                                    -- ^ 0x01

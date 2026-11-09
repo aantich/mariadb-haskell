@@ -65,13 +65,10 @@ defaultChunkSize = 32 * k - chunkOverhead
     k = 1024
     chunkOverhead = 2 * sizeOf (undefined :: Int)
 
--- | Initiating an raw TCP connection to the given @('HostName', 'PortNumber')@ combination.
---
--- It use 'N.getAddrInfo' to resolve host/service name
--- with 'N.AI_ADDRCONFIG', 'N.AI_NUMERICSERV' hint set, so it should be able to
--- resolve both numeric IPv4/IPv6 hostname and domain name.
---
--- `TCP_NODELAY` are enabled by default. you can use 'N.setSocketOption' to adjust.
+-- | Open a raw TCP socket for the address and port. Name resolution uses
+-- @AI_ADDRCONFIG@ and @AI_NUMERICSERV@; usable IPv4/IPv6 addresses are tried
+-- within one ten-second default deadline. @TCP_NODELAY@ is enabled.
+-- The caller owns the returned socket. This does not authenticate MariaDB.
 --
 connectSocket :: N.HostName             -- ^ hostname to connect to
               -> N.PortNumber           -- ^ port number to connect to
@@ -105,7 +102,7 @@ connectSocketTimeout deadline host port
             Right connected -> pure connected
             Left (err :: E.IOException) -> if null rest then E.throwIO err else attempts rest
 
--- | Make a 'Connection' from a 'Socket' with given buffer size.
+-- | Make a t'Connection' from a 'Network.Socket.Socket' with given buffer size.
 --
 socketToConnection
     :: Int                      -- ^ receive buffer size

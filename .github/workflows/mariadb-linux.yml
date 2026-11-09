@@ -20,7 +20,12 @@ jobs:
       - name: Run unchanged correctness suite and additive regressions
         run: |
           mkdir -p validation/results/runs/stage2-linux
-          docker run --name mariadb-haskell-linux mariadb-haskell-linux
+          mkdir -p "${{ runner.temp }}/mariadb-linux/cabal" "${{ runner.temp }}/mariadb-linux/build"
+          docker run --name mariadb-haskell-linux \
+            --tmpfs /var/lib/mysql:size=2147483648 --tmpfs /tmp:size=1073741824 \
+            -v "${{ runner.temp }}/mariadb-linux/cabal:/root/.cabal" \
+            -v "${{ runner.temp }}/mariadb-linux/build:/workspace/dist-newstyle" \
+            mariadb-haskell-linux
       - name: Preserve all Linux evidence
         if: always()
         run: docker cp mariadb-haskell-linux:/workspace/validation/results/runs/stage2-linux/. validation/results/runs/stage2-linux/ || true
@@ -31,4 +36,4 @@ jobs:
           path: validation/results/runs/stage2-linux
       - name: Remove disposable profile
         if: always()
-        run: docker rm -f mariadb-haskell-linux || true
+        run: docker rm -fv mariadb-haskell-linux || true

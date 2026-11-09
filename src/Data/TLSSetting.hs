@@ -1,9 +1,12 @@
 {-# LANGUAGE CPP #-}
 
--- | Helpers for setting up a tls connection with @tls@ package,
--- for further customization, please refer to @tls@ package.
+-- | Construct verified TLS parameters for MariaDB connections. Choose managed
+-- OS roots or an application CA file and reuse parameters across connections.
+-- The connection constructor supplies the certificate hostname/default SNI.
+-- Customize cipher/credential policy through the @tls@ package when needed.
 --
--- Note, functions in this module will throw error if can't load certificates or CA store.
+-- File/PEM/credential errors throw during parameter construction. These helpers
+-- do not disable peer verification or make a plaintext connection secure.
 --
 module Data.TLSSetting
     ( -- * Choose a CAStore
@@ -24,25 +27,23 @@ import qualified Data.X509                  as X509
 import qualified Data.X509.CertificateStore as X509
 import qualified Network.TLS                as TLS
 import qualified Network.TLS.Extra          as TLS
-import           Paths_mysql_haskell          (getDataFileName)
+import           Paths_mariadb_haskell          (getDataFileName)
 import qualified System.X509                as X509
 
 #if !MIN_VERSION_tls(2,1,4)
 import           Data.Default.Class         (def)
 #endif
 
--- | The whole point of TLS is that: a peer should have already trusted
--- some certificates, which can be used for validating other peer's certificates.
--- if the certificates sent by other side form a chain. and one of them is issued
--- by one of 'TrustedCAStore', Then the peer will be trusted.
---
+-- | Trust anchors used by the TLS verifier alongside hostname and certificate
+-- checks. Prefer an OS/application-managed store with an explicit update policy.
 data TrustedCAStore
-    = SystemCAStore                   -- ^ provided by your operating system.
-    | MozillaCAStore                  -- ^ provided by <https://curl.haxx.se/docs/caextract.html Mozilla>.
-    | CustomCAStore FilePath          -- ^ provided by your self, the CA file can contain multiple certificates.
+    = SystemCAStore                   -- ^ Read the operating system's trust roots.
+    | MozillaCAStore                  -- ^ Installed Mozilla snapshot; see docs/CA_BUNDLE.md for source, checksum and update policy.
+    | CustomCAStore FilePath          -- ^ PEM CA file containing one or more certificates; malformed/empty files fail.
   deriving (Show, Eq)
 
--- | Get the built-in mozilla CA's path.
+-- | Resolve the installed bundle through Cabal's data directory, independent
+-- of the working directory. This does not refresh or validate its contents.
 mozillaCAStorePath :: IO FilePath
 mozillaCAStorePath = getDataFileName "mozillaCAStore.pem"
 
@@ -57,15 +58,10 @@ makeCAStore (CustomCAStore fp)  = do
         Right cas -> return (X509.makeCertificateStore cas)
         Left err  -> ioError (userError err)
 
--- | make a simple tls 'TLS.ClientParams' that will validate server and use tls connection
--- without providing client's own certificate. suitable for connecting server which don't
--- validate clients.
---
--- we defer setting of 'TLS.clientServerIdentification' to connecting phase.
---
--- Note, tls's default validating method require server has v3 certificate.
--- you can use openssl's V3 extension to issue such a certificate. or change 'TLS.ClientParams'
--- before connecting.
+-- | Verify server certificates using the selected roots, without supplying a
+-- client certificate. The connection constructor later supplies the server
+-- identity; pass its certificate DNS name rather than disabling verification.
+-- Root loading happens here, so reuse the result in a connection factory.
 --
 makeClientParams :: TrustedCAStore          -- ^ trusted certificates.
                  -> IO TLS.ClientParams
@@ -79,9 +75,7 @@ makeClientParams tca = do
             }
         }
 
--- | make a simple tls 'TLS.ClientParams' that will validate server and use tls connection
--- while providing client's own certificate as well. suitable for connecting server which
--- validate clients.
+-- | Verify the server and supply a client certificate/key for mutual TLS.
 --
 -- The helper installs the sole supplied credential in the certificate-request
 -- hook; sharedCredentials alone does not answer a server's client-cert request.
@@ -109,7 +103,9 @@ makeClientParams' pub certs priv tca = do
                 }
         Left err -> ioError (userError err)
 
--- | make a simple tls 'TLS.ServerParams' without validating client's certificate.
+-- | Low-level TLS server helper retained for compatibility and transport tests.
+-- Supplies a server credential without requesting a client certificate; it does
+-- not implement a MariaDB server. Ordinary client applications use 'makeClientParams'.
 --
 makeServerParams :: FilePath        -- ^ public certificate (X.509 format).
                  -> [FilePath]      -- ^ chain certificates (X.509 format).
@@ -131,7 +127,8 @@ makeServerParams pub certs priv = do
                 }
         Left err -> ioError (userError err)
 
--- | make a tls 'TLS.ServerParams' that also validating client's certificate.
+-- | Low-level TLS server helper requesting and verifying client certificates
+-- against the selected roots. Applications still enforce authorization separately.
 --
 makeServerParams' :: FilePath       -- ^ public certificate (X.509 format).
                   -> [FilePath]     -- ^ chain certificates (X.509 format).

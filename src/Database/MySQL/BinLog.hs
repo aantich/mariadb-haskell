@@ -1,13 +1,35 @@
 {-|
 Module      : Database.MySQL.BinLog
-Description : Binary protocol toolkit
+Description : MariaDB CDC, GTID resume and controlled acknowledgements
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
 Portability : PORTABLE
 
-This module provide tools for binlog listening and row based binlog decoding.
+Use 'openCDC' for a bounded, pull-driven row-based change stream. Configure
+MariaDB binary logging, row format, retention and replication grants separately.
+Choose a unique nonzero replica ID and dedicate one connection/thread to the
+stream. Stream termination or failure closes/retires that connection.
+
+'FromGtid' uses MariaDB @domain-server-sequence@ state, not UUID intervals.
+Checkpoints describe completed decoded groups; they prove no destination
+durability. Apply events and atomically persist destination changes with the
+exported resume state before 'cdcAcknowledge'. The driver supplies neither
+persistence nor an exactly-once destination protocol. Manual ACKs require
+server semisync; legacy 'dumpBinLog' on-read ACKs mean receipt only.
+
+Persist 'checkpointPosition' or 'checkpointGtids', never an opaque token's
+@Show@ representation. Reopen a fresh connection after interruption and resume
+from durable coordinates. Table metadata/event expansion are bounded; the
+consumer must also avoid buffering unbounded transaction groups.
+
+Advanced XA checkpointing, two-phase ALTER and storage-engine-binlog GTID
+semisync are unsupported. Unknown non-ignorable events fail closed. Traditional
+file dump starts have a 32-bit wire limit even though checkpoint positions are
+64-bit. See the
+<https://github.com/aantich/mariadb-haskell/blob/main/docs/USER_GUIDE.md CDC user guide>
+and <https://github.com/aantich/mariadb-haskell/blob/main/examples/GuideExamples.hs consumer example>.
 -}
 
 module Database.MySQL.BinLog
@@ -55,8 +77,9 @@ import qualified System.IO.Streams                         as Stream
 -- | Unique nonzero replica server ID chosen by the application.
 type SlaveID = Word32
 
--- | binlog filename and position to start listening.
---
+-- | File-based start coordinate. The next-position field is 64-bit to preserve
+-- observed positions; opening the legacy dump command rejects values over its
+-- 32-bit start limit rather than truncating them.
 data BinLogTracker = BinLogTracker
     { btFileName :: {-# UNPACK #-} !ByteString
     , btNextPos  :: {-# UNPACK #-} !Word64
@@ -79,7 +102,7 @@ dumpBinLog :: MySQLConn               -- ^ connection to be listened
            -> Bool                    -- ^ if master support semi-ack, do we want to enable it?
                                       -- if master doesn't support, this parameter will be ignored.
            -> IO (FormatDescription, IORef ByteString, InputStream BinLogPacket)
-                -- ^ 'FormatDescription', 'IORef' contains current binlog filename, 'BinLogPacket' stream.
+                -- ^ t'FormatDescription', 'IORef' contains current binlog filename, t'BinLogPacket' stream.
 dumpBinLog conn sid tracker wantAck = do
     let mode = if wantAck then AcknowledgeOnRead else AcknowledgementsDisabled
     (fmt, ref, packets, _) <- openPackets conn sid
@@ -105,10 +128,15 @@ data AcknowledgementMode = AcknowledgementsDisabled | AcknowledgeManually | Ackn
 -- server's current log end; ordinary blocking streams wait for further work.
 data CDCOptions = CDCOptions
     { cdcStart :: !BinLogStart
+      -- ^ Proven file coordinate or completed MariaDB GTID state.
     , cdcAcknowledgements :: !AcknowledgementMode
+      -- ^ Disabled by default. 'openCDC' accepts manual or disabled mode only.
     , cdcNonBlocking :: !Bool
+      -- ^ End at the server's current log end instead of waiting for new events.
     , cdcDecodeLimits :: !DecodeLimits
+      -- ^ Independent retained-table-metadata and event-expansion budgets.
     , cdcBootstrapEventLimit :: !Int
+      -- ^ Maximum setup events before format/checksum state is established.
     } deriving (Eq, Show)
 
 -- | Blocking, no acknowledgements, bounded decoding and at most 1024 setup
@@ -131,9 +159,13 @@ resumeFromCheckpoint token = case checkpointGtids token of
 -- is terminal; reopening/resuming always uses a fresh connection.
 data CDCStream = CDCStream
     { cdcEvents :: !(InputStream CDCEvent)
+      -- ^ Consume once on the opening thread; backpressure is controlled by reads.
     , cdcLatestCheckpoint :: !(IO (Maybe CDCCheckpoint))
+      -- ^ Latest complete decoded group, independent of destination durability.
     , cdcAcknowledge :: !(CDCCheckpoint -> IO ())
+      -- ^ Acknowledge a durable active-stream checkpoint; never an arbitrary token.
     , cdcClose :: !(IO ())
+      -- ^ Terminal close of the dedicated connection, also used by brackets.
     }
 
 -- | Dedicate a connection to MariaDB CDC. Stream decoding and acknowledgement

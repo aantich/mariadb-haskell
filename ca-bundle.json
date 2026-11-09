@@ -1,0 +1,10 @@
+{
+  "version": "2026-11-05",
+  "source": "https://curl.se/ca/cacert-2026-11-05.pem",
+  "checksum_source": "https://curl.se/ca/cacert-2026-11-05.pem.sha256",
+  "sha256": "427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285",
+  "certificate_count": 118,
+  "license": "MPL-2.0",
+  "source_information": "https://curl.se/docs/caextract.html",
+  "retrieved_at": "2026-11-09"
+}

@@ -5,7 +5,7 @@
 -- Copyright   :  Bryan O'Sullivan 2007-2015, Winterland 2016
 -- License     :  BSD3
 --
--- Maintainer  :  drkoster@qq.com
+-- Maintainer  :  Anton Antich <anton.antich@gmail.com>
 -- Stability   :  experimental
 -- Portability :  unknown
 --

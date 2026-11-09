@@ -10,7 +10,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-import run
+import release_recorder as run
 import publish_results as live
 import stage1_gates
 
@@ -34,7 +34,7 @@ def install_runtime_data():
                   and (parent / "opt/build/Database/MySQL/Connection.hi").is_file()), None)
     if build is None:
         raise RuntimeError("library Setup configuration not found for runtime data installation")
-    return subprocess.run(["cabal", "v1-copy", "lib:mysql-haskell", "--builddir=" + str(build)],
+    return subprocess.run(["cabal", "v1-copy", "lib:mariadb-haskell", "--builddir=" + str(build)],
                           cwd=run.ROOT).returncode
 
 
@@ -125,7 +125,7 @@ def needs_authentication_fixture(args):
 
 def main(args=None):
     if "--help" in sys.argv or "-h" in sys.argv:
-        status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
+        status = subprocess.call([sys.executable,str(run.HERE/"release_recorder.py"),"--help"])
         print("\nFull runs execute native, reuse, CDC, wire and authentication benchmarks and update the live report. Partial runs do not replace it.")
         return status
     args = args if args is not None else parse_arguments()
@@ -307,7 +307,7 @@ def main(args=None):
     if full and not args.compare and not args.freeze:
         options += ["--compare",str(live.BASELINE)]
     try:
-        status = subprocess.call([sys.executable,str(run.HERE/"run.py"),*options],cwd=run.ROOT)
+        status = subprocess.call([sys.executable,str(run.HERE/"release_recorder.py"),*options],cwd=run.ROOT)
     except OSError as error:
         return finish(1, "Recorder process could not start: " + str(error))
     except KeyboardInterrupt:

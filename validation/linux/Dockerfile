@@ -4,15 +4,17 @@ FROM mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe66260
 USER root
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ghc cabal-install build-essential libgmp-dev zlib1g-dev libffi-dev pkg-config \
-    libmariadb-dev openssl python3 git ca-certificates curl libkrb5-dev \
-    krb5-kdc krb5-admin-server krb5-user libpam0g-dev mariadb-plugin-gssapi-server \
+    libmariadb-dev openssl python3 git ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+# Keep the reusable compiler layer separate from external-login fixtures.
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    libkrb5-dev krb5-kdc krb5-admin-server krb5-user libpam0g-dev mariadb-plugin-gssapi-server \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=tooling /usr/local/bin/cabal /usr/local/bin/cabal
 ENV CABAL_DIR=/root/.cabal
 WORKDIR /workspace
-COPY mysql-haskell.cabal ./
-RUN cabal user-config init && sed -i 's|url: http://hackage.haskell.org/|url: https://hackage.haskell.org/|' /root/.cabal/config && cabal update
-RUN cabal build all --only-dependencies --enable-tests -O2
+# Initialize/resolve Cabal at runtime so its large index/store can live in a
+# caller-owned cache mount rather than duplicate the Docker VM's image layers.
 COPY . .
 RUN mkdir -p /opt/driver-auth && gcc -Wall -Wextra -Werror -fPIC -shared \
     validation/auth_fixture/pam_fixture.c -lpam -o /opt/driver-auth/pam_fixture.so

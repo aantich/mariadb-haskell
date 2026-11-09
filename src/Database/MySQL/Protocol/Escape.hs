@@ -3,31 +3,20 @@
 
 {-|
 Module      : Database.MySQL.Protocol.Escape
-Description : Pure haskell mysql escape
+Description : Low-level SQL escaping; prefer session-aware public APIs
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
 Portability : PORTABLE
 
-This module provide escape machinery for bytes and text types.
+Low-level backslash escaping for byte/text literals. These helpers do not
+observe the connection's SQL mode or charset, and are insufficient when
+@NO_BACKSLASH_ESCAPES@ is enabled. Application code should use managed prepared
+bindings or session-aware text parameters from "Database.MySQL.Base".
 
-reference: <http://dev.mysql.com/doc/refman/5.7/en/string-literals.html>
-
-    * Escape Sequence	Character Represented by Sequence
-    * \0              	An ASCII NUL (X'00') character
-    * \'              	A single quote (“'”) character
-    * \"              	A double quote (“"”) character
-    * \b              	A backspace character
-    * \n              	A newline (linefeed) character
-    * \r              	A carriage return character
-    * \t              	A tab character
-    * \Z              	ASCII 26 (Control+Z); see note following the table
-    * \\              	A backslash (“\”) character
-    * \%              	A “%” character; see note following the table
-    * \_              	A “_” character; see note following the table
-
-The @\%@ and @\_@ sequences are used to search for literal instances of @%@ and @_@ in pattern-matching contexts where they would otherwise be interpreted as wildcard characters, so we won't auto escape @%@ or @_@ here.
+Pattern wildcards @%@ and @_@ are intentionally left unchanged: SQL literal
+quoting and LIKE-pattern escaping are separate application decisions.
 
 -}
 

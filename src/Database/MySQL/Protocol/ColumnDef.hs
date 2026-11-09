@@ -3,10 +3,10 @@
 
 {-|
 Module      : Database.MySQL.Protocol.ColumnDef
-Description : MySQL field type
+Description : MariaDB column definitions and extended metadata
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
 Portability : PORTABLE
 
@@ -52,11 +52,13 @@ getField = metadataColumn <$> getColumnMetadata False
 
 -- | MariaDB's optional type/format attributes, preserved as exact bytes.
 -- Unknown attribute tags are retained for forward compatibility. Tag 0 is the
--- native type name and tag 1 the format name. Core 'ColumnDef' stays source
+-- native type name and tag 1 the format name. Core t'ColumnDef' stays source
 -- compatible with applications that construct it positionally.
 data ColumnMetadata = ColumnMetadata
     { metadataColumn :: !ColumnDef
+      -- ^ Ordinary field definition shared with text and binary row decoders.
     , metadataAttributes :: ![(Word64, ByteString)]
+      -- ^ Owned MariaDB extension tag/value pairs, preserving unknown tags.
     } deriving (Show, Eq)
 
 -- | Decode the negotiated metadata layout. The extension precedes the fixed

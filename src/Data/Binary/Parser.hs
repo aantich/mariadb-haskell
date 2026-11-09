@@ -4,7 +4,7 @@
 -- Copyright   :  Daan Leijen 1999-2001, Bryan O'Sullivan 2007-2015, Winterland 2016
 -- License     :  BSD3
 --
--- Maintainer  :  drkoster@qq.com
+-- Maintainer  :  Anton Antich <anton.antich@gmail.com>
 -- Stability   :  experimental
 -- Portability :  portable
 --
@@ -186,9 +186,9 @@ parseDetailLazy g L.Empty =
 -- | Run a 'Get' monad. See 'Decoder' for what to do next, like providing
 -- input, handling decoding errors and to get the output value.
 --
--- This's faster than 'runGetIncremental' becuase it provides an initial chunk rather
--- than feeding 'B.empty' and waiting for chunks, this overhead is noticeable when you're
--- running small getters over short 'ByteString' s.
+-- Supplying an initial chunk avoids first feeding an empty chunk to the
+-- incremental decoder. Use this when input is already available; further
+-- chunks/end-of-input are still handled through 'Decoder'.
 --
 -- /Since: 0.2.1.0/
 --

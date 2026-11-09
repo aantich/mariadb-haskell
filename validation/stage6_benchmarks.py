@@ -3,7 +3,7 @@
 from pathlib import Path
 import sys
 import feature_benchmarks as features
-import run
+import release_recorder as run
 
 PROFILES = {'upload.buffered': 4, 'upload.streamed': 4, 'upload.retention': 67108864,
             'cursor.stream': 1, 'cursor.batch32': 1, 'cursor.batch512': 1, 'cursor.batch4096': 1,

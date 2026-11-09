@@ -3,10 +3,10 @@
 
 {-|
 Module      : Database.MySQL.Protocol.MySQLValue
-Description : Text and binary protocol
+Description : MariaDB values and text/binary row codecs
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
 Portability : PORTABLE
 
@@ -87,9 +87,9 @@ data DateParts = DateParts !Integer !Int !Int deriving (Show, Eq, Generic)
 
 -- | Values shared by text and prepared-binary protocols. DATE and DATETIME are
 -- calendar values; TIMESTAMP is converted by MariaDB through the session time
--- zone, so its returned 'LocalTime' describes that zone rather than UTC.
+-- zone, so its returned t'LocalTime' describes that zone rather than UTC.
 --
--- TIME can be a duration up to 838:59:59.999999. Its 'TimeOfDay' may therefore
+-- TIME can be a duration up to 838:59:59.999999. Its t'TimeOfDay' may therefore
 -- have hours greater than 23. Built-in binding rejects sub-microsecond precision
 -- rather than silently truncating it. Raw date constructors preserve values
 -- that 'Day' cannot represent; ordinary valid values use the existing forms.
@@ -114,14 +114,14 @@ data MySQLValue
     | MySQLTimeStampRaw  !DateParts !TimeOfDay -- ^ Unrepresentable TIMESTAMP date part.
     | MySQLTime          !Word8 !TimeOfDay -- ^ sign(0 = non-negative, 1 = negative) hh mm ss microsecond
                                            -- The sign is OPPOSITE to binlog one !!!
-    | MySQLGeometry      !ByteString       -- ^ todo: parsing to something meanful
+    | MySQLGeometry      !ByteString       -- ^ Opaque geometry bytes; use MariaDB SQL conversion functions when needed.
     | MySQLBytes         !ByteString
     | MySQLBit           !Word64
     | MySQLText          !Text
     | MySQLNull
   deriving (Show, Eq, Generic)
 
--- | Put 'FieldType' and usigned bit(0x80/0x00) for 'MySQLValue's.
+-- | Put t'FieldType' and usigned bit(0x80/0x00) for 'MySQLValue's.
 --
 -- | The two-byte prepared parameter type: low byte is the wire type, high
 -- byte carries unsignedness. Bulk validation compares this scalar without

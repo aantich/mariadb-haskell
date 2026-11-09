@@ -11,7 +11,7 @@ from pathlib import Path
 import statistics
 
 import publish_results as live
-import run
+import release_recorder as run
 
 PROFILES = {
     "connect.tcp": 30,

@@ -17,7 +17,11 @@ python3 -m unittest discover -s validation -p 'test_*.py'
 python3 validation/check.py
 ```
 
-The `check.py` entry point verifies MariaDB before building, rebuilds the current source and invokes the recorder. This prevents stale executables being measured after source edits. The recorder checks connectivity, server identity, the reserved database, packet limits and binlog configuration. If preflight fails, it runs no tests or benchmarks. It then runs every new correctness case in a separate process, runs both inherited suites with their assertions preserved, seeds the reserved benchmark table, and interleaves seven repetitions of Haskell and matching MariaDB Connector/C workloads. Every measured process performs two warm-ups before recording timings. A hung/crashed case cannot stop the remaining new cases. `run.py` is the lower-level recorder for an already-built harness.
+The `check.py` entry point verifies MariaDB before building, rebuilds the current source and invokes the recorder. This prevents stale executables being measured after source edits. The recorder checks connectivity, server identity, the reserved database, packet limits and binlog configuration. If preflight fails, it runs no tests or benchmarks. It then runs every new correctness case in a separate process, runs both inherited suites with their assertions preserved, seeds the reserved benchmark table, and interleaves seven repetitions of Haskell and matching MariaDB Connector/C workloads. Every measured process performs two warm-ups before recording timings. A hung/crashed case cannot stop the remaining new cases. `release_recorder.py` is the lower-level entry point for an already-built harness.
+The original `run.py` remains byte-for-byte frozen; the release adapter changes
+only its manifest lookup and self-package dependency exclusion. Both original
+and adapter identities are recorded explicitly; benchmark bodies and policies
+are unchanged.
 
 Both MariaDB's default session timezone and the test-process timezone are pinned to UTC. This avoids seasonal timezone assumptions in inherited binlog tests. The runner verifies password-plugin and client-certificate fixtures with MariaDB's own client before attributing failures to the Haskell driver.
 
@@ -302,3 +306,26 @@ the real services. Partial setup failures never replace full-run attempt status,
 including `--only=...` and runs with fewer than seven repetitions. Owned fixture
 containers are identified before creation and verified by a unique instance label
 before cleanup, including failed or interrupted starts.
+
+## Independent package release
+
+The package identity is now `mariadb-haskell`. The checkout's `cabal.project`
+opts into the developer-only `validation` flag and optimization level 2. The
+Hackage source archive omits that project and defaults the flag off. Explicit
+archive/developer builds can use `cabal build exe:mariadb-validation -fvalidation -O2`.
+Run the frozen recorder through `python3 validation/release_recorder.py`, not
+by invoking historical `run.py` directly. The adapter is digest-pinned to the
+original recorder and records exactly two metadata substitutions, plus its own
+entry point and hashes. The report publication guard verifies this provenance.
+No frozen baseline, workload, sampler or comparison policy is rewritten.
+
+See [release preparation](../docs/RELEASING.md) for clean source-archive checks
+and the distinction between local artifacts, a Hackage candidate and publication.
+
+Linux correctness containers can keep large Cabal/build caches in task-owned
+host directories mounted at `/root/.cabal` and `/workspace/dist-newstyle`. Do
+not mount a host Cabal directory containing Hackage credentials. The image
+initializes its own HTTPS configuration at runtime. The managed database and
+disposable fixture directories use temporary storage; remove owned containers
+with `docker rm -v` when not using `--rm`, to avoid orphaning image-declared
+anonymous database volumes. Retain evidence before removing a container.

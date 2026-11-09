@@ -5,7 +5,7 @@ Module      : Database.MySQL.BinLogProtocol.BinLogMeta
 Description : Binlog protocol column meta
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
 Portability : PORTABLE
 
@@ -14,7 +14,7 @@ This module provide column meta decoder for binlog protocol.
 There're certain type won't appear in binlog event, and some types are compressed into 'mySQLTypeString'
 , please take python version as a reference:  <https://github.com/noplay/python-mysql-replication>
 
-You will not directly meet following 'FieldType' namely:
+You will not directly meet following t'FieldType' namely:
 
     * mySQLTypeDecimal
     * mySQLTypeNewdate

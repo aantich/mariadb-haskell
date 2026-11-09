@@ -105,14 +105,23 @@ def main():
         config = LOCAL/'linux-environment.json'
         command([sys.executable, 'validation/provision.py', '--client', 'mariadb',
                  '--socket', '/run/mysqld/mysqld.sock', '--tls-ca', TLS/'ca.pem', '--output', config])
+        # CABAL_DIR may be mounted on the host to keep compiler caches out of
+        # Docker's constrained writable layer. Never use host credentials here.
+        cabal_directory = Path(os.environ.get('CABAL_DIR', '/root/.cabal'))
+        cabal_config = cabal_directory / 'config'
+        if not cabal_config.exists():
+            command(['cabal', 'user-config', 'init'])
+        cabal_config.write_text(cabal_config.read_text().replace(
+            'url: http://hackage.haskell.org/', 'url: https://hackage.haskell.org/'))
+        command(['cabal', 'update'])
         command([sys.executable, '-m', 'unittest', 'discover', '-s', 'validation', '-p', 'test_*.py'])
         command(['cabal', 'build', 'exe:mariadb-validation', 'test:test', 'test:integration', '--enable-tests', '-O2'])
-        setups = list((ROOT/'dist-newstyle/build').glob('*/ghc-*/mysql-haskell-*/opt/setup-config'))
+        setups = list((ROOT/'dist-newstyle/build').glob('*/ghc-*/mariadb-haskell-*/opt/setup-config'))
         if len(setups) != 1:
             raise RuntimeError('expected one built library installation directory')
-        command(['cabal', 'v1-copy', 'lib:mysql-haskell', '--builddir='+str(setups[0].parent)])
+        command(['cabal', 'v1-copy', 'lib:mariadb-haskell', '--builddir='+str(setups[0].parent)])
         run_dir = OUT/'suite'
-        command([sys.executable, 'validation/run.py', '--config', config, '--output', run_dir,
+        command([sys.executable, 'validation/release_recorder.py', '--config', config, '--output', run_dir,
                  '--no-benchmarks', '--compare', 'validation/baselines/macos-arm64-mariadb-12.3.3/results.json',
                  '--correctness-only-comparison'])
         data = json.loads((run_dir/'results.json').read_text())

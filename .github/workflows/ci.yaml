@@ -1,117 +1,85 @@
-on: [pull_request]
-
+name: Package builds
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 permissions:
-  actions: write
-
+  contents: read
 jobs:
+  cabal:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc: ['9.4.7', '9.6', '9.8', '9.10', '9.12']
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: '3.16.1.0'
+      - name: Linux native build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgmp-dev libkrb5-dev zlib1g-dev pkg-config
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cabal
+          key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-${{ hashFiles('mariadb-haskell.cabal', 'cabal.project') }}
+          restore-keys: ${{ runner.os }}-ghc-${{ matrix.ghc }}-
+      - run: cabal update
+      - run: cabal build all --enable-tests -O2
+      - run: cabal test test --enable-tests -O2
+      - run: python3 tools/update_ca_bundle.py --check
+  crypton:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        crypton: ['^>=2.1', '^>=2.0']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10'
+          cabal-version: '3.16.1.0'
+      - run: sudo apt-get update && sudo apt-get install -y libgmp-dev libkrb5-dev zlib1g-dev pkg-config
+      - run: cabal update
+      - run: cabal build lib:mariadb-haskell test:test --enable-tests -O2 --constraint='crypton ${{ matrix.crypton }}'
+      - run: cabal test test --enable-tests -O2 --constraint='crypton ${{ matrix.crypton }}'
+  source-package:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10'
+          cabal-version: '3.16.1.0'
+      - name: Linux native build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgmp-dev libkrb5-dev zlib1g-dev pkg-config
+      - run: cabal update
+      - name: Build and document the actual Hackage source archive
+        run: python3 tools/check_release.py --build --output "${{ runner.temp }}/mariadb-release-check"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hackage-preparation-${{ runner.os }}
+          path: |
+            ${{ runner.temp }}/mariadb-release-check/*.log
+            ${{ runner.temp }}/mariadb-release-check/checks.json
+            ${{ runner.temp }}/mariadb-release-check/artifacts
   nix:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Local cache
-      uses: actions/cache@v4
-      with:
-        path: /nix/store
-        key: "${{ runner.os }}-nix-cache"
-    - uses: cachix/install-nix-action@v31
-      with:
-        nix_path: nixpkgs=channel:nixos-unstable
-        extra_nix_config: |
-          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-
-    - uses: cachix/cachix-action@v15
-      with:
-        name: jappie
-        signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-    - run: nix-build nix/ci.nix
-    - run: nix-shell --run "echo OK"
-    - name: Cancel workflow on failure
-      if: failure()
-      continue-on-error: true
-      run: gh run cancel ${{ github.run_id }}
-      env:
-        GH_TOKEN: ${{ github.token }}
-
-  cabal:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: true
-      matrix:
-        ghc:
-          - '9.12'
-          - '9.10'
-          - '9.8'
-          - '9.6'
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-
-    steps:
-    - uses: actions/checkout@v4
-    - uses: haskell-actions/setup@v2
-      with:
-        ghc-version: ${{ matrix.ghc }}
-
-    - name: Cabal cache
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-cabal
-      with:
-        path: ~/.cabal
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-    - name: Cabal update
-      run: cabal update
-    # Without --enable-tests the solver may leave the test suite out of the
-    # plan, and `cabal test` then refuses to run it (Cabal-7043, seen with
-    # cabal 3.16 and 3.18).
-    - name: Build using cabal
-      run: cabal build all --enable-tests
-    - name: Test
-      run: cabal test test --enable-tests
-    - name: Cancel workflow on failure
-      if: failure()
-      continue-on-error: true
-      run: gh run cancel ${{ github.run_id }}
-      env:
-        GH_TOKEN: ${{ github.token }}
-
-  # The cabal job resolves the newest crypton and the nix job the pinned one,
-  # so every series the cabal file admits gets its own build here.
-  crypton:
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      matrix:
-        crypton:
-          - '^>=2.1'
-          - '^>=2.0'
-
-    steps:
-    - uses: actions/checkout@v4
-    - uses: haskell-actions/setup@v2
-      with:
-        ghc-version: '9.10'
-
-    - name: Cabal cache
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-cabal-crypton
-      with:
-        path: ~/.cabal
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.crypton }}-${{ hashFiles('**/*.cabal') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.crypton }}-
-    - name: Cabal update
-      run: cabal update
-    - name: Build against crypton ${{ matrix.crypton }}
-      run: cabal build lib:mysql-haskell test:test --enable-tests --constraint='crypton ${{ matrix.crypton }}'
-    - name: Test
-      run: cabal test test --enable-tests --constraint='crypton ${{ matrix.crypton }}'
-    - name: Cancel workflow on failure
-      if: failure()
-      continue-on-error: true
-      run: gh run cancel ${{ github.run_id }}
-      env:
-        GH_TOKEN: ${{ github.token }}
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - run: nix-build nix/ci.nix
+      - run: nix-shell --run 'ghc --numeric-version'

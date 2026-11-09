@@ -189,3 +189,15 @@ User instruction, 9 November 2026 after the Stage 7 review fixes: commit and
 push the reviewed changes and existing complete results directly on main. Keep
 the exact pre-commit measurements and their provenance; do not relabel them as
 a fresh committed-input run. No additional benchmark confirmation is requested.
+
+
+User approval, 9 November 2026: implement the Hackage release-readiness work
+for mariadb-haskell 0.1.0.0, with Anton Antich <anton.antich@gmail.com> as
+maintainer. Prepare documentation/examples, independent package identity,
+CA provenance/licensing, safe diagnostics, native CI and archive checks.
+Commit executable inputs locally on main before the final full validation,
+retain all original workloads/references, and refresh the live report.
+Hackage candidate upload needs locally configured account access; never record
+a password/API token in source or chat. Public publication follows candidate
+inspection. The default-off validation flag and metadata-only recorder adapter
+are documented in docs/RELEASING.md.

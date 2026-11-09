@@ -4,7 +4,7 @@
 }:
 
 hpkgs.shellFor {
-  packages = ps: [ ps.mysql-haskell ];
+  packages = ps: [ ps.mariadb-haskell ];
   withHoogle = false;
 
   buildInputs = [

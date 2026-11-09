@@ -15,7 +15,7 @@ import random
 import statistics
 
 import publish_results as live
-import run
+import release_recorder as run
 
 @dataclass(frozen=True)
 class FeatureSpec:
@@ -222,7 +222,7 @@ def main(spec):
     binary = run.executable('exe:mariadb-validation')
     args.output.mkdir(parents=True)
     plan = json.loads((run.ROOT / 'dist-newstyle/cache/plan.json').read_text())
-    dependencies = sorted({(p['pkg-name'], p['pkg-version']) for p in plan['install-plan'] if p['pkg-name'] != 'mysql-haskell'})
+    dependencies = sorted({(p['pkg-name'], p['pkg-version']) for p in plan['install-plan'] if p['pkg-name'] != 'mariadb-haskell'})
     data = {'schema': 1, 'recorded_at': live.now(), 'inputs': inputs,
             'server': run.server_metadata(env), 'repetitions': args.repetitions,
             'build': run.snapshot(), 'haskell_benchmark_rts': ['-N4', '-T'],

@@ -3,12 +3,23 @@ Module      : Database.MySQL.TLS
 Description : MariaDB TLS connections via the @tls@ package
 Copyright   : (c) Winterland, 2016
 License     : BSD
-Maintainer  : drkoster@qq.com
+Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
-Portability : PORTABLE
+Portability : macOS and Linux tested
 
 TLS connections use the same ownership, limits and session initialization as
-TCP. Supply certificate/hostname validation through 'TLS.ClientParams'.
+TCP. Supply certificate/hostname validation through t'Network.TLS.ClientParams'.
+
+Use 'makeClientParams' with 'SystemCAStore' or a managed 'CustomCAStore', then
+reuse the resulting parameters in the connection factory. The tuple's name is
+the server certificate DNS identity (and default SNI), which can differ from
+the address in 'ciHost'. Do not disable verification to work around CA/name
+errors. @makeClientParams'@ also provides a client certificate for X.509 accounts.
+
+@MozillaCAStore@ uses an installed static snapshot, not automatically updated
+OS roots; see the packaged @docs/CA_BUNDLE.md@ for provenance and update policy.
+TLS protects transport; PAM/GSSAPI options do not replace peer verification. See
+the <https://github.com/aantich/mariadb-haskell/blob/main/docs/USER_GUIDE.md connection guide>.
 
 -}
 
@@ -40,7 +51,7 @@ import qualified System.IO.Streams.TLS          as TLS
 
 --------------------------------------------------------------------------------
 
--- | Provide a 'TLS.ClientParams' and a subject name to establish a TLS connection.
+-- | Provide a t'Network.TLS.ClientParams' and a subject name to establish a TLS connection.
 --
 connect :: ConnectInfo -> (TLS.ClientParams,String) -> IO MySQLConn
 connect = connectWithOptions defaultConnectionOptions
