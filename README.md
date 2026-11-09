@@ -81,7 +81,7 @@ authentication, failures and durable CDC consumers.
 
 ## Validation and performance
 
-The committed release-input capture from `c6838df`, recorded on **9 November
+The committed release-input capture from `6bbcf13`, recorded on **9 November
 2026**, reports **844 PASS, 0 FAIL, 0 unsupported API inventory entries and 0 unavailable
 fixtures** on macOS. The inherited suites cover **183 unit/property cases** (182 pass and one
 inherited external-HTTPS case is ignored) and **32 passing integration tests**;
@@ -96,10 +96,10 @@ comparisons use alternatives in the **same current build**:
 
 | Comparison (Current vs Baseline) | Time unit | Baseline | Current | Change vs baseline |
 | --- | --- | ---: | ---: | ---: |
-| Native bulk vs sequential prepared insert | ns/row | 40,327.00 | 1,826.20 | -95.47% |
-| Native bulk vs text batch insert | ns/row | 10,557.00 | 1,826.20 | -82.70% |
-| Cached vs uncached wide prepared metadata | ns/execution | 72,896.00 | 54,240.00 | -25.59% |
-| Reset/restore vs reconnect/prepare TLS session | ns/request | 38,945,033.33 | 461,166.67 | -98.82% |
+| Native bulk vs sequential prepared insert | ns/row | 41,574.20 | 1,966.40 | -95.27% |
+| Native bulk vs text batch insert | ns/row | 11,001.40 | 1,966.40 | -82.13% |
+| Cached vs uncached wide prepared metadata | ns/execution | 76,824.00 | 56,378.00 | -26.61% |
+| Reset/restore vs reconnect/prepare TLS session | ns/request | 38,469,366.67 | 464,833.33 | -98.79% |
 
 Baseline means the named alternative in this build. Change is
 `(current / baseline − 1) × 100`; negative means less elapsed time.

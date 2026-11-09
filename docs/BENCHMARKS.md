@@ -1,7 +1,7 @@
 # Benchmarks: choosing the right API
 
 This is the **9 November 2026** release-input capture from committed source
-`c6838df`. [The live report](https://github.com/aantich/mariadb-haskell/blob/main/validation/RESULTS.md)
+`6bbcf13`. [The live report](https://github.com/aantich/mariadb-haskell/blob/main/validation/RESULTS.md)
 contains all profiles, failures, allocations, latency percentiles and open
 investigations. Values here are not refreshed merely because documentation or
 package metadata changes.
@@ -16,13 +16,13 @@ less time. Allocation change uses the same comparison and GHC allocation counts.
 
 | Comparison (Current vs Baseline) | Unit | Baseline | Current | Time change vs baseline | Allocation change vs baseline |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Native bulk vs sequential prepared | ns/row | 40,327.00 | 1,826.20 | -95.47% | -91.12% |
-| Native bulk vs text batch | ns/row | 10,557.00 | 1,826.20 | -82.70% | -77.91% |
-| Wide prepared metadata cache | ns/execution | 72,896.00 | 54,240.00 | -25.59% | -73.49% |
-| TLS reset vs reconnect | ns/request | 38,945,033.33 | 461,166.67 | -98.82% | -77.11% |
-| Streamed upload vs buffered | ns/byte | 5.04 | 5.05 | +0.24% | +97.23% |
-| Cursor batch 512 vs ordinary stream | ns/row | 356.30 | 860.30 | +141.45% | +4.49% |
-| Wide zlib vs plain transport | ns/row | 4,612.00 | 10,271.00 | +122.70% | +42.66% |
+| Native bulk vs sequential prepared | ns/row | 41,574.20 | 1,966.40 | -95.27% | -91.12% |
+| Native bulk vs text batch | ns/row | 11,001.40 | 1,966.40 | -82.13% | -77.94% |
+| Wide prepared metadata cache | ns/execution | 76,824.00 | 56,378.00 | -26.61% | -73.49% |
+| TLS reset vs reconnect | ns/request | 38,469,366.67 | 464,833.33 | -98.79% | -77.11% |
+| Streamed upload vs buffered | ns/byte | 5.16 | 5.19 | +0.55% | +96.99% |
+| Cursor batch 512 vs ordinary stream | ns/row | 372.80 | 858.70 | +130.34% | +4.64% |
+| Wide zlib vs plain transport | ns/row | 4,744.00 | 10,539.00 | +122.15% | +42.88% |
 
 Bulk reduces command round trips; wide metadata caching avoids repeated metadata
 transfer/decoding. Reuse measures complete equivalent request boundaries,
@@ -71,10 +71,10 @@ not interchangeable measures of authentication mechanisms.
 
 ## Evidence and provenance
 
-The retained [capture JSON](https://github.com/aantich/mariadb-haskell/blob/main/validation/results/references/release-0.1.0.0-alpha-live.json)
+The retained [capture JSON](https://github.com/aantich/mariadb-haskell/blob/main/validation/results/references/release-0.1.0.0-final-live.json)
 contains these numbers under `latest_completed_run.attempt`. The tested source
-is commit `c6838dfb262aaa938692fa753ff77c1f1d6c85d2` with **209 committed executable
-inputs**, fingerprint `76ceed62fb6aafbcf1b62c260692afe744055c01ef5c6141d2d69fad065d7bd8`. All families preserve
+is commit `6bbcf13fa3b66d96f26c8c4b36f5d69d5f69c25f` with **209 committed executable
+inputs**, fingerprint `23135d7aba3c73c1b39691f9b6ae3ea21104c45838d753a47ce9fa6a73892153`. All families preserve
 seven repetitions and the matching 149-entry dependency plan. Source/workload
 inputs remained stable throughout the run.
 
@@ -85,13 +85,14 @@ It changes only the manifest filename/self-package exclusion and entry-point
 dispatch. Sampling, workload bodies and comparison policy remain frozen.
 
 All 844 correctness records pass. The complete command exits 1 because timing
-gates remain open: **16 ordinary/reference, 0 native, 3 reuse, 0 CDC,
-2 wire and 0 authentication timing signals**, with no allocation signals.
+gates remain open: **51 ordinary/reference, 0 native, 4 reuse, 0 CDC,
+6 wire and 1 authentication timing signals**, with no allocation signals.
 These are not silently waived or presented as accepted performance. The original
 and each feature baseline, failed/interrupted attempts, and the earlier
 [Stage 7 review capture](https://github.com/aantich/mariadb-haskell/blob/d5a005c9e2adf753b5f6b2a4d04763d309159130/validation/results/references/stage7-fixes-full-1-live.json)
-remain intact. A final full capture was required by the new Alpha manifest/documentation inputs;
-the pre-Alpha full capture is retained, not discarded to select better timings.
+remain intact. The final capture follows the committed Alpha metadata, rendered-documentation
+corrections and CI linker-profile fix. Every prior full/interrupted capture is
+retained; these are source-validation captures, not a selected timing-confirmation window.
 
 The live report also compares **Baseline** (immutable original-driver capture),
 **Current** (latest complete capture), and **Change vs baseline** for the frozen

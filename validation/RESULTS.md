@@ -10,7 +10,7 @@ Current measured source, compared with the original unchanged-driver baseline. U
 
 Stage 1 targeted failures now passing: **23 / 23**. Original-baseline and last-accepted correctness protection: **PASS**.
 
-Timing investigations above 5%: **16**; allocation investigations above 5%: **0**. These are investigation signals, not automatically accepted costs.
+Timing investigations above 5%: **51**; allocation investigations above 5%: **0**. These are investigation signals, not automatically accepted costs.
 
 The frozen baseline retains its original meaning in all comparison tables. The last-accepted reference separately prevents an improvement being lost. [Acceptance evidence](results/stage1-gates.json) · [Confirmation history](results/stage1-confirmation.json) · [Supplementary evidence](results/references/stage1-after-final.json) · [Review notes](../docs/STAGE1_IMPLEMENTATION_NOTES.md).
 
@@ -35,7 +35,7 @@ A passing comparison does not mean all functionality passes.
 <details open>
 <summary>🟠 Comparison signals — investigation required</summary>
 
-- haskell/read.parallel-4: median slowed by more than 20%; confirm on an idle machine
+- haskell/latency.prepared: median slowed by more than 20%; confirm on an idle machine
 
 </details>
 
@@ -116,7 +116,7 @@ A passing comparison does not mean all functionality passes.
 | Reference | Commit |
 | --- | --- |
 | **Baseline** · original unchanged-driver run | `5deb205d5835` |
-| **Current** · latest completed run | `c6838dfb262a` |
+| **Current** · latest completed run | `6bbcf13fa3b6` |
 
 Both comparison tables use these same two runs.
 
@@ -152,11 +152,11 @@ Same-build alternatives below use identical data, transactions and checksums. Th
 
 | Comparison | Baseline ns/unit | Current ns/unit | Change vs baseline | Allocation change |
 | --- | ---: | ---: | ---: | ---: |
-| `native_vs_sequential` | 40,327.0 | 1,826.2 | -95.5% | -91.1% |
-| `native_vs_text_batch` | 10,557.0 | 1,826.2 | -82.7% | -77.9% |
-| `unit_vs_aggregate` | 1,826.2 | 2,089.2 | +14.4% | +49.1% |
-| `cached_vs_uncached_narrow` | 38,128.0 | 36,420.0 | -4.5% | -15.8% |
-| `cached_vs_uncached_wide` | 72,896.0 | 54,240.0 | -25.6% | -73.5% |
+| `native_vs_sequential` | 41,574.2 | 1,966.4 | -95.3% | -91.1% |
+| `native_vs_text_batch` | 11,001.4 | 1,966.4 | -82.1% | -77.9% |
+| `unit_vs_aggregate` | 1,966.4 | 2,185.6 | +11.1% | +49.1% |
+| `cached_vs_uncached_narrow` | 39,226.0 | 37,980.0 | -3.2% | -15.9% |
+| `cached_vs_uncached_wide` | 76,824.0 | 56,378.0 | -26.6% | -73.5% |
 
 Native timing units are rows for bulk inserts and complete queries for cached/uncached reads. Seven or more independent processes per profile each perform two warm-ups; all samples, CPU/GC counters and checksums are embedded in [current.json](results/current.json).
 
@@ -168,13 +168,13 @@ Baseline = reconnect, initialize, prepare, execute and close. Current = reset, r
 
 | Transport | Baseline ns/request | Current ns/request | Change vs baseline | Allocation change |
 | --- | ---: | ---: | ---: | ---: |
-| `tcp` | 498,933.3 | 370,400.0 | -25.8% | -16.9% |
-| `tls` | 38,945,033.3 | 461,166.7 | -98.8% | -77.1% |
-| `socket` | 353,400.0 | 271,800.0 | -23.1% | -14.9% |
+| `tcp` | 510,800.0 | 367,900.0 | -28.0% | -16.8% |
+| `tls` | 38,469,366.7 | 464,833.3 | -98.8% | -77.1% |
+| `socket` | 357,466.7 | 275,566.7 | -22.9% | -14.8% |
 
 Public snapshot read: **3.5 ns/call**, **0.0 allocated bytes/call**, no SQL. Seven or more independent processes per profile, with two warmups; raw samples and checksums are embedded in [current.json](results/current.json).
 
-Immutable reuse baseline comparison: **comparable**; timing investigations above 5%: **3**; allocation investigations: **0**. [First reuse baseline](baselines/macos-arm64-session-reuse/results.json).
+Immutable reuse baseline comparison: **comparable**; timing investigations above 5%: **4**; allocation investigations: **0**. [First reuse baseline](baselines/macos-arm64-session-reuse/results.json).
 
 ### MariaDB CDC
 
@@ -184,14 +184,14 @@ Separate immutable first CDC capture; no equivalent CDC throughput measurement e
 
 | Workload | Baseline ns/unit | Current ns/unit | Change vs baseline | Current allocated B/unit |
 | --- | ---: | ---: | ---: | ---: |
-| `cdc.decode.single-table` | 454.9 | 457.3 | +0.5% | 3,720.5 |
-| `cdc.decode.interleaved` | 537.8 | 504.7 | -6.2% | 3,744.3 |
-| `cdc.decode.sparse-update` | 805.0 | 792.5 | -1.6% | 4,465.9 |
-| `cdc.decode.compressed` | 1,897.0 | 1,902.0 | +0.3% | 43,745.6 |
-| `cdc.framing.crc32` | 1,242.5 | 1,137.8 | -8.4% | 17,824.0 |
-| `cdc.live.rows` | 4,192.0 | 4,268.0 | +1.8% | 19,094.1 |
-| `cdc.live.checkpoints` | 13,890.0 | 13,010.0 | -6.3% | 32,594.4 |
-| `cdc.retention` | 640.0 | 639.7 | -0.0% | 8,688.0 |
+| `cdc.decode.single-table` | 454.9 | 465.7 | +2.4% | 3,720.5 |
+| `cdc.decode.interleaved` | 537.8 | 513.2 | -4.6% | 3,744.3 |
+| `cdc.decode.sparse-update` | 805.0 | 806.6 | +0.2% | 4,465.9 |
+| `cdc.decode.compressed` | 1,897.0 | 1,953.5 | +3.0% | 43,745.6 |
+| `cdc.framing.crc32` | 1,242.5 | 1,148.0 | -7.6% | 17,823.8 |
+| `cdc.live.rows` | 4,192.0 | 4,251.0 | +1.4% | 19,094.4 |
+| `cdc.live.checkpoints` | 13,890.0 | 13,670.0 | -1.6% | 32,594.9 |
+| `cdc.retention` | 640.0 | 641.0 | +0.2% | 8,688.0 |
 
 Streaming retained heap at 1,000,000 rows: **86,240–86,240 bytes** after major GC across the measured processes. All warmup/measured checkpoints are retained in [current.json](results/current.json). This is live heap, not a process high-water mark.
 
@@ -203,17 +203,17 @@ Same-build alternatives use identical values and checksums. Lower time/allocatio
 
 | Comparison | Baseline ns/unit | Current ns/unit | Change vs baseline | Allocation change |
 | --- | ---: | ---: | ---: | ---: |
-| `streamed upload` | 5.04 | 5.05 | +0.2% | +97.2% |
-| `cursor batch 32` | 356.30 | 1,978.70 | +455.3% | +49.2% |
-| `cursor batch 512` | 356.30 | 860.30 | +141.5% | +4.5% |
-| `cursor batch 4096` | 356.30 | 777.70 | +118.3% | +1.0% |
-| `narrow compression` | 343.00 | 719.00 | +109.6% | +5.0% |
-| `wide compression` | 4,612.00 | 10,271.00 | +122.7% | +42.7% |
-| `progress negotiation` | 40,850.00 | 40,908.00 | +0.1% | +0.8% |
+| `streamed upload` | 5.16 | 5.19 | +0.5% | +97.0% |
+| `cursor batch 32` | 372.80 | 2,023.10 | +442.7% | +49.4% |
+| `cursor batch 512` | 372.80 | 858.70 | +130.3% | +4.6% |
+| `cursor batch 4096` | 372.80 | 774.10 | +107.6% | +1.2% |
+| `narrow compression` | 341.50 | 747.50 | +118.9% | +4.9% |
+| `wide compression` | 4,744.00 | 10,539.00 | +122.2% | +42.9% |
+| `progress negotiation` | 41,960.00 | 42,392.00 | +1.0% | +0.8% |
 
 Server cursors materialize results and add fetch round trips. Compression is optional and trades CPU/allocations for fewer network bytes; local timing is not a WAN result. These features need not outperform ordinary streaming on this Mac.
 
-[First wire-feature capture](baselines/macos-arm64-wire-features/results.json): **comparable**; timing investigations above 5%: **2**; allocation investigations: **0**. All seven-repetition samples are retained in [current.json](results/current.json).
+[First wire-feature capture](baselines/macos-arm64-wire-features/results.json): **comparable**; timing investigations above 5%: **6**; allocation investigations: **0**. All seven-repetition samples are retained in [current.json](results/current.json).
 
 ### External authentication setup
 
@@ -221,47 +221,47 @@ Complete connect/authenticate/session-initialize/query/close costs; units are ve
 
 | Profile | Baseline ns/connection | Current ns/connection | Change vs baseline | Allocation change |
 | --- | ---: | ---: | ---: | ---: |
-| `auth.pam.password` | 45,259,300.00 | 46,044,800.00 | +1.7% | -0.2% |
-| `auth.pam.multiple` | 45,725,900.00 | 45,560,900.00 | -0.4% | +0.0% |
-| `auth.gssapi.cached-ticket` | 3,941,800.00 | 3,928,600.00 | -0.3% | +0.8% |
+| `auth.pam.password` | 45,259,300.00 | 44,998,800.00 | -0.6% | +0.1% |
+| `auth.pam.multiple` | 45,725,900.00 | 44,843,500.00 | -1.9% | +0.1% |
+| `auth.gssapi.cached-ticket` | 3,941,800.00 | 4,279,400.00 | +8.6% | +1.1% |
 
-[First authentication capture](baselines/macos-arm64-external-authentication/results.json): timing investigations **0**; allocation investigations **0**. These authentication alternatives have different security/transport work and are not compared against one another.
+[First authentication capture](baselines/macos-arm64-external-authentication/results.json): timing investigations **1**; allocation investigations **0**. These authentication alternatives have different security/transport work and are not compared against one another.
 
 ### Haskell driver
 
 | Workload | Baseline (ns/unit) | Current (ns/unit) | Change vs baseline | Current p95 (ms) | Current status |
 | --- | ---: | ---: | --- | ---: | --- |
-| `blob.prepared` | 3.1 | **3.2** | 🟡 +0.5% slower | 3.617 | 🟢 PASS |
-| `blob.text` | 3.2 | **3.2** | 🟢 -0.1% faster | 5.025 | 🟢 PASS |
-| `latency.prepared` | 41826.0 | **41242.0** | 🟢 -1.4% faster | 0.081 | 🟢 PASS |
-| `latency.text` | 39354.0 | **42090.0** | 🟡 +7.0% slower | 0.072 | 🟢 PASS |
-| `micro.binary-row` | 246.1 | **240.8** | 🟢 -2.2% faster | 26.213 | 🟢 PASS |
-| `micro.text-row` | 313.2 | **289.6** | 🟢 -7.5% faster | 29.489 | 🟢 PASS |
+| `blob.prepared` | 3.1 | **3.3** | 🟡 +4.4% slower | 4.300 | 🟢 PASS |
+| `blob.text` | 3.2 | **3.3** | 🟡 +2.6% slower | 4.241 | 🟢 PASS |
+| `latency.prepared` | 41826.0 | **51584.0** | 🔴 +23.3% slower | 0.088 | 🟢 PASS |
+| `latency.text` | 39354.0 | **44460.0** | 🟡 +13.0% slower | 0.079 | 🟢 PASS |
+| `micro.binary-row` | 246.1 | **255.4** | 🟡 +3.8% slower | 26.289 | 🟢 PASS |
+| `micro.text-row` | 313.2 | **308.9** | 🟢 -1.4% faster | 31.596 | 🟢 PASS |
 | `native.bulk` | — | — | — | — | 🔵 UNSUPPORTED |
 | `native.metadata-cache` | — | — | — | — | 🔵 UNSUPPORTED |
-| `read.parallel-16` | 107.6 | **104.3** | 🟢 -3.1% faster | 18.607 | 🟢 PASS |
-| `read.parallel-4` | 118.0 | **143.4** | 🔴 +21.6% slower | 7.653 | 🟢 PASS |
-| `read.prepared.narrow` | 314.6 | **335.3** | 🟡 +6.6% slower | 5.755 | 🟢 PASS |
-| `read.prepared.wide` | 2425.1 | **2404.0** | 🟢 -0.9% faster | 25.655 | 🟢 PASS |
-| `read.socket.narrow` | 339.2 | **354.1** | 🟡 +4.4% slower | 4.012 | 🟢 PASS |
-| `read.text.narrow` | 305.5 | **329.4** | 🟡 +7.8% slower | 3.418 | 🟢 PASS |
-| `read.text.wide` | 2876.4 | **2805.1** | 🟢 -2.5% faster | 31.867 | 🟢 PASS |
-| `read.tls.narrow` | 370.6 | **387.2** | 🟡 +4.5% slower | 5.065 | 🟢 PASS |
-| `read.vector.narrow` | 365.8 | **351.9** | 🟢 -3.8% faster | 5.876 | 🟢 PASS |
-| `write.execute-many` | 9670.0 | **8696.0** | 🟢 -10.1% faster | 9.953 | 🟢 PASS |
-| `write.prepared` | 39408.0 | **38895.0** | 🟢 -1.3% faster | 43.099 | 🟢 PASS |
-| `write.text` | 38324.0 | **41843.0** | 🟡 +9.2% slower | 44.019 | 🟢 PASS |
+| `read.parallel-16` | 107.6 | **107.7** | 🟡 +0.1% slower | 19.250 | 🟢 PASS |
+| `read.parallel-4` | 118.0 | **134.2** | 🟡 +13.8% slower | 7.445 | 🟢 PASS |
+| `read.prepared.narrow` | 314.6 | **351.4** | 🟡 +11.7% slower | 5.067 | 🟢 PASS |
+| `read.prepared.wide` | 2425.1 | **2583.9** | 🟡 +6.6% slower | 27.358 | 🟢 PASS |
+| `read.socket.narrow` | 339.2 | **386.3** | 🟡 +13.9% slower | 4.758 | 🟢 PASS |
+| `read.text.narrow` | 305.5 | **349.9** | 🟡 +14.5% slower | 3.802 | 🟢 PASS |
+| `read.text.wide` | 2876.4 | **2913.1** | 🟡 +1.3% slower | 31.608 | 🟢 PASS |
+| `read.tls.narrow` | 370.6 | **409.7** | 🟡 +10.6% slower | 5.826 | 🟢 PASS |
+| `read.vector.narrow` | 365.8 | **371.0** | 🟡 +1.4% slower | 4.171 | 🟢 PASS |
+| `write.execute-many` | 9670.0 | **9367.0** | 🟢 -3.1% faster | 9.709 | 🟢 PASS |
+| `write.prepared` | 39408.0 | **40821.0** | 🟡 +3.6% slower | 41.394 | 🟢 PASS |
+| `write.text` | 38324.0 | **43576.0** | 🟡 +13.7% slower | 47.089 | 🟢 PASS |
 
 ### MariaDB Connector/C control
 
 | Workload | Baseline (ns/unit) | Current (ns/unit) | Change vs baseline | Current p95 (ms) | Current status |
 | --- | ---: | ---: | --- | ---: | --- |
-| `blob.text` | 3.0 | **3.1** | 🟡 +0.5% slower | 4.335 | 🟢 PASS |
-| `latency.text` | 26568.0 | **26612.0** | 🟡 +0.2% slower | 0.066 | 🟢 PASS |
-| `read.text.narrow` | 197.4 | **211.0** | 🟡 +6.9% slower | 2.254 | 🟢 PASS |
-| `read.text.wide` | 1261.0 | **1181.9** | 🟢 -6.3% faster | 13.268 | 🟢 PASS |
-| `write.execute-many` | 7635.0 | **7563.0** | 🟢 -0.9% faster | 8.264 | 🟢 PASS |
-| `write.text` | 28478.0 | **30153.0** | 🟡 +5.9% slower | 30.448 | 🟢 PASS |
+| `blob.text` | 3.0 | **3.2** | 🟡 +5.6% slower | 4.632 | 🟢 PASS |
+| `latency.text` | 26568.0 | **28256.0** | 🟡 +6.4% slower | 0.059 | 🟢 PASS |
+| `read.text.narrow` | 197.4 | **213.2** | 🟡 +8.0% slower | 2.343 | 🟢 PASS |
+| `read.text.wide` | 1261.0 | **1346.0** | 🟡 +6.7% slower | 15.163 | 🟢 PASS |
+| `write.execute-many` | 7635.0 | **8581.0** | 🟡 +12.4% slower | 9.124 | 🟢 PASS |
+| `write.text` | 28478.0 | **31197.0** | 🟡 +9.5% slower | 31.680 | 🟢 PASS |
 
 — means no successful measurement is available, or the runs cannot be compared for Change.
 
@@ -275,11 +275,11 @@ Each measured process has two warm-ups; this run has **7 repetitions** per profi
 | Field | Latest attempt |
 | --- | --- |
 | State / exit code | COMPLETED / 1 |
-| Parent commit (working-tree inputs are identified separately) | [`c6838dfb262aaa938692fa753ff77c1f1d6c85d2`](https://github.com/aantich/mariadb-haskell/commit/c6838dfb262aaa938692fa753ff77c1f1d6c85d2) |
+| Parent commit (working-tree inputs are identified separately) | [`6bbcf13fa3b66d96f26c8c4b36f5d69d5f69c25f`](https://github.com/aantich/mariadb-haskell/commit/6bbcf13fa3b66d96f26c8c4b36f5d69d5f69c25f) |
 | Branch | `main` |
-| Started / finished (UTC) | 2026-11-09T15:26:40.862384+00:00 / 2026-11-09T15:30:15.649318+00:00 |
-| Input fingerprint | `76ceed62fb6aafbcf1b62c260692afe744055c01ef5c6141d2d69fad065d7bd8` |
-| Local logs and build plan | `validation/results/runs/release-0.1.0.0-alpha-full` (ignored by Git) |
+| Started / finished (UTC) | 2026-11-09T15:39:49.706665+00:00 / 2026-11-09T15:43:16.106989+00:00 |
+| Input fingerprint | `23135d7aba3c73c1b39691f9b6ae3ea21104c45838d753a47ce9fa6a73892153` |
+| Local logs and build plan | `validation/results/runs/release-0.1.0.0-final-ci` (ignored by Git) |
 | Server of completed run | 12.3.3-MariaDB-log |
 | Host | Apple M4 Max; macOS 26.4 |
 | Compiler / build tool | GHC 9.10.3; Cabal 3.16.1.0 |

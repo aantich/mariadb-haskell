@@ -1,0 +1,701 @@
+﻿2026-11-09T15:33:27.3297663Z Current runner version: '2.338.2'
+2026-11-09T15:33:27.3316468Z ##[group]Runner Image Provisioner
+2026-11-09T15:33:27.3317032Z Hosted Compute Agent
+2026-11-09T15:33:27.3317390Z Version: 20261028.624
+2026-11-09T15:33:27.3317799Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-09T15:33:27.3318263Z Build Date: 2026-10-28T21:51:42Z
+2026-11-09T15:33:27.3319053Z Worker ID: {de5b5f9b-ca2f-480f-b75d-00486a5e9d89}
+2026-11-09T15:33:27.3319482Z Region: westus3
+2026-11-09T15:33:27.3319815Z Cloud: Azure
+2026-11-09T15:33:27.3320170Z ##[endgroup]
+2026-11-09T15:33:27.3320995Z ##[group]Operating System
+2026-11-09T15:33:27.3321341Z Ubuntu
+2026-11-09T15:33:27.3321885Z 26.04.1
+2026-11-09T15:33:27.3322191Z LTS
+2026-11-09T15:33:27.3322519Z ##[endgroup]
+2026-11-09T15:33:27.3322891Z ##[group]Runner Image
+2026-11-09T15:33:27.3323259Z Image: ubuntu-26.04
+2026-11-09T15:33:27.3323637Z Version: 20261101.186.1
+2026-11-09T15:33:27.3324386Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-09T15:33:27.3325298Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-09T15:33:27.3325873Z ##[endgroup]
+2026-11-09T15:33:27.3326562Z ##[group]GITHUB_TOKEN Permissions
+2026-11-09T15:33:27.3327772Z Contents: read
+2026-11-09T15:33:27.3328207Z Metadata: read
+2026-11-09T15:33:27.3328665Z ##[endgroup]
+2026-11-09T15:33:27.3330493Z Secret source: Actions
+2026-11-09T15:33:27.3331278Z Cache mode: write
+2026-11-09T15:33:27.3332084Z Prepare workflow directory
+2026-11-09T15:33:27.3554944Z Prepare all required actions
+2026-11-09T15:33:27.3587682Z Getting action download info
+2026-11-09T15:33:27.6893016Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-09T15:33:27.7748122Z Download action repository 'haskell-actions/setup@v2' (SHA:0f8e8c99d88aeb3fbfd523f1ef2c6f762d10d64d)
+2026-11-09T15:33:28.2342060Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-11-09T15:33:28.3612338Z Complete job name: cabal (9.4.7, ubuntu-latest)
+2026-11-09T15:33:28.4153609Z ##[group]Run actions/checkout@v4
+2026-11-09T15:33:28.4154027Z with:
+2026-11-09T15:33:28.4154278Z   repository: aantich/mariadb-haskell
+2026-11-09T15:33:28.4156355Z   token: ***
+2026-11-09T15:33:28.4156591Z   ssh-strict: true
+2026-11-09T15:33:28.4156837Z   ssh-user: git
+2026-11-09T15:33:28.4157085Z   persist-credentials: true
+2026-11-09T15:33:28.4157351Z   clean: true
+2026-11-09T15:33:28.4157599Z   sparse-checkout-cone-mode: true
+2026-11-09T15:33:28.4157887Z   fetch-depth: 1
+2026-11-09T15:33:28.4158129Z   fetch-tags: false
+2026-11-09T15:33:28.4158377Z   show-progress: true
+2026-11-09T15:33:28.4158624Z   lfs: false
+2026-11-09T15:33:28.4158852Z   submodules: false
+2026-11-09T15:33:28.4159100Z   set-safe-directory: true
+2026-11-09T15:33:28.4159382Z   allow-unsafe-pr-checkout: false
+2026-11-09T15:33:28.4159738Z ##[endgroup]
+2026-11-09T15:33:28.6054090Z Syncing repository: aantich/mariadb-haskell
+2026-11-09T15:33:28.6055479Z ##[group]Getting Git version info
+2026-11-09T15:33:28.6055975Z Working directory is '/home/runner/work/mariadb-haskell/mariadb-haskell'
+2026-11-09T15:33:28.6056582Z [command]/usr/bin/git version
+2026-11-09T15:33:28.6073607Z git version 2.56.0
+2026-11-09T15:33:28.6086587Z ##[endgroup]
+2026-11-09T15:33:28.6098069Z Temporarily overriding HOME='/home/runner/work/_temp/f79c03a6-859a-40b1-a00f-e3392cebc021' before making global git config changes
+2026-11-09T15:33:28.6099486Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-09T15:33:28.6102887Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mariadb-haskell/mariadb-haskell
+2026-11-09T15:33:28.6164582Z Deleting the contents of '/home/runner/work/mariadb-haskell/mariadb-haskell'
+2026-11-09T15:33:28.6167654Z ##[group]Initializing the repository
+2026-11-09T15:33:28.6171757Z [command]/usr/bin/git init /home/runner/work/mariadb-haskell/mariadb-haskell
+2026-11-09T15:33:28.6257840Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-09T15:33:28.6258887Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-09T15:33:28.6260035Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-09T15:33:28.6260777Z hint: call:
+2026-11-09T15:33:28.6261155Z hint:
+2026-11-09T15:33:28.6261740Z hint: 	git config --global init.defaultBranch <name>
+2026-11-09T15:33:28.6262285Z hint:
+2026-11-09T15:33:28.6262795Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-09T15:33:28.6263707Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-09T15:33:28.6264405Z hint:
+2026-11-09T15:33:28.6264763Z hint: 	git branch -m <name>
+2026-11-09T15:33:28.6265172Z hint:
+2026-11-09T15:33:28.6265719Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-09T15:33:28.6270610Z Initialized empty Git repository in /home/runner/work/mariadb-haskell/mariadb-haskell/.git/
+2026-11-09T15:33:28.6280999Z [command]/usr/bin/git remote add origin https://github.com/aantich/mariadb-haskell
+2026-11-09T15:33:28.6327212Z ##[endgroup]
+2026-11-09T15:33:28.6327945Z ##[group]Disabling automatic garbage collection
+2026-11-09T15:33:28.6330530Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-09T15:33:28.6364000Z ##[endgroup]
+2026-11-09T15:33:28.6364665Z ##[group]Setting up auth
+2026-11-09T15:33:28.6369130Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T15:33:28.6403957Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T15:33:28.6763381Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T15:33:28.6792187Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-09T15:33:28.7025521Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-09T15:33:28.7058148Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-09T15:33:28.7290971Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-09T15:33:28.7326290Z ##[endgroup]
+2026-11-09T15:33:28.7326997Z ##[group]Fetching the repository
+2026-11-09T15:33:28.7333858Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +4e6acafd72eaf54729358cfa53a9e043cb0c9473:refs/remotes/origin/main
+2026-11-09T15:33:30.3935364Z From https://github.com/aantich/mariadb-haskell
+2026-11-09T15:33:30.3935950Z  * [new ref]         4e6acafd72eaf54729358cfa53a9e043cb0c9473 -> origin/main
+2026-11-09T15:33:30.3938809Z ##[endgroup]
+2026-11-09T15:33:30.3939125Z ##[group]Determining the checkout info
+2026-11-09T15:33:30.3940711Z ##[endgroup]
+2026-11-09T15:33:30.3945528Z [command]/usr/bin/git sparse-checkout disable
+2026-11-09T15:33:30.3986648Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-09T15:33:30.4022013Z ##[group]Checking out the ref
+2026-11-09T15:33:30.4022379Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-09T15:33:30.6058483Z Switched to a new branch 'main'
+2026-11-09T15:33:30.6060109Z branch 'main' set up to track 'origin/main'.
+2026-11-09T15:33:30.6087998Z ##[endgroup]
+2026-11-09T15:33:30.6130059Z [command]/usr/bin/git log -1 --format=%H
+2026-11-09T15:33:30.6154424Z 4e6acafd72eaf54729358cfa53a9e043cb0c9473
+2026-11-09T15:33:30.6355228Z ##[group]Run haskell-actions/setup@v2
+2026-11-09T15:33:30.6355475Z with:
+2026-11-09T15:33:30.6355630Z   ghc-version: 9.4.7
+2026-11-09T15:33:30.6355796Z   cabal-version: 3.16.1.0
+2026-11-09T15:33:30.6356127Z   stack-version: latest
+2026-11-09T15:33:30.6356296Z   cabal-update: true
+2026-11-09T15:33:30.6356457Z ##[endgroup]
+2026-11-09T15:33:30.6964785Z Preparing to setup a Haskell environment
+2026-11-09T15:33:30.6969009Z ##[group]Preparing ghcup environment
+2026-11-09T15:33:30.6969402Z Adding ghcup release channel: prereleases
+2026-11-09T15:33:31.1164760Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup config add-release-channel prereleases
+2026-11-09T15:33:31.1329797Z ##[endgroup]
+2026-11-09T15:33:31.1349946Z ##[group]Preparing ghc environment
+2026-11-09T15:33:31.4668626Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup unset ghc
+2026-11-09T15:33:31.5240641Z [1m[92m[ Info  ][0m[0m ghc successfully unset
+2026-11-09T15:33:31.5320910Z ##[endgroup]
+2026-11-09T15:33:31.5322317Z ##[group]Installing ghc version 9.4.7
+2026-11-09T15:33:31.8375021Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup whereis ghc 9.4.7
+2026-11-09T15:33:31.8455610Z [1m[91m[ Error ][0m[0m []8;;https://errors.haskell.org/messages/GHCup-00130\GHCup-00130]8;;\] The version '9.4.7' of the tool ghc is not installed.
+2026-11-09T15:33:31.8529989Z 
+2026-11-09T15:33:31.8530023Z 
+2026-11-09T15:33:31.8530876Z Attempting to access tool ghc at location /home/runner/.ghcup/bin
+2026-11-09T15:33:31.8532314Z Succeeded accessing tool ghc at location /home/runner/.ghcup/bin
+2026-11-09T15:33:32.1895554Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup set ghc 9.4.7
+2026-11-09T15:33:32.1976817Z [1m[92m[ Info  ][0m[0m downloading: https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-0.1.0.yaml as file /usr/local/.ghcup/cache/ghcup-0.1.0.yaml
+2026-11-09T15:33:32.2066409Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+2026-11-09T15:33:32.2067070Z                                  Dload  Upload  Total   Spent   Left   Speed
+2026-11-09T15:33:32.2077159Z 
+2026-11-09T15:33:32.2479087Z   0      0   0      0   0      0      0      0                              0
+2026-11-09T15:33:32.2479782Z   0      0   0      0   0      0      0      0                              0
+2026-11-09T15:33:32.2480131Z   0      0   0      0   0      0      0      0                              0
+2026-11-09T15:33:32.2480477Z   0      0   0      0   0      0      0      0                              0
+2026-11-09T15:33:32.2519830Z [1m[93m[ Warn  ][0m[0m setModificationTime failed with: /usr/local/.ghcup/cache/ghcup-0.1.0.yaml: setModificationTime:setFileTimes: permission denied (Operation not permitted)
+2026-11-09T15:33:32.2525460Z [1m[93m[ Warn  ][0m[0m setAccessTime failed with: /usr/local/.ghcup/cache/ghcup-0.1.0.yaml: setAccessTime:setFileTimes: permission denied (Operation not permitted)
+2026-11-09T15:33:32.3200620Z [1m[92m[ Info  ][0m[0m downloading: https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.1.0.yaml as file /usr/local/.ghcup/cache/ghcup-prereleases-0.1.0.yaml
+2026-11-09T15:33:32.3268673Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+2026-11-09T15:33:32.3269226Z                                  Dload  Upload  Total   Spent   Left   Speed
+2026-11-09T15:33:32.3269449Z 
+2026-11-09T15:33:32.4617834Z   0      0   0      0   0      0      0      0                              0
+2026-11-09T15:33:32.4618456Z 100 383.4k 100 383.4k   0      0  2.77M      0                              0
+2026-11-09T15:33:32.4618829Z 100 383.4k 100 383.4k   0      0  2.76M      0                              0
+2026-11-09T15:33:32.4619255Z 100 383.4k 100 383.4k   0      0  2.76M      0                              0
+2026-11-09T15:33:32.4934559Z [1m[91m[ Error ][0m[0m []8;;https://errors.haskell.org/messages/GHCup-00130\GHCup-00130]8;;\] The version '9.4.7' of the tool ghc is not installed.
+2026-11-09T15:33:32.7297732Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup unset ghc
+2026-11-09T15:33:32.7374161Z [1m[91m[ Error ][0m[0m []8;;https://errors.haskell.org/messages/GHCup-00300\GHCup-00300]8;;\] No version is set for tool ghc
+2026-11-09T15:33:32.7453365Z Attempting to install ghc 9.4.7 using ghcup
+2026-11-09T15:33:33.0080188Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup install ghc 9.4.7
+2026-11-09T15:33:33.0878661Z [1m[92m[ Info  ][0m[0m downloading: https://downloads.haskell.org/~ghc/9.4.7/ghc-9.4.7-x86_64-deb10-linux.tar.xz as file /usr/local/.ghcup/tmp/ghcup-2f0c37d4f34b175b/ghc-9.4.7-x86_64-deb10-linux.tar.xz
+2026-11-09T15:33:33.0943355Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+2026-11-09T15:33:33.0943826Z                                  Dload  Upload  Total   Spent   Left   Speed
+2026-11-09T15:33:33.0944060Z 
+2026-11-09T15:33:33.4937770Z   0      0   0      0   0      0      0      0                              0
+2026-11-09T15:33:33.4938413Z 100 172.7M 100 172.7M   0      0 432.2M      0                              0
+2026-11-09T15:33:33.4938898Z 100 172.7M 100 172.7M   0      0 432.1M      0                              0
+2026-11-09T15:33:33.4939297Z 100 172.7M 100 172.7M   0      0 432.0M      0                              0
+2026-11-09T15:33:33.4964844Z [1m[92m[ Info  ][0m[0m verifying digest of: ghc-9.4.7-x86_64-deb10-linux.tar.xz
+2026-11-09T15:33:33.9872750Z [1m[92m[ Info  ][0m[0m Unpacking: ghc-9.4.7-x86_64-deb10-linux.tar.xz to /usr/local/.ghcup/tmp/ghcup-190d416fa4a9d226
+2026-11-09T15:33:42.1427097Z [1m[92m[ Info  ][0m[0m Installing ghc
+2026-11-09T15:33:42.1438099Z 
+2026-11-09T15:33:42.1438181Z 
+2026-11-09T15:33:42.1438230Z 
+2026-11-09T15:33:42.1438353Z 
+2026-11-09T15:33:42.1438441Z 
+2026-11-09T15:33:42.1438559Z 
+2026-11-09T15:33:46.8862738Z 
+2026-11-09T15:33:46.8905698Z [6A[0J
+2026-11-09T15:33:46.8905884Z 
+2026-11-09T15:33:46.8905889Z 
+2026-11-09T15:33:46.8905895Z 
+2026-11-09T15:33:46.8905899Z 
+2026-11-09T15:33:46.8905903Z 
+2026-11-09T15:35:12.1032197Z 
+2026-11-09T15:35:18.2918214Z [6A[0J[1m[92m[ Info  ][0m[0m ghc installation successful
+2026-11-09T15:35:18.3259695Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup set ghc 9.4.7
+2026-11-09T15:35:18.4333930Z [1m[92m[ Info  ][0m[0m ghc 9.4.7 successfully set as default version
+2026-11-09T15:35:18.8051121Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup whereis ghc 9.4.7
+2026-11-09T15:35:18.8210852Z /usr/local/.ghcup/ghc/9.4.7/bin/ghc-9.4.7
+2026-11-09T15:35:18.8211128Z 
+2026-11-09T15:35:18.8211703Z Attempting to access tool ghc at location /home/runner/.ghcup/bin
+2026-11-09T15:35:18.8212126Z Succeeded accessing tool ghc at location /home/runner/.ghcup/bin
+2026-11-09T15:35:19.3255704Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup set ghc 9.4.7
+2026-11-09T15:35:19.4461405Z [1m[92m[ Info  ][0m[0m ghc 9.4.7 successfully set as default version
+2026-11-09T15:35:19.4635416Z Found ghc 9.4.7 in cache at path /home/runner/.ghcup/bin. Setup successful.
+2026-11-09T15:35:19.4636433Z ##[endgroup]
+2026-11-09T15:35:19.4636973Z ##[group]Preparing cabal environment
+2026-11-09T15:35:19.9672074Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup unset cabal
+2026-11-09T15:35:19.9768522Z [1m[92m[ Info  ][0m[0m cabal successfully unset
+2026-11-09T15:35:19.9816426Z ##[endgroup]
+2026-11-09T15:35:19.9816800Z ##[group]Installing cabal version 3.16.1.0
+2026-11-09T15:35:20.2654230Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup whereis cabal 3.16.1.0
+2026-11-09T15:35:20.2739878Z [1m[91m[ Error ][0m[0m []8;;https://errors.haskell.org/messages/GHCup-00130\GHCup-00130]8;;\] The version '3.16.1.0' of the tool cabal is not installed.
+2026-11-09T15:35:20.2805294Z 
+2026-11-09T15:35:20.2805448Z 
+2026-11-09T15:35:20.2806347Z Attempting to access tool cabal at location /home/runner/.ghcup/bin
+2026-11-09T15:35:20.2806766Z Succeeded accessing tool cabal at location /home/runner/.ghcup/bin
+2026-11-09T15:35:20.7804084Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup set cabal 3.16.1.0
+2026-11-09T15:35:20.8598939Z [1m[91m[ Error ][0m[0m []8;;https://errors.haskell.org/messages/GHCup-00130\GHCup-00130]8;;\] The version '3.16.1.0' of the tool cabal is not installed.
+2026-11-09T15:35:21.3587469Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup unset cabal
+2026-11-09T15:35:21.3668382Z [1m[91m[ Error ][0m[0m []8;;https://errors.haskell.org/messages/GHCup-00300\GHCup-00300]8;;\] No version is set for tool cabal
+2026-11-09T15:35:21.3739698Z Attempting to install cabal 3.16.1.0 using ghcup
+2026-11-09T15:35:21.8310848Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup install cabal 3.16.1.0
+2026-11-09T15:35:21.9019701Z [1m[92m[ Info  ][0m[0m downloading: https://downloads.haskell.org/~ghcup/unofficial-bindists/cabal/3.16.1.0/cabal-install-3.16.1.0-x86_64-linux-glibc.tar.xz as file /usr/local/.ghcup/tmp/ghcup-af9cdce9c9bf97cd/cabal-install-3.16.1.0-x86_64-linux-glibc.tar.xz
+2026-11-09T15:35:21.9081320Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+2026-11-09T15:35:21.9085414Z                                  Dload  Upload  Total   Spent   Left   Speed
+2026-11-09T15:35:21.9085958Z 
+2026-11-09T15:35:22.0022467Z   0      0   0      0   0      0      0      0                              0
+2026-11-09T15:35:22.0023001Z 100  5.18M 100  5.18M   0      0 55.03M      0                              0
+2026-11-09T15:35:22.0023586Z 100  5.18M 100  5.18M   0      0 54.96M      0                              0
+2026-11-09T15:35:22.0024568Z 100  5.18M 100  5.18M   0      0 54.90M      0                              0
+2026-11-09T15:35:22.0047232Z [1m[92m[ Info  ][0m[0m verifying digest of: cabal-install-3.16.1.0-x86_64-linux-glibc.tar.xz
+2026-11-09T15:35:22.0223047Z [1m[92m[ Info  ][0m[0m Unpacking: cabal-install-3.16.1.0-x86_64-linux-glibc.tar.xz to /usr/local/.ghcup/tmp/ghcup-72354197a787ae04
+2026-11-09T15:35:22.2366081Z [1m[92m[ Info  ][0m[0m Installing cabal
+2026-11-09T15:35:22.3140027Z [1m[93m[ Warn  ][0m[0m []8;;https://errors.haskell.org/messages/GHCup-00330\GHCup-00330]8;;\] cabal version 3.16.1.0 has shadowed binaries:
+2026-11-09T15:35:22.3141155Z [1m[93m[ ...   ] [0m[0m  * /usr/local/.ghcup/bin/cabal shadowed by /home/runner/.ghcup/bin/cabal.
+2026-11-09T15:35:22.3144461Z [1m[93m[ ...   ] [0m[0mThe upgrade will not be in effect, unless you make sure that /usr/local/.ghcup/bin comes first in PATH.
+2026-11-09T15:35:22.3742570Z [1m[92m[ Info  ][0m[0m cabal installation successful
+2026-11-09T15:35:22.3855602Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup set cabal 3.16.1.0
+2026-11-09T15:35:22.4682568Z [1m[93m[ Warn  ][0m[0m []8;;https://errors.haskell.org/messages/GHCup-00330\GHCup-00330]8;;\] cabal version 3.16.1.0 has shadowed binaries:
+2026-11-09T15:35:22.4683872Z [1m[93m[ ...   ] [0m[0m  * /usr/local/.ghcup/bin/cabal shadowed by /home/runner/.ghcup/bin/cabal.
+2026-11-09T15:35:22.4686468Z [1m[93m[ ...   ] [0m[0mThe upgrade will not be in effect, unless you make sure that /usr/local/.ghcup/bin comes first in PATH.
+2026-11-09T15:35:22.4890039Z [1m[92m[ Info  ][0m[0m cabal 3.16.1.0 successfully set as default version
+2026-11-09T15:35:22.8600379Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup whereis cabal 3.16.1.0
+2026-11-09T15:35:22.8750522Z /usr/local/.ghcup/cabal/3.16.1.0/cabal
+2026-11-09T15:35:22.8750916Z 
+2026-11-09T15:35:22.8751781Z Attempting to access tool cabal at location /home/runner/.ghcup/bin
+2026-11-09T15:35:22.8773231Z Succeeded accessing tool cabal at location /home/runner/.ghcup/bin
+2026-11-09T15:35:23.3594252Z [command]/opt/hostedtoolcache/ghcup/0.2.6.2/x64/ghcup set cabal 3.16.1.0
+2026-11-09T15:35:23.4321946Z [1m[93m[ Warn  ][0m[0m []8;;https://errors.haskell.org/messages/GHCup-00330\GHCup-00330]8;;\] cabal version 3.16.1.0 has shadowed binaries:
+2026-11-09T15:35:23.4322997Z [1m[93m[ ...   ] [0m[0m  * /usr/local/.ghcup/bin/cabal shadowed by /home/runner/.ghcup/bin/cabal.
+2026-11-09T15:35:23.4326141Z [1m[93m[ ...   ] [0m[0mThe upgrade will not be in effect, unless you make sure that /usr/local/.ghcup/bin comes first in PATH.
+2026-11-09T15:35:23.4502811Z [1m[92m[ Info  ][0m[0m cabal 3.16.1.0 successfully set as default version
+2026-11-09T15:35:23.4571782Z Found cabal 3.16.1.0 in cache at path /home/runner/.ghcup/bin. Setup successful.
+2026-11-09T15:35:23.4572669Z ##[endgroup]
+2026-11-09T15:35:23.4573379Z ##[group]Setting up cabal
+2026-11-09T15:35:23.5909388Z Adding /home/runner/.cabal/bin to PATH
+2026-11-09T15:35:23.5927724Z [command]/home/runner/.ghcup/bin/cabal update
+2026-11-09T15:35:24.0220016Z Downloading the latest package list from hackage.haskell.org
+2026-11-09T15:35:38.5982319Z Package list of hackage.haskell.org has been updated.
+2026-11-09T15:35:38.6870121Z The index-state is set to 2026-11-09T15:15:58Z.
+2026-11-09T15:35:38.7109714Z ##[endgroup]
+2026-11-09T15:35:38.7276642Z ##[group]Run sudo apt-get update && sudo apt-get install -y libgmp-dev libkrb5-dev zlib1g-dev pkg-config
+2026-11-09T15:35:38.7277063Z [36;1msudo apt-get update && sudo apt-get install -y libgmp-dev libkrb5-dev zlib1g-dev pkg-config[0m
+2026-11-09T15:35:38.7327439Z shell: /usr/bin/bash -e {0}
+2026-11-09T15:35:38.7327601Z ##[endgroup]
+2026-11-09T15:35:38.7961117Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-11-09T15:35:38.8390128Z Hit:2 http://azure.archive.ubuntu.com/ubuntu resolute InRelease
+2026-11-09T15:35:38.8398236Z Get:6 https://packages.microsoft.com/ubuntu/26.04/prod resolute InRelease [3964 B]
+2026-11-09T15:35:38.8428516Z Get:3 http://azure.archive.ubuntu.com/ubuntu resolute-updates InRelease [137 kB]
+2026-11-09T15:35:38.8479415Z Get:4 http://azure.archive.ubuntu.com/ubuntu resolute-backports InRelease [137 kB]
+2026-11-09T15:35:38.8504842Z Get:5 http://azure.archive.ubuntu.com/ubuntu resolute-security InRelease [137 kB]
+2026-11-09T15:35:38.8628193Z Get:7 https://packages.microsoft.com/ubuntu/26.04/prod resolute/main amd64 Packages [149 kB]
+2026-11-09T15:35:38.8759042Z Get:8 http://azure.archive.ubuntu.com/ubuntu resolute-updates/main amd64v3 Packages [845 kB]
+2026-11-09T15:35:38.8782553Z Get:14 https://packages.microsoft.com/ubuntu/26.04/prod resolute/main arm64 Packages [136 kB]
+2026-11-09T15:35:38.8843177Z Get:9 http://azure.archive.ubuntu.com/ubuntu resolute-updates/main Translation-en [192 kB]
+2026-11-09T15:35:38.8862228Z Get:10 http://azure.archive.ubuntu.com/ubuntu resolute-updates/universe amd64v3 Packages [377 kB]
+2026-11-09T15:35:38.8879908Z Get:11 http://azure.archive.ubuntu.com/ubuntu resolute-updates/universe Translation-en [118 kB]
+2026-11-09T15:35:38.8946486Z Get:12 http://azure.archive.ubuntu.com/ubuntu resolute-updates/restricted amd64v3 Packages [573 kB]
+2026-11-09T15:35:38.8947160Z Get:13 http://azure.archive.ubuntu.com/ubuntu resolute-updates/restricted Translation-en [119 kB]
+2026-11-09T15:35:38.8965038Z Get:15 http://azure.archive.ubuntu.com/ubuntu resolute-security/main amd64v3 Packages [657 kB]
+2026-11-09T15:35:38.9000774Z Get:16 http://azure.archive.ubuntu.com/ubuntu resolute-security/main Translation-en [148 kB]
+2026-11-09T15:35:38.9010468Z Get:17 http://azure.archive.ubuntu.com/ubuntu resolute-security/universe amd64v3 Packages [208 kB]
+2026-11-09T15:35:38.9027323Z Get:18 http://azure.archive.ubuntu.com/ubuntu resolute-security/universe Translation-en [68.9 kB]
+2026-11-09T15:35:38.9472425Z Get:19 http://azure.archive.ubuntu.com/ubuntu resolute-security/restricted amd64v3 Packages [529 kB]
+2026-11-09T15:35:38.9499229Z Get:20 http://azure.archive.ubuntu.com/ubuntu resolute-security/restricted Translation-en [108 kB]
+2026-11-09T15:35:40.8194917Z Fetched 4645 kB in 0s (15.5 MB/s)
+2026-11-09T15:35:41.2640081Z Reading package lists...
+2026-11-09T15:35:41.2919963Z Reading package lists...
+2026-11-09T15:35:41.4170696Z Building dependency tree...
+2026-11-09T15:35:41.4176821Z Reading state information...
+2026-11-09T15:35:41.4425624Z libgmp-dev is already the newest version (2:6.3.0+dfsg-5ubuntu2).
+2026-11-09T15:35:41.4426123Z zlib1g-dev is already the newest version (1:1.3.dfsg+really1.3.1-1ubuntu3.2).
+2026-11-09T15:35:41.4426403Z pkg-config is already the newest version (2.5.1-4).
+2026-11-09T15:35:41.4848568Z Solving dependencies...
+2026-11-09T15:35:41.5522719Z The following additional packages will be installed:
+2026-11-09T15:35:41.5524104Z   comerr-dev krb5-multidev libgssrpc4t64 libkadm5clnt-mit12 libkadm5srv-mit12
+2026-11-09T15:35:41.5535998Z   libkdb5-10t64
+2026-11-09T15:35:41.5541898Z Suggested packages:
+2026-11-09T15:35:41.5542150Z   doc-base krb5-doc krb5-user
+2026-11-09T15:35:41.5723438Z The following NEW packages will be installed:
+2026-11-09T15:35:41.5724461Z   comerr-dev krb5-multidev libgssrpc4t64 libkadm5clnt-mit12 libkadm5srv-mit12
+2026-11-09T15:35:41.5727862Z   libkdb5-10t64 libkrb5-dev
+2026-11-09T15:35:41.5893753Z 0 upgraded, 7 newly installed, 0 to remove and 31 not upgraded.
+2026-11-09T15:35:41.5894459Z Need to get 378 kB of archives.
+2026-11-09T15:35:41.5894669Z After this operation, 1909 kB of additional disk space will be used.
+2026-11-09T15:35:41.5894918Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-11-09T15:35:41.6643465Z Get:2 http://azure.archive.ubuntu.com/ubuntu resolute/main amd64v3 comerr-dev amd64 2.1-1.47.2-3ubuntu4 [44.6 kB]
+2026-11-09T15:35:41.7110139Z Get:3 http://azure.archive.ubuntu.com/ubuntu resolute-updates/main amd64v3 libgssrpc4t64 amd64 1.22.1-2ubuntu4.1 [58.3 kB]
+2026-11-09T15:35:41.7574611Z Get:4 http://azure.archive.ubuntu.com/ubuntu resolute-updates/main amd64v3 libkadm5clnt-mit12 amd64 1.22.1-2ubuntu4.1 [40.0 kB]
+2026-11-09T15:35:41.8034507Z Get:5 http://azure.archive.ubuntu.com/ubuntu resolute-updates/main amd64v3 libkdb5-10t64 amd64 1.22.1-2ubuntu4.1 [42.1 kB]
+2026-11-09T15:35:41.8493645Z Get:6 http://azure.archive.ubuntu.com/ubuntu resolute-updates/main amd64v3 libkadm5srv-mit12 amd64 1.22.1-2ubuntu4.1 [55.5 kB]
+2026-11-09T15:35:41.8955570Z Get:7 http://azure.archive.ubuntu.com/ubuntu resolute-updates/main amd64v3 krb5-multidev amd64 1.22.1-2ubuntu4.1 [126 kB]
+2026-11-09T15:35:41.9417349Z Get:8 http://azure.archive.ubuntu.com/ubuntu resolute-updates/main amd64v3 libkrb5-dev amd64 1.22.1-2ubuntu4.1 [11.9 kB]
+2026-11-09T15:35:42.1677588Z Fetched 378 kB in 0s (1042 kB/s)
+2026-11-09T15:35:42.1853009Z Selecting previously unselected package comerr-dev:amd64.
+2026-11-09T15:35:42.2052975Z (Reading database ... 
+2026-11-09T15:35:42.2053279Z (Reading database ... 5%
+2026-11-09T15:35:42.2053518Z (Reading database ... 10%
+2026-11-09T15:35:42.2053731Z (Reading database ... 15%
+2026-11-09T15:35:42.2053941Z (Reading database ... 20%
+2026-11-09T15:35:42.2054136Z (Reading database ... 25%
+2026-11-09T15:35:42.2054276Z (Reading database ... 30%
+2026-11-09T15:35:42.2054410Z (Reading database ... 35%
+2026-11-09T15:35:42.2054541Z (Reading database ... 40%
+2026-11-09T15:35:42.2054671Z (Reading database ... 45%
+2026-11-09T15:35:42.2054808Z (Reading database ... 50%
+2026-11-09T15:35:42.2853348Z (Reading database ... 55%
+2026-11-09T15:35:42.4812020Z (Reading database ... 60%
+2026-11-09T15:35:42.6458961Z (Reading database ... 65%
+2026-11-09T15:35:42.7812895Z (Reading database ... 70%
+2026-11-09T15:35:42.9785863Z (Reading database ... 75%
+2026-11-09T15:35:43.1507290Z (Reading database ... 80%
+2026-11-09T15:35:43.2827957Z (Reading database ... 85%
+2026-11-09T15:35:43.4556165Z (Reading database ... 90%
+2026-11-09T15:35:43.5919571Z (Reading database ... 95%
+2026-11-09T15:35:43.5919809Z (Reading database ... 100%
+2026-11-09T15:35:43.5920041Z (Reading database ... 213197 files and directories currently installed.)
+2026-11-09T15:35:43.5995253Z Preparing to unpack .../0-comerr-dev_2.1-1.47.2-3ubuntu4_amd64v3.deb ...
+2026-11-09T15:35:43.6153430Z Unpacking comerr-dev:amd64 (2.1-1.47.2-3ubuntu4) ...
+2026-11-09T15:35:43.6746411Z Selecting previously unselected package libgssrpc4t64:amd64.
+2026-11-09T15:35:43.6852830Z Preparing to unpack .../1-libgssrpc4t64_1.22.1-2ubuntu4.1_amd64v3.deb ...
+2026-11-09T15:35:43.6868414Z Unpacking libgssrpc4t64:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.7089163Z Selecting previously unselected package libkadm5clnt-mit12:amd64.
+2026-11-09T15:35:43.7195398Z Preparing to unpack .../2-libkadm5clnt-mit12_1.22.1-2ubuntu4.1_amd64v3.deb ...
+2026-11-09T15:35:43.7202245Z Unpacking libkadm5clnt-mit12:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.7408449Z Selecting previously unselected package libkdb5-10t64:amd64.
+2026-11-09T15:35:43.7513255Z Preparing to unpack .../3-libkdb5-10t64_1.22.1-2ubuntu4.1_amd64v3.deb ...
+2026-11-09T15:35:43.7520542Z Unpacking libkdb5-10t64:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.7718720Z Selecting previously unselected package libkadm5srv-mit12:amd64.
+2026-11-09T15:35:43.7821782Z Preparing to unpack .../4-libkadm5srv-mit12_1.22.1-2ubuntu4.1_amd64v3.deb ...
+2026-11-09T15:35:43.7828162Z Unpacking libkadm5srv-mit12:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.8014585Z Selecting previously unselected package krb5-multidev:amd64.
+2026-11-09T15:35:43.8119128Z Preparing to unpack .../5-krb5-multidev_1.22.1-2ubuntu4.1_amd64v3.deb ...
+2026-11-09T15:35:43.8124641Z Unpacking krb5-multidev:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.8365596Z Selecting previously unselected package libkrb5-dev:amd64.
+2026-11-09T15:35:43.8470724Z Preparing to unpack .../6-libkrb5-dev_1.22.1-2ubuntu4.1_amd64v3.deb ...
+2026-11-09T15:35:43.8477386Z Unpacking libkrb5-dev:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.8913666Z Setting up libgssrpc4t64:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.8949457Z Setting up comerr-dev:amd64 (2.1-1.47.2-3ubuntu4) ...
+2026-11-09T15:35:43.8975024Z Setting up libkadm5clnt-mit12:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.8990465Z Setting up libkdb5-10t64:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.9005920Z Setting up libkadm5srv-mit12:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.9021371Z Setting up krb5-multidev:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.9035765Z Setting up libkrb5-dev:amd64 (1.22.1-2ubuntu4.1) ...
+2026-11-09T15:35:43.9053737Z Processing triggers for libc-bin (2.43-2ubuntu2.4) ...
+2026-11-09T15:35:44.3104139Z Processing triggers for man-db (2.13.1-1build1) ...
+2026-11-09T15:35:44.3126896Z Not building database; man-db/auto-update is not 'true'.
+2026-11-09T15:35:44.3136578Z Processing triggers for install-info (7.2-5ubuntu2) ...
+2026-11-09T15:35:44.8747935Z 
+2026-11-09T15:35:44.8748510Z Running kernel seems to be up-to-date.
+2026-11-09T15:35:44.8748748Z 
+2026-11-09T15:35:44.8748815Z Restarting services...
+2026-11-09T15:35:44.8821448Z 
+2026-11-09T15:35:44.8821921Z Service restarts being deferred:
+2026-11-09T15:35:44.8824246Z  systemctl restart hosted-compute-agent.service
+2026-11-09T15:35:44.8824439Z 
+2026-11-09T15:35:44.8824996Z No containers need to be restarted.
+2026-11-09T15:35:44.8825216Z 
+2026-11-09T15:35:44.8825420Z No user sessions are running outdated binaries.
+2026-11-09T15:35:44.8825594Z 
+2026-11-09T15:35:44.8825805Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-11-09T15:35:45.5594693Z ##[group]Run actions/cache@v4
+2026-11-09T15:35:45.5594915Z with:
+2026-11-09T15:35:45.5595042Z   path: ~/.cabal
+2026-11-09T15:35:45.5595264Z   key: Linux-ghc-9.4.7-86752712fa0519042c5f65375f2f32bb9a5411269173acf727cf8c2b834bd3b8
+2026-11-09T15:35:45.5595532Z   restore-keys: Linux-ghc-9.4.7-
+2026-11-09T15:35:45.5595687Z   enableCrossOsArchive: false
+2026-11-09T15:35:45.5595835Z   fail-on-cache-miss: false
+2026-11-09T15:35:45.5595999Z   lookup-only: false
+2026-11-09T15:35:45.5596124Z   save-always: false
+2026-11-09T15:35:45.5596249Z ##[endgroup]
+2026-11-09T15:35:45.6275028Z (node:48874) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-09T15:35:45.6275565Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-09T15:35:45.8247105Z Cache not found for input keys: Linux-ghc-9.4.7-86752712fa0519042c5f65375f2f32bb9a5411269173acf727cf8c2b834bd3b8, Linux-ghc-9.4.7-
+2026-11-09T15:35:45.8328265Z ##[group]Run cabal update
+2026-11-09T15:35:45.8328436Z [36;1mcabal update[0m
+2026-11-09T15:35:45.8375501Z shell: /usr/bin/bash -e {0}
+2026-11-09T15:35:45.8375655Z ##[endgroup]
+2026-11-09T15:35:45.8518190Z Downloading the latest package list from hackage.haskell.org
+2026-11-09T15:35:46.0206573Z Package list of hackage.haskell.org is up to date.
+2026-11-09T15:35:46.1495324Z The index-state is set to 2026-11-09T15:15:58Z.
+2026-11-09T15:35:46.1794095Z ##[group]Run cabal build all --enable-tests -O2
+2026-11-09T15:35:46.1794465Z [36;1mcabal build all --enable-tests -O2[0m
+2026-11-09T15:35:46.1839207Z shell: /usr/bin/bash -e {0}
+2026-11-09T15:35:46.1839360Z ##[endgroup]
+2026-11-09T15:35:47.1506455Z Resolving dependencies...
+2026-11-09T15:35:48.2686543Z Build profile: -w ghc-9.4.7 -O2
+2026-11-09T15:35:48.2686956Z In order, the following will be built (use -v for more details):
+2026-11-09T15:35:48.2687383Z  - appar-0.1.8 (lib:appar) (requires download & build)
+2026-11-09T15:35:48.2687737Z  - assoc-1.1.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2688172Z  - attoparsec-0.14.4 (lib:attoparsec-internal) (requires download & build)
+2026-11-09T15:35:48.2688623Z  - base-orphans-0.9.4 (lib) (requires download & build)
+2026-11-09T15:35:48.2689023Z  - base16-bytestring-1.0.2.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2689412Z  - basement-0.0.16 (lib) (requires download & build)
+2026-11-09T15:35:48.2689891Z  - blaze-builder-0.4.4.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2690321Z  - bytestring-lexing-0.5.0.16 (lib) (requires download & build)
+2026-11-09T15:35:48.2690726Z  - call-stack-0.4.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2691076Z  - cereal-0.5.8.3 (lib) (requires download & build)
+2026-11-09T15:35:48.2691411Z  - colour-2.3.7 (lib) (requires download & build)
+2026-11-09T15:35:48.2691904Z  - data-default-0.8.0.2 (lib) (requires download & build)
+2026-11-09T15:35:48.2692258Z  - half-0.3.3 (lib) (requires download & build)
+2026-11-09T15:35:48.2692589Z  - hourglass-0.2.12 (lib) (requires download & build)
+2026-11-09T15:35:48.2692942Z  - hsc2hs-0.68.10 (exe:hsc2hs) (requires download & build)
+2026-11-09T15:35:48.2693322Z  - integer-logarithms-1.0.5 (lib) (requires download & build)
+2026-11-09T15:35:48.2693698Z  - monad-loops-0.4.3 (lib) (requires download & build)
+2026-11-09T15:35:48.2694068Z  - network-byte-order-0.1.9 (lib) (requires download & build)
+2026-11-09T15:35:48.2694463Z  - old-locale-1.0.0.7 (lib) (requires download & build)
+2026-11-09T15:35:48.2694837Z  - os-string-2.0.11 (lib) (requires download & build)
+2026-11-09T15:35:48.2695203Z  - prettyprinter-1.7.2 (lib) (requires download & build)
+2026-11-09T15:35:48.2695579Z  - primitive-0.9.1.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2695932Z  - ram-0.22.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2696264Z  - splitmix-0.1.3.2 (lib) (requires download & build)
+2026-11-09T15:35:48.2696603Z  - tagged-0.8.11 (lib) (requires download & build)
+2026-11-09T15:35:48.2696958Z  - time-hourglass-0.3.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2697356Z  - unbounded-delays-0.1.1.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2697757Z  - vector-stream-0.1.0.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2698132Z  - word-compat-0.0.6 (lib) (requires download & build)
+2026-11-09T15:35:48.2698476Z  - memory-0.18.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2698863Z  - ansi-terminal-types-1.1.3 (lib) (requires download & build)
+2026-11-09T15:35:48.2699294Z  - data-default-class-0.2.0.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2699675Z  - zlib-0.7.1.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2700017Z  - unix-time-0.5.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2700371Z  - terminal-size-0.3.4 (lib) (requires download & build)
+2026-11-09T15:35:48.2700729Z  - network-3.2.12.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2701071Z  - ech-config-0.0.2 (lib) (requires download & build)
+2026-11-09T15:35:48.2701415Z  - old-time-1.1.1.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2701914Z  - hashable-1.4.7.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2702241Z  - cborg-0.2.10.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2702573Z  - random-1.3.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2702970Z  - foldable1-classes-compat-0.1.3 (lib) (requires download & build)
+2026-11-09T15:35:48.2703799Z  - vector-0.13.2.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2704363Z  - asn1-types-0.3.4 (lib:asn1-types) (requires download & build)
+2026-11-09T15:35:48.2704707Z  - ansi-terminal-1.1.5 (lib) (requires download & build)
+2026-11-09T15:35:48.2705041Z  - zlib-bindings-0.1.1.5 (lib) (requires download & build)
+2026-11-09T15:35:48.2705358Z  - iproute-1.8.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2705717Z  - unordered-containers-0.2.21 (lib) (requires download & build)
+2026-11-09T15:35:48.2706091Z  - time-compat-1.9.9 (lib) (requires download & build)
+2026-11-09T15:35:48.2706436Z  - text-short-0.1.6.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2706779Z  - scientific-0.3.10.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2707101Z  - data-fix-0.3.4 (lib) (requires download & build)
+2026-11-09T15:35:48.2707447Z  - case-insensitive-1.2.2.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2707820Z  - uuid-types-1.0.6.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2708187Z  - QuickCheck-2.18.0.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2708520Z  - these-1.2.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2708871Z  - blaze-textual-0.2.3.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2709236Z  - asn1-encoding-0.9.6 (lib) (requires download & build)
+2026-11-09T15:35:48.2709607Z  - prettyprinter-ansi-terminal-1.1.4 (lib) (requires download & build)
+2026-11-09T15:35:48.2709961Z  - base64-0.4.2.4 (lib) (requires download & build)
+2026-11-09T15:35:48.2710242Z  - base16-1.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2710544Z  - attoparsec-0.14.4 (lib) (requires download & build)
+2026-11-09T15:35:48.2710773Z  - strict-0.5.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2711026Z  - optparse-applicative-0.19.0.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2711422Z  - crypton-pem-0.3.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2711865Z  - crypton-asn1-types-0.4.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2712084Z  - crypton-2.1.12 (lib) (requires download & build)
+2026-11-09T15:35:48.2712291Z  - io-streams-1.5.2.2 (lib) (requires download & build)
+2026-11-09T15:35:48.2712495Z  - serialise-0.2.6.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2712719Z  - quickcheck-instances-0.4 (lib) (requires download & build)
+2026-11-09T15:35:48.2712936Z  - tasty-1.5.5 (lib) (requires download & build)
+2026-11-09T15:35:48.2713301Z  - crypton-asn1-parse-0.10.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2713601Z  - crypton-asn1-encoding-0.10.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2713822Z  - hpke-0.4.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2714029Z  - tasty-quickcheck-0.11.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2714254Z  - tasty-hunit-0.10.2 (lib) (requires download & build)
+2026-11-09T15:35:48.2714485Z  - tasty-expected-failure-0.12.3 (lib) (requires download & build)
+2026-11-09T15:35:48.2714722Z  - crypton-x509-1.10.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2715189Z  - crypton-x509-store-1.10.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2715549Z  - crypton-x509-validation-1.10.1 (lib) (requires download & build)
+2026-11-09T15:35:48.2715923Z  - crypton-x509-system-1.10.0 (lib) (requires download & build)
+2026-11-09T15:35:48.2716245Z  - tls-2.4.14 (lib) (requires download & build)
+2026-11-09T15:35:48.2716510Z  - mariadb-haskell-0.1.0.0 (lib) (first run)
+2026-11-09T15:35:48.2716787Z  - mariadb-haskell-0.1.0.0 (test:test) (first run)
+2026-11-09T15:35:48.2717116Z  - mariadb-haskell-0.1.0.0 (exe:mariadb-validation) (first run)
+2026-11-09T15:35:48.2717510Z  - mariadb-haskell-0.1.0.0 (test:integration) (first run)
+2026-11-09T15:35:48.3201274Z Downloading  base-orphans-0.9.4
+2026-11-09T15:35:48.4337231Z Downloaded   base-orphans-0.9.4
+2026-11-09T15:35:48.4337557Z Downloading  basement-0.0.16
+2026-11-09T15:35:48.4389012Z Starting     base-orphans-0.9.4 (lib)
+2026-11-09T15:35:48.5782814Z Downloaded   basement-0.0.16
+2026-11-09T15:35:48.5789943Z Downloading  call-stack-0.4.0
+2026-11-09T15:35:48.7718133Z Downloaded   call-stack-0.4.0
+2026-11-09T15:35:48.7718458Z Downloading  colour-2.3.7
+2026-11-09T15:35:48.9043189Z Downloaded   colour-2.3.7
+2026-11-09T15:35:48.9043503Z Downloading  monad-loops-0.4.3
+2026-11-09T15:35:48.9096454Z Building     base-orphans-0.9.4 (lib)
+2026-11-09T15:35:49.0382861Z Downloaded   monad-loops-0.4.3
+2026-11-09T15:35:49.0383474Z Downloading  old-locale-1.0.0.7
+2026-11-09T15:35:49.1756488Z Downloaded   old-locale-1.0.0.7
+2026-11-09T15:35:49.1756853Z Downloading  unbounded-delays-0.1.1.1
+2026-11-09T15:35:49.3272271Z Downloaded   unbounded-delays-0.1.1.1
+2026-11-09T15:35:49.3272653Z Downloading  vector-stream-0.1.0.1
+2026-11-09T15:35:49.4489623Z Downloaded   vector-stream-0.1.0.1
+2026-11-09T15:35:49.4490102Z Downloading  word-compat-0.0.6
+2026-11-09T15:35:49.5887862Z Downloaded   word-compat-0.0.6
+2026-11-09T15:35:49.5888222Z Downloading  assoc-1.1.1
+2026-11-09T15:35:49.7119400Z Downloaded   assoc-1.1.1
+2026-11-09T15:35:49.7119668Z Downloading  hourglass-0.2.12
+2026-11-09T15:35:49.7327343Z Starting     assoc-1.1.1 (lib)
+2026-11-09T15:35:49.9378375Z Downloaded   hourglass-0.2.12
+2026-11-09T15:35:49.9389243Z Downloading  base16-bytestring-1.0.2.0
+2026-11-09T15:35:50.0382121Z Installing   base-orphans-0.9.4 (lib)
+2026-11-09T15:35:50.1203653Z Downloaded   base16-bytestring-1.0.2.0
+2026-11-09T15:35:50.1207694Z Downloading  bytestring-lexing-0.5.0.16
+2026-11-09T15:35:50.2449431Z Completed    base-orphans-0.9.4 (lib)
+2026-11-09T15:35:50.2495016Z Downloaded   bytestring-lexing-0.5.0.16
+2026-11-09T15:35:50.2495361Z Downloading  memory-0.18.0
+2026-11-09T15:35:50.2513825Z Building     assoc-1.1.1 (lib)
+2026-11-09T15:35:50.2783172Z Starting     base16-bytestring-1.0.2.0 (lib)
+2026-11-09T15:35:50.4276534Z Downloaded   memory-0.18.0
+2026-11-09T15:35:50.4293300Z Downloading  asn1-types-0.3.4
+2026-11-09T15:35:50.6335461Z Downloaded   asn1-types-0.3.4
+2026-11-09T15:35:50.6352881Z Downloading  asn1-encoding-0.9.6
+2026-11-09T15:35:50.7032983Z Installing   assoc-1.1.1 (lib)
+2026-11-09T15:35:50.7780587Z Downloaded   asn1-encoding-0.9.6
+2026-11-09T15:35:50.7780848Z Downloading  network-byte-order-0.1.9
+2026-11-09T15:35:50.7933221Z Building     base16-bytestring-1.0.2.0 (lib)
+2026-11-09T15:35:50.9154049Z Completed    assoc-1.1.1 (lib)
+2026-11-09T15:35:50.9266450Z Starting     basement-0.0.16 (lib)
+2026-11-09T15:35:50.9658085Z Downloaded   network-byte-order-0.1.9
+2026-11-09T15:35:50.9682606Z Downloading  ech-config-0.0.2
+2026-11-09T15:35:51.1091986Z Downloaded   ech-config-0.0.2
+2026-11-09T15:35:51.1112277Z Downloading  cereal-0.5.8.3
+2026-11-09T15:35:51.2616720Z Downloaded   cereal-0.5.8.3
+2026-11-09T15:35:51.2617409Z Downloading  data-default-0.8.0.2
+2026-11-09T15:35:51.3920406Z Downloaded   data-default-0.8.0.2
+2026-11-09T15:35:51.3942827Z Downloading  data-default-class-0.2.0.0
+2026-11-09T15:35:51.4718829Z Building     basement-0.0.16 (lib)
+2026-11-09T15:35:51.5250375Z Installing   base16-bytestring-1.0.2.0 (lib)
+2026-11-09T15:35:51.5437596Z Downloaded   data-default-class-0.2.0.0
+2026-11-09T15:35:51.5465612Z Downloading  half-0.3.3
+2026-11-09T15:35:51.6765006Z Downloaded   half-0.3.3
+2026-11-09T15:35:51.6765368Z Downloading  primitive-0.9.1.0
+2026-11-09T15:35:51.7124817Z Completed    base16-bytestring-1.0.2.0 (lib)
+2026-11-09T15:35:51.8767865Z Downloaded   primitive-0.9.1.0
+2026-11-09T15:35:51.8768185Z Downloading  ram-0.22.1
+2026-11-09T15:35:52.0203997Z Downloaded   ram-0.22.1
+2026-11-09T15:35:52.0204327Z Downloading  splitmix-0.1.3.2
+2026-11-09T15:35:52.1610761Z Downloaded   splitmix-0.1.3.2
+2026-11-09T15:35:52.1611009Z Downloading  random-1.3.1
+2026-11-09T15:35:52.2830765Z Downloaded   random-1.3.1
+2026-11-09T15:35:52.2831039Z Downloading  tagged-0.8.11
+2026-11-09T15:35:52.4813690Z Downloaded   tagged-0.8.11
+2026-11-09T15:35:52.4814017Z Downloading  foldable1-classes-compat-0.1.3
+2026-11-09T15:35:52.6644787Z Downloaded   foldable1-classes-compat-0.1.3
+2026-11-09T15:35:52.6645059Z Downloading  hsc2hs-0.68.10
+2026-11-09T15:35:52.8706633Z Downloaded   hsc2hs-0.68.10
+2026-11-09T15:35:52.8707173Z Downloading  old-time-1.1.1.0
+2026-11-09T15:35:53.0829447Z Downloaded   old-time-1.1.1.0
+2026-11-09T15:35:53.0829793Z Downloading  terminal-size-0.3.4
+2026-11-09T15:35:53.3153904Z Downloaded   terminal-size-0.3.4
+2026-11-09T15:35:53.3154157Z Downloading  unix-time-0.5.1
+2026-11-09T15:35:53.5644784Z Downloaded   unix-time-0.5.1
+2026-11-09T15:35:53.5645222Z Downloading  zlib-0.7.1.1
+2026-11-09T15:35:53.8007557Z Downloaded   zlib-0.7.1.1
+2026-11-09T15:35:53.8007836Z Downloading  zlib-bindings-0.1.1.5
+2026-11-09T15:35:54.0465159Z Downloaded   zlib-bindings-0.1.1.5
+2026-11-09T15:35:54.0465508Z Downloading  time-hourglass-0.3.0
+2026-11-09T15:35:54.2616681Z Downloaded   time-hourglass-0.3.0
+2026-11-09T15:35:54.2617037Z Downloading  vector-0.13.2.0
+2026-11-09T15:35:54.5200790Z Downloaded   vector-0.13.2.0
+2026-11-09T15:35:54.5201135Z Downloading  integer-logarithms-1.0.5
+2026-11-09T15:35:54.7295108Z Downloaded   integer-logarithms-1.0.5
+2026-11-09T15:35:54.7295367Z Downloading  os-string-2.0.11
+2026-11-09T15:35:54.9239704Z Downloaded   os-string-2.0.11
+2026-11-09T15:35:54.9239932Z Downloading  network-3.2.12.0
+2026-11-09T15:35:55.0684241Z Downloaded   network-3.2.12.0
+2026-11-09T15:35:55.0684584Z Downloading  attoparsec-0.14.4
+2026-11-09T15:35:55.3025882Z Downloaded   attoparsec-0.14.4
+2026-11-09T15:35:55.3026139Z Downloading  blaze-builder-0.4.4.1
+2026-11-09T15:35:55.3230595Z Starting     attoparsec-0.14.4 (lib:attoparsec-internal)
+2026-11-09T15:35:55.5106805Z Downloaded   blaze-builder-0.4.4.1
+2026-11-09T15:35:55.5107523Z Downloading  blaze-textual-0.2.3.1
+2026-11-09T15:35:55.5426456Z Starting     blaze-builder-0.4.4.1 (lib)
+2026-11-09T15:35:55.8215444Z Downloaded   blaze-textual-0.2.3.1
+2026-11-09T15:35:55.8216122Z Downloading  cborg-0.2.10.0
+2026-11-09T15:35:55.8331922Z Building     attoparsec-0.14.4 (lib:attoparsec-internal)
+2026-11-09T15:35:56.0377642Z Downloaded   cborg-0.2.10.0
+2026-11-09T15:35:56.0377995Z Downloading  hashable-1.4.7.0
+2026-11-09T15:35:56.0452718Z Building     blaze-builder-0.4.4.1 (lib)
+2026-11-09T15:35:56.1692728Z Downloaded   hashable-1.4.7.0
+2026-11-09T15:35:56.1693548Z Downloading  case-insensitive-1.2.2.0
+2026-11-09T15:35:56.3262104Z Downloaded   case-insensitive-1.2.2.0
+2026-11-09T15:35:56.3262820Z Downloading  data-fix-0.3.4
+2026-11-09T15:35:56.4513472Z Downloaded   data-fix-0.3.4
+2026-11-09T15:35:56.4514370Z Downloading  these-1.2.1
+2026-11-09T15:35:56.5940333Z Downloaded   these-1.2.1
+2026-11-09T15:35:56.5940960Z Downloading  time-compat-1.9.9
+2026-11-09T15:35:56.7235312Z Downloaded   time-compat-1.9.9
+2026-11-09T15:35:56.7236108Z Downloading  unordered-containers-0.2.21
+2026-11-09T15:35:56.8674904Z Downloaded   unordered-containers-0.2.21
+2026-11-09T15:35:56.8702758Z Downloading  prettyprinter-1.7.2
+2026-11-09T15:35:56.9962926Z Downloaded   prettyprinter-1.7.2
+2026-11-09T15:35:56.9992183Z Downloading  scientific-0.3.10.0
+2026-11-09T15:35:57.0148159Z Installing   attoparsec-0.14.4 (lib:attoparsec-internal)
+2026-11-09T15:35:57.1412781Z Downloaded   scientific-0.3.10.0
+2026-11-09T15:35:57.1423595Z Downloading  io-streams-1.5.2.2
+2026-11-09T15:35:57.2450587Z Completed    attoparsec-0.14.4 (lib:attoparsec-internal)
+2026-11-09T15:35:57.2742498Z Downloaded   io-streams-1.5.2.2
+2026-11-09T15:35:57.2742838Z Downloading  strict-0.5.1
+2026-11-09T15:35:57.3998511Z Downloaded   strict-0.5.1
+2026-11-09T15:35:57.3998968Z Downloading  serialise-0.2.6.1
+2026-11-09T15:35:57.5320439Z Downloaded   serialise-0.2.6.1
+2026-11-09T15:35:57.5320692Z Downloading  text-short-0.1.6.1
+2026-11-09T15:35:57.6644368Z Downloaded   text-short-0.1.6.1
+2026-11-09T15:35:57.6644706Z Downloading  base16-1.0
+2026-11-09T15:35:57.7799281Z Downloaded   base16-1.0
+2026-11-09T15:35:57.7799591Z Downloading  crypton-2.1.12
+2026-11-09T15:35:57.9862764Z Installing   blaze-builder-0.4.4.1 (lib)
+2026-11-09T15:35:58.0078925Z Downloaded   crypton-2.1.12
+2026-11-09T15:35:58.0079718Z Downloading  hpke-0.4.0
+2026-11-09T15:35:58.1718232Z Completed    blaze-builder-0.4.4.1 (lib)
+2026-11-09T15:35:58.2295357Z Downloaded   hpke-0.4.0
+2026-11-09T15:35:58.2295950Z Downloading  crypton-asn1-types-0.4.1
+2026-11-09T15:35:58.3448644Z Downloaded   crypton-asn1-types-0.4.1
+2026-11-09T15:35:58.3449015Z Downloading  crypton-asn1-encoding-0.10.0
+2026-11-09T15:35:58.5583639Z Downloaded   crypton-asn1-encoding-0.10.0
+2026-11-09T15:35:58.5584025Z Downloading  crypton-asn1-parse-0.10.0
+2026-11-09T15:35:58.7085404Z Downloaded   crypton-asn1-parse-0.10.0
+2026-11-09T15:35:58.7085668Z Downloading  base64-0.4.2.4
+2026-11-09T15:35:58.9111929Z Downloaded   base64-0.4.2.4
+2026-11-09T15:35:58.9112216Z Downloading  crypton-pem-0.3.0
+2026-11-09T15:35:59.0483132Z Downloaded   crypton-pem-0.3.0
+2026-11-09T15:35:59.0483472Z Downloading  crypton-x509-1.10.1
+2026-11-09T15:35:59.1778603Z Downloaded   crypton-x509-1.10.1
+2026-11-09T15:35:59.1778959Z Downloading  crypton-x509-store-1.10.0
+2026-11-09T15:35:59.3036914Z Downloaded   crypton-x509-store-1.10.0
+2026-11-09T15:35:59.3037251Z Downloading  crypton-x509-system-1.10.0
+2026-11-09T15:35:59.4957027Z Downloaded   crypton-x509-system-1.10.0
+2026-11-09T15:35:59.4957293Z Downloading  uuid-types-1.0.6.1
+2026-11-09T15:35:59.7040330Z Downloaded   uuid-types-1.0.6.1
+2026-11-09T15:35:59.7040586Z Downloading  appar-0.1.8
+2026-11-09T15:35:59.8197353Z Downloaded   appar-0.1.8
+2026-11-09T15:35:59.8197663Z Downloading  iproute-1.8.0
+2026-11-09T15:35:59.8347702Z Starting     appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+2026-11-09T15:35:59.9500283Z Downloaded   iproute-1.8.0
+2026-11-09T15:35:59.9500823Z Downloading  crypton-x509-validation-1.10.1
+2026-11-09T15:36:00.2385339Z Downloaded   crypton-x509-validation-1.10.1
+2026-11-09T15:36:00.2385989Z Downloading  tls-2.4.14
+2026-11-09T15:36:00.4774176Z Downloaded   tls-2.4.14
+2026-11-09T15:36:00.4774628Z Downloading  ansi-terminal-types-1.1.3
+2026-11-09T15:36:00.6834344Z Downloaded   ansi-terminal-types-1.1.3
+2026-11-09T15:36:00.6834633Z Downloading  ansi-terminal-1.1.5
+2026-11-09T15:36:00.7036108Z Building     appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+2026-11-09T15:36:00.8244638Z Downloaded   ansi-terminal-1.1.5
+2026-11-09T15:36:00.8245282Z Downloading  prettyprinter-ansi-terminal-1.1.4
+2026-11-09T15:36:00.9507114Z Downloaded   prettyprinter-ansi-terminal-1.1.4
+2026-11-09T15:36:00.9507386Z Downloading  optparse-applicative-0.19.0.0
+2026-11-09T15:36:01.0950809Z Downloaded   optparse-applicative-0.19.0.0
+2026-11-09T15:36:01.0951164Z Downloading  tasty-1.5.5
+2026-11-09T15:36:01.2322375Z Downloaded   tasty-1.5.5
+2026-11-09T15:36:01.2322738Z Downloading  tasty-expected-failure-0.12.3
+2026-11-09T15:36:01.3613131Z Installing   appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+2026-11-09T15:36:01.4432785Z Downloaded   tasty-expected-failure-0.12.3
+2026-11-09T15:36:01.4433752Z Downloading  tasty-hunit-0.10.2
+2026-11-09T15:36:01.5456905Z Completed    appar-0.1.8 (all, legacy fallback: cabal-version is less than 1.8)
+2026-11-09T15:36:01.5632487Z Downloaded   tasty-hunit-0.10.2
+2026-11-09T15:36:01.5632843Z Downloading  QuickCheck-2.18.0.0
+2026-11-09T15:36:01.7130502Z Downloaded   QuickCheck-2.18.0.0
+2026-11-09T15:36:01.7131306Z Downloading  quickcheck-instances-0.4
+2026-11-09T15:36:01.8403609Z Downloaded   quickcheck-instances-0.4
+2026-11-09T15:36:01.8403974Z Downloading  tasty-quickcheck-0.11.1
+2026-11-09T15:36:01.9654696Z Downloaded   tasty-quickcheck-0.11.1
+2026-11-09T15:36:01.9662245Z 
+2026-11-09T15:36:01.9662360Z Failed to build basement-0.0.16.
+2026-11-09T15:36:01.9662595Z Build log (
+2026-11-09T15:36:01.9663061Z /home/runner/.cabal/logs/ghc-9.4.7/basement-0.0.16-616707dd1eb1650a90e470690e1feca554e6574b89d693de23eca90f1bc2c867.log
+2026-11-09T15:36:01.9663535Z ):
+2026-11-09T15:36:01.9663740Z Configuring library for basement-0.0.16...
+2026-11-09T15:36:01.9664027Z Preprocessing library for basement-0.0.16...
+2026-11-09T15:36:01.9664392Z linking dist/build/Basement/Terminal/Size_hsc_make.o failed (exit code 1)
+2026-11-09T15:36:01.9664813Z rsp file was: "dist/build/Basement/Terminal/hsc2hscall49404-2.rsp"
+2026-11-09T15:36:01.9665414Z Error: [Cabal-7125]
+2026-11-09T15:36:01.9665955Z Failed to build basement-0.0.16 (which is required by test:test from mariadb-haskell-0.1.0.0, exe:mariadb-validation from mariadb-haskell-0.1.0.0 and others). See the build log above for details.
+2026-11-09T15:36:01.9666322Z 
+2026-11-09T15:36:01.9667981Z command was: /usr/bin/gcc dist/build/Basement/Terminal/Size_hsc_make.o dist/build/Basement/Terminal/Size_hsc_utils.o -o dist/build/Basement/Terminal/Size_hsc_make -fuse-ld=gold -L/usr/local/.ghcup/ghc/9.4.7/lib/ghc-9.4.7/lib/../lib/x86_64-linux-ghc-9.4.7/base-4.17.2.0 -Wl,-R,/usr/local/.ghcup/ghc/9.4.7/lib/ghc-9.4.7/lib/../lib/x86_64-linux-ghc-9.4.7/base-4.17.2.0 -L/usr/local/.ghcup/ghc/9.4.7/lib/ghc-9.4.7/lib/../lib/x86_64-linux-ghc-9.4.7/ghc-bignum-1.3 -Wl,-R,/usr/local/.ghcup/ghc/9.4.7/lib/ghc-9.4.7/lib/../lib/x86_64-linux-ghc-9.4.7/ghc-bignum-1.3 -lgmp -L/usr/local/.ghcup/ghc/9.4.7/lib/ghc-9.4.7/lib/../lib/x86_64-linux-ghc-9.4.7/ghc-prim-0.9.1 -Wl,-R,/usr/local/.ghcup/ghc/9.4.7/lib/ghc-9.4.7/lib/../lib/x86_64-linux-ghc-9.4.7/ghc-prim-0.9.1 -lc -lm -L/usr/local/.ghcup/ghc/9.4.7/lib/ghc-9.4.7/lib/../lib/x86_64-linux-ghc-9.4.7/rts-1.0.2 -Wl,-R,/usr/local/.ghcup/ghc/9.4.7/lib/ghc-9.4.7/lib/../lib/x86_64-linux-ghc-9.4.7/rts-1.0.2 -lc -lm -lrt -ldl -lpthread
+2026-11-09T15:36:01.9669860Z error: collect2: fatal error: cannot find ‘ld’
+2026-11-09T15:36:01.9670034Z compilation terminated.
+2026-11-09T15:36:01.9670116Z 
+2026-11-09T15:36:01.9984957Z ##[error]Process completed with exit code 1.
+2026-11-09T15:36:02.0110810Z Post job cleanup.
+2026-11-09T15:36:02.0658550Z [command]/usr/bin/git version
+2026-11-09T15:36:02.0695011Z git version 2.56.0
+2026-11-09T15:36:02.0720480Z Temporarily overriding HOME='/home/runner/work/_temp/063e70df-fee8-49d3-943b-767f1d110b7f' before making global git config changes
+2026-11-09T15:36:02.0721204Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-09T15:36:02.0724071Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mariadb-haskell/mariadb-haskell
+2026-11-09T15:36:02.0758276Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T15:36:02.0799307Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T15:36:02.1059185Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T15:36:02.1089784Z http.https://github.com/.extraheader
+2026-11-09T15:36:02.1100851Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-09T15:36:02.1132850Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-09T15:36:02.1424625Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-09T15:36:02.1464360Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-09T15:36:02.1817302Z Cleaning up orphan processes
+2026-11-09T15:36:02.2055759Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

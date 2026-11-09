@@ -1,0 +1,6 @@
+Uploading documentation
+/private/tmp/mariadb-haskell-release-20261109/alpha-final-check/artifacts/mariadb-haskell-0.1.0.0-docs.tar.gz...
+Documentation successfully uploaded for package candidate. You can now preview
+the result at
+'https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0/candidate'. To
+upload non-candidate documentation, use 'cabal upload --publish'.

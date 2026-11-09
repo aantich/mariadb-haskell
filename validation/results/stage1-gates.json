@@ -6,83 +6,258 @@
   "timing_investigations": [
     {
       "reference": "original",
+      "id": "connector-c/read.text.wide",
+      "percent": 6.735217149956396
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/latency.text",
+      "percent": 6.353507979524231
+    },
+    {
+      "reference": "original",
       "id": "haskell/read.prepared.narrow",
-      "percent": 6.580202174327665
+      "percent": 11.710852565325203
     },
     {
       "reference": "original",
       "id": "haskell/latency.text",
-      "percent": 6.952279310870568
+      "percent": 12.974538801646585
     },
     {
       "reference": "original",
       "id": "haskell/read.parallel-4",
-      "percent": 21.610738255033546
+      "percent": 13.776050865418599
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.prepared.wide",
+      "percent": 6.551022652298233
     },
     {
       "reference": "original",
       "id": "haskell/write.text",
-      "percent": 9.182235674772986
+      "percent": 13.704206241519667
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.socket.narrow",
+      "percent": 13.87808041504539
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/write.execute-many",
+      "percent": 12.390307793058275
     },
     {
       "reference": "original",
       "id": "connector-c/read.text.narrow",
-      "percent": 6.878038897893046
+      "percent": 7.972042139384117
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.tls.narrow",
+      "percent": 10.55102811808517
     },
     {
       "reference": "original",
       "id": "connector-c/write.text",
-      "percent": 5.881733267785649
+      "percent": 9.547721047826396
+    },
+    {
+      "reference": "original",
+      "id": "haskell/latency.prepared",
+      "percent": 23.329986133027305
     },
     {
       "reference": "original",
       "id": "haskell/read.text.narrow",
-      "percent": 7.817205709048047
+      "percent": 14.541050150582668
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/blob.text",
+      "percent": 5.592125885524424
+    },
+    {
+      "reference": "accepted",
+      "id": "connector-c/read.text.wide",
+      "percent": 12.110947608073964
+    },
+    {
+      "reference": "accepted",
+      "id": "connector-c/latency.text",
+      "percent": 5.212987786714329
     },
     {
       "reference": "accepted",
       "id": "haskell/read.prepared.narrow",
-      "percent": 8.476769768344772
+      "percent": 13.698718778309837
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/latency.text",
+      "percent": 10.839648982848015
     },
     {
       "reference": "accepted",
       "id": "haskell/read.parallel-4",
-      "percent": 43.318624594122035
+      "percent": 34.08542169677795
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.prepared.wide",
+      "percent": 7.678844283928332
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/write.text",
+      "percent": 6.751592356687897
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.socket.narrow",
+      "percent": 9.532180323220874
+    },
+    {
+      "reference": "accepted",
+      "id": "connector-c/write.execute-many",
+      "percent": 12.22861626994507
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.tls.narrow",
+      "percent": 10.527167754815725
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/write.prepared",
+      "percent": 8.667642752562221
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/latency.prepared",
+      "percent": 27.822380810784033
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.text.narrow",
+      "percent": 10.840091231626946
+    },
+    {
+      "reference": "accepted",
+      "id": "connector-c/blob.text",
+      "percent": 5.19642745612392
+    },
+    {
+      "reference": "previous_stage",
+      "id": "connector-c/read.text.wide",
+      "percent": 15.662685113574515
+    },
+    {
+      "reference": "previous_stage",
+      "id": "connector-c/latency.text",
+      "percent": 6.884551369344827
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/blob.text",
+      "percent": 5.044059556365843
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/micro.binary-row",
+      "percent": 7.29381118440402
     },
     {
       "reference": "previous_stage",
       "id": "haskell/read.prepared.narrow",
-      "percent": 19.231863442389763
+      "percent": 24.971550497866303
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/latency.text",
+      "percent": 7.23071728329554
     },
     {
       "reference": "previous_stage",
       "id": "haskell/read.parallel-4",
-      "percent": 20.318725099601597
+      "percent": 12.567274760606706
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.prepared.wide",
+      "percent": 12.14988425925927
     },
     {
       "reference": "previous_stage",
       "id": "haskell/write.execute-many",
-      "percent": 8.401894789329333
+      "percent": 16.766392420842678
     },
     {
       "reference": "previous_stage",
       "id": "haskell/read.text.wide",
-      "percent": 5.272770487496725
+      "percent": 9.324610015136535
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.vector.narrow",
+      "percent": 8.353291664232732
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/write.text",
+      "percent": 5.52111584657109
     },
     {
       "reference": "previous_stage",
       "id": "haskell/read.socket.narrow",
-      "percent": 7.050429314306439
+      "percent": 16.79767807473698
+    },
+    {
+      "reference": "previous_stage",
+      "id": "connector-c/write.execute-many",
+      "percent": 11.124061124061125
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.tls.narrow",
+      "percent": 8.226343319067997
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.parallel-16",
+      "percent": 5.630952867595962
     },
     {
       "reference": "previous_stage",
       "id": "connector-c/write.text",
-      "percent": 9.755032213445936
+      "percent": 13.555126851818144
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/write.prepared",
+      "percent": 6.114013881307034
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/micro.text-row",
+      "percent": 7.438706311945742
     },
     {
       "reference": "previous_stage",
       "id": "haskell/latency.prepared",
-      "percent": 8.766285141621388
+      "percent": 36.04093042882008
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.text.narrow",
+      "percent": 11.348014256619132
+    },
+    {
+      "reference": "previous_stage",
+      "id": "connector-c/blob.text",
+      "percent": 5.970806593683142
     }
   ],
   "allocation_investigations": [],
@@ -112,21 +287,25 @@
     "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
     "note": "Last accepted main before Stage 1; not advanced by failing attempts."
   },
-  "tested_input_sha256": "76ceed62fb6aafbcf1b62c260692afe744055c01ef5c6141d2d69fad065d7bd8",
+  "tested_input_sha256": "23135d7aba3c73c1b39691f9b6ae3ea21104c45838d753a47ce9fa6a73892153",
   "native_timing_investigations": [],
   "native_allocation_investigations": [],
   "reuse_timing_investigations": [
     {
       "id": "reuse.tcp.reset",
-      "percent": 6.436781609195408
+      "percent": 5.718390804597706
+    },
+    {
+      "id": "reuse.tcp.reconnect",
+      "percent": 6.594323873121866
     },
     {
       "id": "reuse.tls.reset",
-      "percent": 6.455832563865815
+      "percent": 7.302246845183125
     },
     {
       "id": "reuse.socket.reconnect",
-      "percent": 8.272058823529417
+      "percent": 9.51797385620916
     }
   ],
   "reuse_allocation_investigations": [],
@@ -134,15 +313,36 @@
   "cdc_allocation_investigations": [],
   "wire_timing_investigations": [
     {
+      "id": "cursor.batch32",
+      "percent": 5.755358076319905
+    },
+    {
       "id": "cursor.batch512",
-      "percent": 5.791933103787494
+      "percent": 5.595179537629114
     },
     {
       "id": "transport.narrow.zlib",
-      "percent": 5.040175310445583
+      "percent": 9.203798392987572
+    },
+    {
+      "id": "transport.wide.plain",
+      "percent": 6.177260519247985
+    },
+    {
+      "id": "progress.disabled",
+      "percent": 6.730426819962365
+    },
+    {
+      "id": "progress.enabled",
+      "percent": 6.224315926631241
     }
   ],
   "wire_allocation_investigations": [],
-  "authentication_timing_investigations": [],
+  "authentication_timing_investigations": [
+    {
+      "id": "auth.gssapi.cached-ticket",
+      "percent": 8.564615150438893
+    }
+  ],
   "authentication_allocation_investigations": []
 }

@@ -1,0 +1,5 @@
+Uploading
+/private/tmp/mariadb-haskell-release-20261109/alpha-final-check/artifacts/mariadb-haskell-0.1.0.0.tar.gz...
+Package successfully uploaded as candidate. You can now preview the result at
+'https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0/candidate'. To
+publish the candidate, use 'cabal upload --publish'.
