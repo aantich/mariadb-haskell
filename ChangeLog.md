@@ -1,6 +1,10 @@
 # Revision history
 
-## mariadb-haskell 0.1.0.0 — release preparation
+## mariadb-haskell 0.1.0.0 — alpha candidate preparation
+
+Alpha: extensive automated validation, without real-world application validation.
+Public Hackage publication awaits Anton's review of the candidate documentation
+and explicit approval.
 
 MariaDB-only fork of [mysql-haskell](https://github.com/winterland1989/mysql-haskell),
 maintained by Anton Antich. This starts an independent release series; the

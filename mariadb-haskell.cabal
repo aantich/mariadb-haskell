@@ -1,8 +1,13 @@
 cabal-version:      3.4
 name:               mariadb-haskell
 version:            0.1.0.0
-synopsis:           Streaming Haskell driver for MariaDB
+synopsis:           Alpha streaming Haskell driver for MariaDB
+stability:          Alpha
 description:
+  Alpha software: extensively validated with automated tests and benchmarks,
+  but not yet validated in real-world applications. Evaluate in your own
+  environment before relying on it; APIs and behavior may change.
+  .
   MariaDB-only fork of mysql-haskell. Streaming text and binary queries,
   managed prepared statements, native bulk execution, cached/extended metadata,
   session observations and clean connection reset, streamed parameters,

@@ -8,6 +8,10 @@ Maintainer  : Anton Antich <anton.antich@gmail.com>
 Stability   : experimental
 Portability : macOS and Linux tested
 
+__Alpha software.__ Automated validation is extensive, but this fork has not
+yet been validated in real-world applications. Evaluate your own workloads;
+APIs and behavior may change. See the linked guide for tested scope and limits.
+
 Start here for MariaDB application code. The historical @MySQL@ module/type
 names are retained API identifiers; MySQL servers are not a support target.
 See the <https://github.com/aantich/mariadb-haskell/blob/main/docs/USER_GUIDE.md user guide>

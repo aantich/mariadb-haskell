@@ -201,3 +201,8 @@ Hackage candidate upload needs locally configured account access; never record
 a password/API token in source or chat. Public publication follows candidate
 inspection. The default-off validation flag and metadata-only recorder adapter
 are documented in docs/RELEASING.md.
+
+User instruction, 9 November 2026: label package readiness Alpha because real-world
+application testing is outstanding. Upload only a Hackage candidate/documentation
+preview for Anton's review. Do not publish the package to Hackage's main index
+until Anton reviews the rendered documentation and explicitly approves release.
