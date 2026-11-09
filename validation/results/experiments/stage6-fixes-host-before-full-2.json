@@ -1,0 +1,51 @@
+{
+  "recorded_at": "2026-11-09T10:13:20.784847+00:00",
+  "load_average": [
+    3.9775390625,
+    3.60302734375,
+    4.41552734375
+  ],
+  "processes_above_5_percent": [
+    {
+      "cpu_percent": 25.8,
+      "process": "Google Chrome Helper (Aperitif)"
+    },
+    {
+      "cpu_percent": 24.3,
+      "process": "com.apple.Virtualization.VirtualMachine"
+    },
+    {
+      "cpu_percent": 23.9,
+      "process": "Google Chrome Helper (Aperitif Renderer)"
+    },
+    {
+      "cpu_percent": 14.6,
+      "process": "Codex (Renderer)"
+    },
+    {
+      "cpu_percent": 9.3,
+      "process": "com.apple.DriverKit-AppleBCMWLAN"
+    },
+    {
+      "cpu_percent": 7.8,
+      "process": "codex"
+    },
+    {
+      "cpu_percent": 7.4,
+      "process": "Google Chrome Helper (Aperitif)"
+    },
+    {
+      "cpu_percent": 7.2,
+      "process": "coreaudiod"
+    },
+    {
+      "cpu_percent": 5.4,
+      "process": "Battle.net"
+    },
+    {
+      "cpu_percent": 5.4,
+      "process": "Steam Helper"
+    }
+  ],
+  "notes": "Second complete capture to confirm the first run TCP-reset timing signal; all prior captures and immutable references remain retained. No owned Linux/build jobs run concurrently."
+}

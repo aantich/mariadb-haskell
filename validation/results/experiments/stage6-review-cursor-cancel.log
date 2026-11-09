@@ -1,0 +1,11 @@
+LEAK trial=1 writes=2 closes=0
+LEAK trial=2 writes=2 closes=0
+LEAK trial=3 writes=2 closes=0
+LEAK trial=4 writes=2 closes=0
+LEAK trial=5 writes=2 closes=0
+LEAK trial=6 writes=2 closes=0
+LEAK trial=7 writes=2 closes=0
+LEAK trial=8 writes=2 closes=0
+LEAK trial=9 writes=2 closes=0
+LEAK trial=10 writes=2 closes=0
+10

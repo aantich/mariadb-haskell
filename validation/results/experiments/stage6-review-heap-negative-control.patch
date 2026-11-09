@@ -1,0 +1,13 @@
+--- a/validation/hs/Validation/Stage6Bench.hs
++++ b/validation/hs/Validation/Stage6Bench.hs
+@@ -39,7 +39,9 @@
+                                 stats <- getRTSStats
+                                 putStrLn ("STAGE6_HEAP\t" ++ show total ++ "\t" ++ show (gcdetails_live_bytes (gc stats)))
+                             pure (Just (B.take size chunk))
+-                    void (executePreparedStream statement [PreparedBytes source])
++                    buffered <- S.toList source
++                    replay <- S.fromList buffered
++                    void (executePreparedStream statement [PreparedBytes replay])
+                     actual <- scalarInt conn "SELECT OCTET_LENGTH(v) FROM mb_stage6_upload_heap"
+                     equal "retention upload size" (toInteger iterations) actual
+                     equal "retention upload every byte" 1 =<< scalarInt conn

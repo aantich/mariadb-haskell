@@ -1,0 +1,27 @@
+{
+  "recorded_at": "2026-11-09T10:09:22.748727+00:00",
+  "load_average": [
+    2.8642578125,
+    3.60400390625,
+    4.7099609375
+  ],
+  "processes_above_5_percent": [
+    {
+      "cpu_percent": 19.4,
+      "process": "Codex (Renderer)"
+    },
+    {
+      "cpu_percent": 8.2,
+      "process": "coreaudiod"
+    },
+    {
+      "cpu_percent": 7.1,
+      "process": "com.docker.backend"
+    },
+    {
+      "cpu_percent": 5.9,
+      "process": "codex"
+    }
+  ],
+  "notes": "Linux verification has finished. No owned build/container workload runs concurrently with this full Mac capture. No explicit idle-window claim is made."
+}

@@ -1,0 +1,9 @@
+{
+  "base_commit": "15162161b6eec4e08003c2a61d887a20edb8468e",
+  "input_sha256": "b18fc6689a3583d64b07e4d3b70b81be4991a858efedb1b37550ab66d8e6d053",
+  "file_count": 173,
+  "patch_sha256": "a5b120503e6f24e98f397117611bb33bd50af5685cbbcfcc667e446c8c0249e1",
+  "all_input_hashes_reconstructed": true,
+  "method": "git archive base commit, apply retained binary patch, hash every executable input",
+  "scope": "Corrected Stage 6 implementation before creating its independent first wire-feature baseline. The baseline artifacts add three inputs afterwards."
+}

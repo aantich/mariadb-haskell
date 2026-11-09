@@ -1,0 +1,2290 @@
+diff --git a/mysql-haskell.cabal b/mysql-haskell.cabal
+index 0a2f4e7..fa867ee 100644
+--- a/mysql-haskell.cabal
++++ b/mysql-haskell.cabal
+@@ -92,6 +92,8 @@ library
+   other-modules:      Database.MySQL.Query
+                       Database.MySQL.Session
+                       Database.MySQL.BinLogProtocol.CDC
++                      Database.MySQL.Protocol.Progress
++                      Database.MySQL.Protocol.Compression
+   build-depends:
+     asn1-encoding >=0.9 && <0.10,
+     asn1-types >=0.3 && <0.4,
+@@ -302,6 +304,9 @@ executable mariadb-validation
+     Validation.Stage5
+     Validation.Stage5Review
+     Validation.Stage5Bench
++    Validation.Stage6
++    Validation.Stage6Bench
++    Validation.WireProxy
+     Validation.FaultTransport
+   build-depends:
+     binary, bytestring, containers, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector, zlib, process, directory
+diff --git a/src/Database/MySQL/Base.hs b/src/Database/MySQL/Base.hs
+index e611bdf..a0af433 100644
+--- a/src/Database/MySQL/Base.hs
++++ b/src/Database/MySQL/Base.hs
+@@ -37,6 +37,8 @@ module Database.MySQL.Base
+     , ConnectionError(..)
+     , connectionStatus
+     , connectionFailure
++    , Progress(..)
++    , setProgressCallback
+     , resetConnection
+     , resetConnectionWith
+     , getSessionState
+@@ -84,6 +86,18 @@ module Database.MySQL.Base
+     , resetPrepared
+     , queryPrepared
+     , executePrepared
++    , PreparedParameter(..)
++    , executePreparedStream
++    , queryPreparedStream
++    , queryPreparedStreamMulti
++    , PreparedCursor
++    , openCursor
++    , openCursorStream
++    , fetchCursor
++    , closeCursor
++    , cursorExhausted
++    , withCursor
++    , withCursorStream
+     , queryStmtMulti
+     , queryPreparedMulti
+     , PreparedResult(..)
+@@ -105,6 +119,7 @@ module Database.MySQL.Base
+     , ERRException(..)
+     , UnexpectedPacket(..)
+     , DecodePacketException(..)
++    , CompressionException(..)
+     , WrongParamsCount(..)
+     , ExtraResultSets(..)
+       -- * MySQL protocol
+@@ -119,18 +134,23 @@ import           Control.Exception
+ import           Control.Monad
+ import           Data.Binary                        (Get)
+ import Data.Binary.Put (runPut, putWord8)
+-import Data.Word (Word16, Word64)
++import Data.Word (Word8, Word16, Word32, Word64)
++import qualified Data.ByteString as B
++import qualified Data.Text as T
++import Control.Concurrent (myThreadId)
+ import qualified Data.IntMap.Strict as IM
+ import Data.List (transpose, find)
+ import System.Timeout (timeout)
+ import           Data.Bits                          ((.&.))
+-import           Data.IORef                         (newIORef, readIORef, writeIORef, atomicModifyIORef')
++import           Data.IORef                         (IORef, newIORef, readIORef, writeIORef, atomicModifyIORef')
+ import           Database.MySQL.Connection
+ import           Database.MySQL.Protocol.Auth
+ import           Database.MySQL.Protocol.ColumnDef
+ import           Database.MySQL.Protocol.Command
+ import           Database.MySQL.Protocol.MySQLValue
+ import           Database.MySQL.Protocol.Packet
++import           Database.MySQL.Protocol.Progress (Progress(..))
++import           Database.MySQL.Protocol.Compression (CompressionException(..))
+ 
+ import           Database.MySQL.Session (SessionState(..), SessionChange(..))
+ import           Database.MySQL.Query
+@@ -287,6 +307,7 @@ executeCore conn cmd = do
+ 
+ isBinaryCommand :: Command -> Bool
+ isBinaryCommand (COM_STMT_EXECUTE _ _ _) = True
++isBinaryCommand (COM_STMT_EXECUTE_EXT _ _ _ _) = True
+ isBinaryCommand (COM_STMT_BULK_EXECUTE _ _ _ _) = True
+ isBinaryCommand _ = False
+ 
+@@ -463,8 +484,12 @@ queryStmtVector conn ident values = withCommand conn $ do
+ -- every handle. Raw-ID functions remain available for compatibility.
+ data PreparedStatement = PreparedStatement !MySQLConn !StmtID !Word64
+ 
+--- | Local statement misuse. No command is sent for these errors.
++-- | Statement/parameter misuse. Closed handles, invalid fetch sizes and pending
++-- batches fail before writing. 'InvalidCursorUse' can also follow a synchronized
++-- non-row reply. A streamed-parameter error arising after upload begins retires
++-- its incomplete connection before throwing.
+ data StatementException = StatementClosed | InvalidBulkBatch String
++                        | InvalidPreparedParameter String | InvalidCursorUse String
+     deriving (Show)
+ instance Exception StatementException
+ 
+@@ -575,6 +600,297 @@ executePrepared statement@(PreparedStatement conn ident _) values = withCommand
+     validateStatementValues state values
+     executeCore conn (COM_STMT_EXECUTE ident values (makeNullMap values))
+ 
++-- | A scalar binding or a one-shot source for a large binary/text parameter.
++-- Text chunks use the current client charset; chunk boundaries need not match
++-- wire boundaries. Sources remain owned by the caller and are never replayed
++-- or closed by the driver. Empty sources bind an empty, non-NULL value with
++-- the corresponding binary or text type/collation.
++data PreparedParameter
++    = PreparedValue !MySQLValue
++    | PreparedBytes !(InputStream B.ByteString)
++    | PreparedText !(InputStream T.Text)
++
++-- Upload and EXECUTE hold the same command lease. A no-reply upload command
++-- cannot acknowledge server acceptance: MariaDB can defer its error to EXECUTE.
++-- Any source/encoding/cancellation failure after upload starts retires the
++-- connection, preventing partially accumulated parameters from leaking into a
++-- later execution. Limit arithmetic uses subtraction before adding each chunk.
++uploadParameters :: PreparedStatement -> [PreparedParameter] -> IO ([ExecuteParameter], BitMap)
++uploadParameters statement@(PreparedStatement conn ident _) parameters = do
++    state <- checkedStatement statement
++    unless (lengthWithin (statementArity state) parameters == Just (statementArity state))
++        (throwIO WrongParamsCount)
++    let values = map scalar parameters
++        scalar (PreparedValue value) = ExecuteValue value
++        scalar (PreparedBytes _) = UploadedBytes
++        scalar (PreparedText _) = UploadedText
++        bitmap = makeNullMap (map executeParameterValue values)
++    forM_ [value | ExecuteValue value <- values] $
++        either (throwIO . UnencodableParameter) pure . validateValue
++    charset <- if any needsCharset parameters then renderClientCharset <$> getRenderContext conn else pure "utf8mb4"
++    -- Validate ordinary text too, before consuming any one-shot input.
++    forM_ values $ \value -> case value of
++        ExecuteValue (MySQLText text) -> void (either (throwIO . UnencodableParameter) pure (encodeCharsetText charset text))
++        _ -> pure ()
++    serverLimit <- readIORef (connectionServerPacketLimit conn)
++    let messageLimit = min serverLimit (maximumMessageBytes (connectionOptions conn))
++        totalLimit = min serverLimit (maximumLongDataBytes (connectionOptions conn))
++    when (messageLimit <= 7) (throwIO (InvalidPreparedParameter "message limit cannot hold a long-data chunk"))
++    remaining <- newIORef totalLimit
++    let chunkSize = fromIntegral (min 65536 (messageLimit - 7))
++        send index bytes = do
++            left <- readIORef remaining
++            when (fromIntegral (B.length bytes) > left)
++                (throwIO (InvalidPreparedParameter "streamed parameters exceed byte limit"))
++            writeIORef remaining (left - fromIntegral (B.length bytes))
++            sendCommand conn (COM_STMT_SEND_LONG_DATA ident index bytes)
++        upload index source = do
++            -- Even a source with no chunks must set MariaDB's long-data state.
++            send index B.empty
++            -- A source's chunk size is an application detail. Coalesce small
++            -- chunks to avoid one command/builder allocation per tiny read,
++            -- while bounding retained payload to 64 KiB and segment metadata
++            -- to 1024 entries. Large input chunks are sliced without copying.
++            let flush [one] = send index one
++                flush chunks = send index (B.concat (reverse chunks))
++                fill used segments chunks = do
++                    next <- Stream.read source
++                    case next of
++                        Nothing -> unless (used == 0) (flush chunks)
++                        Just bytes -> push used segments chunks bytes
++                push used segments chunks bytes
++                    | B.null bytes = fill used segments chunks
++                    | B.length bytes >= chunkSize-used = do
++                        let (part,rest) = B.splitAt (chunkSize-used) bytes
++                        flush (part:chunks)
++                        if B.null rest then fill 0 0 [] else push 0 0 [] rest
++                    | segments >= (1023 :: Int) = flush (bytes:chunks) >> fill 0 0 []
++                    | otherwise = fill (used+B.length bytes) (segments+1) (bytes:chunks)
++            fill 0 0 []
++    forM_ (zip [0..] parameters) $ \(index,parameter) -> case parameter of
++        PreparedValue _ -> pure ()
++        PreparedBytes source -> upload index source
++        PreparedText source -> do
++            pending <- newIORef T.empty
++            let encodePart text = do
++                    let (part,rest) = T.splitAt 8192 text
++                    writeIORef pending rest
++                    Just <$> either (throwIO . UnencodableParameter) pure (encodeCharsetText charset part)
++                next = do
++                    rest <- readIORef pending
++                    if T.null rest then Stream.read source >>= maybe (pure Nothing) encodePart
++                        else encodePart rest
++            encoded <- Stream.makeInputStream next
++            upload index encoded
++    pure (values,bitmap)
++  where
++    needsCharset (PreparedText _) = True
++    needsCharset (PreparedValue (MySQLText _)) = True
++    needsCharset _ = False
++
++uploadCommand :: PreparedStatement -> Word8 -> [PreparedParameter] -> IO Command
++uploadCommand statement@(PreparedStatement _ ident _) flags parameters = do
++    (values,bitmap) <- uploadParameters statement parameters
++    pure (COM_STMT_EXECUTE_EXT ident flags values bitmap)
++
++-- | Upload bounded one-shot parameters and execute a non-row statement.
++-- Server packet/parameter limits still apply; chunking reduces client buffering,
++-- not MariaDB's accumulated-value limits. Use a transaction for atomic writes.
++executePreparedStream :: PreparedStatement -> [PreparedParameter] -> IO OK
++executePreparedStream statement@(PreparedStatement conn _ _) parameters = withCommand conn $ do
++    cmd <- uploadCommand statement 0 parameters
++    executeCore conn cmd
++
++-- | Stream the first binary row result with uploaded parameters. The returned
++-- result has the same owner, lifetime and extra-result rules as 'queryPrepared'.
++queryPreparedStream :: PreparedStatement -> [PreparedParameter] -> IO ([ColumnDef], InputStream [MySQLValue])
++queryPreparedStream statement@(PreparedStatement conn _ _) parameters = withCommand conn $ do
++    cmd <- uploadCommand statement 0 parameters
++    queryCore conn cmd True
++
++-- | Upload parameters and collect complete prepared results, including OUT
++-- parameters. This materializes result rows, as 'queryPreparedMulti' does.
++queryPreparedStreamMulti :: PreparedStatement -> [PreparedParameter] -> IO [PreparedResult]
++queryPreparedStreamMulti statement@(PreparedStatement conn _ _) parameters = withCommand conn $ do
++    cmd <- uploadCommand statement 0 parameters
++    sendCommand conn cmd
++    readPreparedResults conn
++
++data CursorPhase = CursorOpen | CursorFetching | CursorFinished deriving Eq
++
++-- | An exclusive, read-only server cursor. Its creating thread owns the
++-- connection until the cursor is exhausted or closed. Each fetch returns an
++-- incremental stream; finish that batch before requesting another. MariaDB may
++-- materialize the result on the server. A cursor is not a snapshot guarantee.
++data PreparedCursor = PreparedCursor
++    { cursorStatement :: !PreparedStatement
++    , cursorGeneration :: !Word64
++    , cursorColumns :: !CachedColumns
++    , cursorPhase :: !(IORef CursorPhase)
++    , cursorBatchDrain :: !(IORef (Maybe (IO ())))
++    }
++
++-- | Open a read-only cursor on a prepared SELECT. The metadata cache is shared
++-- with ordinary executions. Other SQL commands, including reset/close of the
++-- statement, are rejected until exhaustion or 'closeCursor'. The cursor flag
++-- does not prove that arbitrary SQL is read-only: use this API with SELECTs;
++-- MariaDB can execute other SQL before reporting that no cursor was opened.
++openCursor :: PreparedStatement -> [MySQLValue] -> IO ([ColumnDef], PreparedCursor)
++openCursor statement@(PreparedStatement conn _ _) values = withCommand conn (openCursorCore statement values)
++
++openCursorCore :: PreparedStatement -> [MySQLValue] -> IO ([ColumnDef], PreparedCursor)
++openCursorCore statement@(PreparedStatement _ ident _) values = do
++    state <- checkedStatement statement
++    validateStatementValues state values
++    openCursorCommand statement (COM_STMT_EXECUTE_EXT ident 1 (map ExecuteValue values) (makeNullMap values))
++
++-- | Open a read-only cursor with streamed binary/text parameters. Upload and
++-- cursor execution share one lease, with the same one-shot and byte-limit
++-- contracts as 'queryPreparedStream'. Consume or close the cursor before reuse.
++openCursorStream :: PreparedStatement -> [PreparedParameter] -> IO ([ColumnDef], PreparedCursor)
++openCursorStream statement@(PreparedStatement conn _ _) parameters = withCommand conn (openCursorStreamCore statement parameters)
++
++openCursorStreamCore :: PreparedStatement -> [PreparedParameter] -> IO ([ColumnDef], PreparedCursor)
++openCursorStreamCore statement parameters = do
++    cmd <- uploadCommand statement 1 parameters
++    openCursorCommand statement cmd
++
++openCursorCommand :: PreparedStatement -> Command -> IO ([ColumnDef], PreparedCursor)
++openCursorCommand statement@(PreparedStatement conn _ _) cmd = do
++    sendCommand conn cmd
++    packet <- readConnPacket conn
++    when (isERR packet) (serverError conn packet)
++    when (isOK packet) $ do
++        ok <- consumeOK conn packet
++        when (moreResults (okStatus ok)) (void (skipFurtherResults conn True False))
++        finishResponse conn
++        throwIO (InvalidCursorUse "statement did not return a cursor result")
++    columns <- readResultColumns conn packet
++    modern <- usesOKTerminator conn
++    flags <- if modern then readConnPacket conn >>= consumeEnd conn
++        else maybe (throwIO (ProtocolError "cursor metadata has no status")) pure =<< readIORef (connectionServerStatus conn)
++    unless (flags .&. 64 /= 0 && flags .&. 8 == 0)
++        (throwIO (ProtocolError "server did not open a read-only cursor"))
++    generation <- markStreaming conn
++    phase <- newIORef CursorOpen
++    drain <- newIORef Nothing
++    let cursor = PreparedCursor statement generation columns phase drain
++    writeIORef (connectionDrain conn) (Just (closeCursor cursor))
++    pure (cachedFields columns,cursor)
++
++-- | Whether the server has exhausted the cursor, or the caller has closed it.
++-- This observation sends no command and does not claim connection ownership.
++cursorExhausted :: PreparedCursor -> IO Bool
++cursorExhausted cursor = (== CursorFinished) <$> readIORef (cursorPhase cursor)
++
++checkCursorOwner :: PreparedCursor -> IO ()
++checkCursorOwner cursor = do
++    let PreparedStatement conn _ _ = cursorStatement cursor
++    callbackActive <- readIORef (connectionCallbackActive conn)
++    when callbackActive (throwIO ConcurrentConnectionUse)
++    runtime <- readIORef (connectionRuntime conn)
++    tid <- myThreadId
++    unless (runtimeGeneration runtime == cursorGeneration cursor) (throwIO StaleResultStream)
++    unless (runtimeStatus runtime == Streaming) (throwIO (ConnectionUnavailable (runtimeStatus runtime)))
++    unless (runtimeOwner runtime == Just tid) (throwIO ConcurrentConnectionUse)
++
++-- | Request at most this many rows, bounded by 'maximumCursorFetchRows'. Rows
++-- are decoded one at a time. An exact-sized final batch may need one final
++-- empty fetch before MariaDB reports exhaustion. Zero/excessive counts and an
++-- unfinished preceding batch fail locally without sending bytes.
++fetchCursor :: PreparedCursor -> Word32 -> IO (InputStream [MySQLValue])
++fetchCursor cursor count = do
++    let PreparedStatement conn ident _ = cursorStatement cursor
++    when (count == 0 || count > maximumCursorFetchRows (connectionOptions conn))
++        (throwIO (InvalidCursorUse "invalid cursor fetch size"))
++    checkCursorOwner cursor
++    phase <- readIORef (cursorPhase cursor)
++    unless (phase == CursorOpen) (throwIO (InvalidCursorUse "cursor batch is pending or cursor is closed"))
++    streamGuard conn (cursorGeneration cursor) $ do
++        sendCommand conn (COM_STMT_FETCH ident count)
++        writeIORef (cursorPhase cursor) CursorFetching
++        finished <- newIORef False
++        received <- newIORef (0 :: Word32)
++        let next decode = do
++                done <- readIORef finished
++                if done then pure Nothing else streamGuard conn (cursorGeneration cursor) $ do
++                    packet <- readConnPacket conn
++                    ending <- isResultEnd conn packet
++                    if ending then do
++                        flags <- consumeEnd conn packet
++                        unless (flags .&. 8 == 0 && flags .&. 192 `elem` [64,128])
++                            (throwIO (ProtocolError "invalid cursor batch status"))
++                        writeIORef finished True
++                        writeIORef (cursorBatchDrain cursor) Nothing
++                        let exhausted = flags .&. 128 /= 0
++                        writeIORef (cursorPhase cursor) (if exhausted then CursorFinished else CursorOpen)
++                        when exhausted (finishResponse conn)
++                        pure Nothing
++                    else if isERR packet then do
++                        writeIORef (cursorPhase cursor) CursorFinished
++                        serverError conn packet
++                    else do
++                        n <- readIORef received
++                        when (n >= count) (throwIO (ProtocolError "cursor sent more rows than requested"))
++                        writeIORef received (n+1)
++                        Just <$> decode packet
++            drain = next (const (pure ())) >>= maybe (pure ()) (const drain)
++        writeIORef (cursorBatchDrain cursor) (Just drain)
++        Stream.makeInputStream (next (decodeBinaryRow (cachedBinaryDecoder (cursorColumns cursor))))
++
++-- | Drain only an outstanding batch, then reset the statement to release the
++-- remaining server cursor without fetching it. One cleanup deadline bounds
++-- draining/reset. Repeated close is a local no-op; interruption retires the
++-- connection. Metadata remains cached, matching MariaDB's statement reset.
++closeCursor :: PreparedCursor -> IO ()
++closeCursor cursor = mask $ \restore -> do
++    let PreparedStatement conn ident _ = cursorStatement cursor
++    status <- connectionStatus conn
++    when (status `elem` [Broken,Closed]) $ do
++        writeIORef (cursorPhase cursor) CursorFinished
++        writeIORef (cursorBatchDrain cursor) Nothing
++    done <- cursorExhausted cursor
++    unless done $ do
++        checkCursorOwner cursor
++        result <- try $ timeout (cleanupTimeoutMicros (connectionOptions conn)) $ restore $ streamGuard conn (cursorGeneration cursor) $ do
++            pending <- readIORef (cursorBatchDrain cursor)
++            maybe (pure ()) id pending
++            exhausted <- cursorExhausted cursor
++            unless exhausted $ do
++                sendCommand conn (COM_STMT_RESET ident)
++                ok <- readConnPacket conn >>= consumeCommandOK conn
++                when (moreResults (okStatus ok)) (throwIO (ProtocolError "cursor reset returned extra results"))
++                writeIORef (cursorPhase cursor) CursorFinished
++                finishResponse conn
++        case result of
++            Right (Just ()) -> pure ()
++            Right Nothing -> abortConnection conn False >> throwIO CleanupDeadlineExceeded
++            Left (err :: SomeException) -> abortConnection conn False >> throwIO err
++
++-- | Bracket an exclusive cursor, releasing unfinished batches/server state on
++-- return or an application exception. A primary exception keeps its identity;
++-- a new asynchronous cancellation during cleanup still propagates.
++withCursor :: PreparedStatement -> [MySQLValue] -> (PreparedCursor -> IO a) -> IO a
++withCursor statement@(PreparedStatement conn _ _) values = withOpenedCursor conn (openCursorCore statement values)
++
++-- | Bracket 'openCursorStream', releasing unfinished batches and the server
++-- cursor on return or exception. Caller-owned parameter sources are not closed.
++withCursorStream :: PreparedStatement -> [PreparedParameter] -> (PreparedCursor -> IO a) -> IO a
++withCursorStream statement@(PreparedStatement conn _ _) parameters = withOpenedCursor conn (openCursorStreamCore statement parameters)
++
++withOpenedCursor :: MySQLConn -> IO ([ColumnDef], PreparedCursor) -> (PreparedCursor -> IO a) -> IO a
++withOpenedCursor conn open action = mask $ \restore -> do
++    -- Restore acquisition only inside withCommand's failure handler. A fully
++    -- buffered one-shot source must remain cancellable, while the return to
++    -- bracket bookkeeping stays masked so no cursor can escape its finalizer.
++    (_,cursor) <- withCommand conn (restore open)
++    result <- try (restore (action cursor))
++    case result of
++        Right value -> restore (closeCursor cursor) >> pure value
++        Left (err :: SomeException) -> do
++            restore (closeCursor cursor) `catch` \(secondary :: SomeException) -> when (isCancellation secondary) (throwIO secondary)
++            throwIO err
++
+ -- | Complete prepared results in wire order. OUT parameters are identified by
+ -- SERVER_PS_OUT_PARAMS on their terminator, not guessed from column names.
+ -- These APIs materialize rows; use 'queryPrepared' for large individual streams.
+diff --git a/src/Database/MySQL/Connection.hs b/src/Database/MySQL/Connection.hs
+index 5048e6f..deee262 100644
+--- a/src/Database/MySQL/Connection.hs
++++ b/src/Database/MySQL/Connection.hs
+@@ -72,6 +72,8 @@ import qualified Data.IntMap.Strict as IM
+ import Database.MySQL.Session
+ import Database.MySQL.Protocol.ColumnDef
+ import Database.MySQL.Protocol.MySQLValue
++import Database.MySQL.Protocol.Progress
++import Database.MySQL.Protocol.Compression
+ import Database.MySQL.Query
+ 
+ -- | Per-connection resource bounds. Limits are validated before opening a
+@@ -88,6 +90,11 @@ data ConnectionOptions = ConnectionOptions
+     , enableExtendedMetadata :: !Bool -- ^ Retain native type/format attributes.
+     , maximumPreparedStatements :: !Int -- ^ Maximum registered server statements.
+     , maximumBulkRows :: !Int -- ^ Rows per bulk command; batches are never silently split.
++    , maximumLongDataBytes :: !Word64 -- ^ Total streamed parameter bytes per execution.
++    , maximumCursorFetchRows :: !Word32 -- ^ Maximum requested rows in one server cursor fetch.
++    , enableProgressReporting :: !Bool -- ^ Negotiate reports; install callbacks separately.
++    , enableCompression :: !Bool -- ^ Negotiate zlib transport framing; off by default.
++    , compressionThresholdBytes :: !Int -- ^ Try compression for outbound frames at least this large.
+     } deriving (Eq, Show)
+ 
+ -- | 64 MiB messages, 16 MiB metadata, 65,535 columns, one-second cleanup,
+@@ -105,6 +112,11 @@ defaultConnectionOptions = ConnectionOptions
+     , enableExtendedMetadata = True
+     , maximumPreparedStatements = 1024
+     , maximumBulkRows = 10000
++    , maximumLongDataBytes = 64 * 1024 * 1024
++    , maximumCursorFetchRows = 65536
++    , enableProgressReporting = False
++    , enableCompression = False
++    , compressionThresholdBytes = 1024
+     }
+ 
+ -- A cached fact must not pin a large result buffer or grow without bound.
+@@ -119,7 +131,9 @@ validateOptions options = unless
+       && maximumMetadataBytes options > 0 && maximumColumns options > 0 && cleanupTimeoutMicros options > 0
+       && connectTimeoutMicros options > 0 && maximumAuthIterations options >= 1024
+       && maximumAuthIterations options <= 1073741824
+-      && maximumPreparedStatements options > 0 && maximumBulkRows options > 0)
++      && maximumPreparedStatements options > 0 && maximumBulkRows options > 0
++      && maximumLongDataBytes options > 0 && maximumCursorFetchRows options > 0
++      && compressionThresholdBytes options >= 0 && compressionThresholdBytes options <= 65536)
+     (throwIO (ProtocolError "invalid connection resource options"))
+ 
+ -- | Observable lifecycle. Only 'Ready' admits a new command. 'Broken' and
+@@ -176,6 +190,10 @@ data MySQLConn = MySQLConn
+     , connectionResultIndex :: !(IORef Int)
+     , connectionSession :: !(IORef SessionCache)
+     , connectionInitialSession :: !(IORef (Maybe InitialSession))
++    , connectionProgressCallback :: !(IORef (Maybe (Progress -> IO ())))
++    , connectionCallbackActive :: !(IORef Bool)
++    , connectionCompressionStart :: !(IO ())
++    , connectionCompressionReset :: !(IO ())
+     }
+ 
+ -- A decoder is compiled per metadata shape, not per row/execution. Metadata
+@@ -228,6 +246,19 @@ newConnection options input output abort = newConnectionUsing options makeReader
+ newByteConnection :: ConnectionOptions -> InputStream ByteString -> (Packet -> IO ()) -> IO () -> IO MySQLConn
+ newByteConnection options input output abort = newConnectionUsing options (\framing -> decodeFramedInput (maximumMessageBytes options) framing input) output abort
+ 
++-- Raw transports share one optional byte layer; ordinary connections retain
++-- their existing reader/writer path without compression checks per packet.
++newTransportConnection :: ConnectionOptions -> InputStream ByteString -> (L.ByteString -> IO ()) -> IO () -> IO MySQLConn
++newTransportConnection options input output abort
++    | not (enableCompression options) = newByteConnection options input (output . Binary.encode) abort
++    | otherwise = do
++        transport <- newCompressionTransport (maximumMessageBytes options + 4)
++            (compressionThresholdBytes options) input output
++        conn <- newByteConnection options (compressionInput transport)
++            (compressionSend transport . Binary.encode) abort
++        pure conn {connectionCompressionStart = compressionStart transport,
++                   connectionCompressionReset = compressionReset transport}
++
+ newConnectionUsing :: ConnectionOptions -> (IORef FramingState -> IO (InputStream Packet)) -> (Packet -> IO ()) -> IO () -> IO MySQLConn
+ newConnectionUsing options makeReader output abort = do
+     validateOptions options
+@@ -249,6 +280,8 @@ newConnectionUsing options makeReader output abort = do
+     resultIndex <- newIORef 0
+     observations <- newIORef (emptySessionCache 0)
+     initial <- newIORef Nothing
++    progressCallback <- newIORef Nothing
++    callbackActive <- newIORef False
+     input <- makeReader framing
+     let checkedOutput packet = advanceFraming (maximumMessageBytes options) framing (pLen packet) (pSeqN packet) >> output packet
+     pure MySQLConn
+@@ -274,6 +307,10 @@ newConnectionUsing options makeReader output abort = do
+         , connectionResultIndex = resultIndex
+         , connectionSession = observations
+         , connectionInitialSession = initial
++        , connectionProgressCallback = progressCallback
++        , connectionCallbackActive = callbackActive
++        , connectionCompressionStart = pure ()
++        , connectionCompressionReset = pure ()
+         }
+ 
+ -- Retain only restoration facts, never ConnectInfo or authentication material.
+@@ -294,12 +331,23 @@ emptyFramingStates=V.generate 257 (\n -> FramingState (fromIntegral n) 0)
+ -- 256 is the dedicated replication sequence policy; continuations still use
+ -- the logical assembler's modulo-256 check. Ordinary exchanges never use it.
+ setExchangeSequence :: MySQLConn -> Word16 -> IO ()
+-setExchangeSequence conn sequenceN = writeIORef (connectionSequence conn) (FramingState sequenceN 0)
++setExchangeSequence conn sequenceN = do
++    -- MariaDB net_flush synchronizes ordinary pkt_nr to compress_pkt_nr.
++    -- Thus ordinary packet numbers may jump at compressed flush boundaries;
++    -- Connector/C also validates only compressed-frame sequence in this mode.
++    -- Logical continuation ordering remains checked by readPacketWithLimit.
++    effective <- if sequenceN == 0 && enableCompression (connectionOptions conn)
++        then do
++            caps <- readIORef (connectionCapabilities conn)
++            pure (if testBit caps 5 then 256 else sequenceN)
++        else pure sequenceN
++    writeIORef (connectionSequence conn) (FramingState effective 0)
+ 
+ advanceFraming :: Word64 -> IORef FramingState -> Int64 -> Word8 -> IO ()
+ advanceFraming limit ref lengthBytes sequenceN = do
+     FramingState expected accumulated <- readIORef ref
+-    unless (expected==256 || expected==fromIntegral sequenceN) (throwIO (ProtocolError "unexpected packet sequence"))
++    unless (expected==256 || expected==fromIntegral sequenceN)
++        (throwIO (ProtocolError ("unexpected packet sequence: expected " ++ show expected ++ ", received " ++ show sequenceN)))
+     when (lengthBytes<0 || lengthBytes>16777215) (throwIO (ProtocolError "invalid physical packet length"))
+     let bytes=fromIntegral lengthBytes
+     when (accumulated>limit || bytes>limit-accumulated) (throwIO (ProtocolError "logical packet exceeds client limit"))
+@@ -319,6 +367,7 @@ releaseTransport conn = do
+ abortConnection :: MySQLConn -> Bool -> IO ()
+ abortConnection conn uncertain = mask_ $ do
+     clearStatements conn
++    writeIORef (connectionProgressCallback conn) Nothing
+     invalidateSession conn
+     phase <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
+         (rt { runtimeStatus=if runtimeStatus rt == Closed then Closed else Broken, runtimeOwner=Nothing },runtimeStatus rt)
+@@ -394,6 +443,9 @@ withCommand conn action = mask $ \restore -> do
+ -- before ownership so stale handles fail without consuming a single packet.
+ streamGuard :: MySQLConn -> Word64 -> IO a -> IO a
+ streamGuard conn generation action = do
++    when (enableProgressReporting (connectionOptions conn)) $ do
++        callbackActive <- readIORef (connectionCallbackActive conn)
++        when callbackActive (throwIO ConcurrentConnectionUse)
+     rt <- readIORef (connectionRuntime conn)
+     tid <- myThreadId
+     unless (runtimeGeneration rt == generation) (throwIO StaleResultStream)
+@@ -464,13 +516,14 @@ connectDetailWithOptions :: ConnectionOptions -> ConnectInfo -> IO (Greeting,MyS
+ connectDetailWithOptions opts ci = withConnectDeadline opts $ do
+     validateOptions opts
+     bracketOnError (TCP.connectSocketTimeout (connectTimeoutMicros opts) (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
+-        conn <- newByteConnection opts (Conn.source raw) (\packet -> Conn.send raw (Binary.runPut (Binary.put packet))) (Conn.close raw)
++        conn <- newTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
+         greet <- readGreeting conn
+         let caps=negotiatedCapabilities opts greet
+         writeIORef (connectionCapabilities conn) caps
+         mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
+         q <- readConnPacket conn
+         completeAuth conn greet False (ciPassword ci) q
++        when (testBit caps 5) (connectionCompressionStart conn)
+         role <- initializeSession conn
+         rememberInitialSession conn ci role
+         pure (greet,conn)
+@@ -492,13 +545,14 @@ connectUnixSocketDetailWithOptions opts path ci = withConnectDeadline opts $ do
+             N.connect sock (N.SockAddrUnix path)
+             TCP.socketToConnectionAdaptive bUFSIZE (sock,N.SockAddrUnix path)
+     bracketOnError open Conn.close $ \raw -> do
+-        conn <- newByteConnection opts (Conn.source raw) (\packet -> Conn.send raw (Binary.runPut (Binary.put packet))) (Conn.close raw)
++        conn <- newTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
+         greet <- readGreeting conn
+         let caps=negotiatedCapabilities opts greet
+         writeIORef (connectionCapabilities conn) caps
+         mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
+         q <- readConnPacket conn
+         completeAuth conn greet True (ciPassword ci) q
++        when (testBit caps 5) (connectionCompressionStart conn)
+         role <- initializeSession conn
+         rememberInitialSession conn ci role
+         pure (greet,conn)
+@@ -518,6 +572,8 @@ negotiatedCapabilities options greeting = (implemented .&. greetingCaps greeting
+     (if enableSessionTracking options && greetingCaps greeting .&. 0x01800000 == 0x01800000 then 0x01800000 else 0)
+   where
+     implemented = clientCap .|. bit 34 .|. bit 37
++        .|. (if enableProgressReporting options then bit 32 else 0)
++        .|. (if enableCompression options then bit 5 else 0)
+         .|. (if enableMetadataCaching options then bit 36 else 0)
+         .|. (if enableExtendedMetadata options then bit 35 else 0)
+ 
+@@ -793,7 +849,35 @@ readPacketWithLimit limit input = do
+         else go size (pSeqN packet) (pBody packet:chunks)
+ 
+ readConnPacket :: MySQLConn -> IO Packet
+-readConnPacket conn = readPacketWithLimit (maximumMessageBytes (connectionOptions conn)) (mysqlRead conn)
++readConnPacket conn
++    | not (enableProgressReporting (connectionOptions conn)) = readOne
++    | otherwise = reports
++  where
++    readOne = readPacketWithLimit (maximumMessageBytes (connectionOptions conn)) (mysqlRead conn)
++    reports = do
++        packet <- readOne
++        if not (isProgressPacket packet) then pure packet else do
++            caps <- readIORef (connectionCapabilities conn)
++            unless (testBit caps 32) (throwIO (ProtocolError "unnegotiated progress packet"))
++            when (pLen packet > 16384 || fromIntegral (pLen packet) > maximumMetadataBytes (connectionOptions conn))
++                (throwIO (ProtocolError "progress description exceeds client limit"))
++            progress <- getFromPacketExact getProgress packet
++            callback <- readIORef (connectionProgressCallback conn)
++            forM_ callback $ \notify -> bracket_
++                (writeIORef (connectionCallbackActive conn) True)
++                (writeIORef (connectionCallbackActive conn) False) (notify progress)
++            reports
++
++-- | Replace the progress callback while idle. Negotiate
++-- 'enableProgressReporting' at connect time; without a callback reports are
++-- consumed and discarded. Callbacks run synchronously on the command owner:
++-- they must not reenter this connection. Exceptions/cancellation retire an
++-- incomplete exchange. No background worker or unbounded queue exists.
++setProgressCallback :: MySQLConn -> Maybe (Progress -> IO ()) -> IO ()
++setProgressCallback conn callback = withCommand conn $ do
++    caps <- readIORef (connectionCapabilities conn)
++    unless (testBit caps 32) (throwIO (ProtocolError "progress reporting was not negotiated"))
++    writeIORef (connectionProgressCallback conn) callback
+ 
+ writeCommand :: Command -> (Packet -> IO ()) -> IO ()
+ writeCommand cmd writer = let body=Binary.runPut (putCommand cmd) in writeEncoded (L.length body) body writer
+@@ -819,6 +903,9 @@ sendCommand conn cmd = do
+         COM_STMT_EXECUTE ident _ _ -> do
+             opaque <- readIORef (connectionOpaqueStatements conn)
+             writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
++        COM_STMT_EXECUTE_EXT ident _ _ _ -> do
++            opaque <- readIORef (connectionOpaqueStatements conn)
++            writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
+         COM_STMT_BULK_EXECUTE ident _ _ _ -> do
+             opaque <- readIORef (connectionOpaqueStatements conn)
+             writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
+@@ -841,6 +928,27 @@ sendCommand conn cmd = do
+                     Binary.putWord8 1
+                     mapM_ putParamMySQLType values
+                     sequence_ encoded
++        COM_STMT_EXECUTE_EXT ident flags values nullMap -> do
++            unless (flags `elem` [0,1]) (throwIO (ProtocolError "unsupported cursor mode"))
++            let ordinary = [value | ExecuteValue value <- values]
++            charset <- if any (\value -> case value of MySQLText _ -> True; _ -> False) ordinary
++                then renderClientCharset <$> getRenderContext conn else pure "utf8mb4"
++            mapM_ (either (throwIO . UnencodableParameter) pure . validateValue) ordinary
++            encoded <- forM values $ \value -> case value of
++                ExecuteValue (MySQLText text) -> either (throwIO . UnencodableParameter)
++                    (pure . putLenEncBytes) (encodeCharsetText charset text)
++                ExecuteValue cell -> pure (putBinaryField cell)
++                _ -> pure (pure ())
++            pure $ do
++                Binary.putWord8 0x17
++                Binary.putWord32le ident
++                Binary.putWord8 flags
++                Binary.putWord32le 1
++                unless (null values) $ do
++                    Binary.putByteString (fromBitMap nullMap)
++                    Binary.putWord8 1
++                    mapM_ (putParamMySQLType . executeParameterValue) values
++                    sequence_ encoded
+         COM_STMT_BULK_EXECUTE ident flags types rows -> do
+             caps <- readIORef (connectionCapabilities conn)
+             unless (testBit caps 34 && (flags .&. 64 == 0 || testBit caps 37))
+@@ -895,6 +1003,8 @@ sendCommand conn cmd = do
+     size <- encodedLength (min serverLimit (maximumMessageBytes (connectionOptions conn))) body
+     writeIORef (connectionActiveStatement conn) $ case cmd of
+         COM_STMT_EXECUTE ident _ _ -> Just ident
++        COM_STMT_EXECUTE_EXT ident _ _ _ -> Just ident
++        COM_STMT_FETCH ident _ -> Just ident
+         COM_STMT_BULK_EXECUTE ident _ _ _ -> Just ident
+         _ -> Nothing
+     writeIORef (connectionResultIndex conn) 0
+@@ -910,6 +1020,7 @@ sendCommand conn cmd = do
+             invalidateSession conn
+         _ -> pure ()
+     setExchangeSequence conn 0
++    connectionCompressionReset conn
+     writeIORef (connectionExchangeProgress conn) WireInFlight
+     writeEncoded size body (mysqlWrite conn)
+ 
+@@ -963,6 +1074,7 @@ lengthWithin limit = go 0
+ close :: MySQLConn -> IO ()
+ close conn = mask_ $ do
+     clearStatements conn
++    writeIORef (connectionProgressCallback conn) Nothing
+     invalidateSession conn
+     prior <- atomicModifyIORef' (connectionRuntime conn) (\rt -> (rt {runtimeStatus=Closed,runtimeOwner=Nothing},runtimeStatus rt))
+     unless (prior == Closed) $ do
+@@ -972,6 +1084,7 @@ close conn = mask_ $ do
+         writeIORef (connectionDrain conn) Nothing
+         let goodbye=when (prior==Ready) $ void $ timeout (cleanupTimeoutMicros (connectionOptions conn)) $ do
+                 setExchangeSequence conn 0
++                connectionCompressionReset conn
+                 writeCommand COM_QUIT (mysqlWrite conn)
+         (goodbye `catch` (\(err :: SomeException) -> when (isCancellation err) (throwIO err))) `finally` releaseTransport conn
+ 
+diff --git a/src/Database/MySQL/Protocol/Command.hs b/src/Database/MySQL/Protocol/Command.hs
+index 3c32f7b..2c450e7 100644
+--- a/src/Database/MySQL/Protocol/Command.hs
++++ b/src/Database/MySQL/Protocol/Command.hs
+@@ -36,6 +36,19 @@ type StmtID = Word32
+ data BulkParameter = BulkValue !MySQLValue | BulkDefault | BulkIgnore
+     deriving (Show, Eq)
+ 
++-- | EXECUTE binding descriptors. Uploaded values carry a type but no inline
++-- bytes. Preserve text versus binary semantics even though both upload through
++-- COM_STMT_SEND_LONG_DATA; their server collations need not be the same.
++data ExecuteParameter = ExecuteValue !MySQLValue | UploadedBytes | UploadedText
++    deriving (Show, Eq)
++
++-- | Type exemplar and NULL-bitmap value for an EXECUTE binding. Empty uploaded
++-- parameters remain non-NULL; these exemplars are never sent as inline values.
++executeParameterValue :: ExecuteParameter -> MySQLValue
++executeParameterValue (ExecuteValue value) = value
++executeParameterValue UploadedBytes = MySQLBytes ""
++executeParameterValue UploadedText = MySQLText ""
++
+ -- | All support MySQL commands.
+ --
+ data Command
+@@ -49,8 +62,13 @@ data Command
+             -- server-id, slaves hostname, slaves user, slaves password,  slaves port, replication rank(ignored), master-id(usually 0)
+     | COM_STMT_PREPARE   !L.ByteString            -- ^ 0x16 statement
+     | COM_STMT_EXECUTE   !StmtID ![MySQLValue] !BitMap -- ^ 0x17 stmtId, params
++    | COM_STMT_EXECUTE_EXT !StmtID !Word8 ![ExecuteParameter] !BitMap
++      -- ^ 0x17: cursor flag and typed inline/uploaded parameters.
++    | COM_STMT_SEND_LONG_DATA !StmtID !Word16 !ByteString
++      -- ^ 0x18: statement, zero-based parameter index, one chunk; no reply.
+     | COM_STMT_CLOSE     !StmtID                  -- ^ 0x19 stmtId
+     | COM_STMT_RESET     !StmtID                  -- ^ 0x1A stmtId
++    | COM_STMT_FETCH     !StmtID !Word32          -- ^ 0x1C: read-only cursor batch.
+     | COM_RESET_CONNECTION                       -- ^ 0x1F; use the guarded reset API.
+     | COM_STMT_BULK_EXECUTE !StmtID !Word16 ![MySQLValue] ![[BulkParameter]]
+       -- ^ 0xFA: statement, flags, one type exemplar per column, batch rows.
+@@ -79,16 +97,19 @@ putCommand (COM_REGISTER_SLAVE sid shost susr spass sport rrank mid) = do
+     putWord32le mid
+ putCommand (COM_STMT_PREPARE stmt) = putWord8 0x16 >> putLazyByteString stmt
+ putCommand (COM_STMT_EXECUTE stid params nullmap) = do
+-    putWord8 0x17
+-    putWord32le stid
+-    putWord8 0x00 -- we only use @CURSOR_TYPE_NO_CURSOR@ here
+-    putWord32le 1 -- const 1
++    -- Preserve the ordinary encoder's direct value path: uploaded/cursor
++    -- descriptors must not add a wrapper/list allocation to existing callers.
++    putExecuteHeader stid 0
+     unless (null params) $ do
+         putByteString (fromBitMap nullmap)
+-        putWord8 0x01    -- always use new-params-bound-flag
++        putWord8 1
+         mapM_ putParamMySQLType params
+-        forM_ params putBinaryField
+-
++        mapM_ putBinaryField params
++putCommand (COM_STMT_EXECUTE_EXT stid flags params nullmap) =
++    putExecute stid flags params nullmap
++putCommand (COM_STMT_SEND_LONG_DATA ident parameter bytes) =
++    putWord8 0x18 >> putWord32le ident >> putWord16le parameter >> putByteString bytes
++putCommand (COM_STMT_FETCH ident count) = putWord8 0x1c >> putWord32le ident >> putWord32le count
+ putCommand (COM_STMT_CLOSE stid) = putWord8 0x19 >> putWord32le stid
+ putCommand (COM_STMT_RESET stid) = putWord8 0x1A >> putWord32le stid
+ putCommand COM_RESET_CONNECTION = putWord8 0x1f
+@@ -104,6 +125,24 @@ putCommand (COM_STMT_BULK_EXECUTE ident flags types rows) = do
+         BulkIgnore -> putWord8 3
+ putCommand _                     = error "unsupported command"
+ 
++-- Uploaded parameters still have a type descriptor, but no inline value.
++-- Their NULL bit must be clear, including when the uploaded value is empty.
++putExecute :: StmtID -> Word8 -> [ExecuteParameter] -> BitMap -> Put
++putExecute stid flags params nullmap = do
++    putExecuteHeader stid flags
++    unless (null params) $ do
++        putByteString (fromBitMap nullmap)
++        putWord8 0x01    -- always use new-params-bound-flag
++        mapM_ (putParamMySQLType . executeParameterValue) params
++        forM_ params $ \parameter -> case parameter of
++            ExecuteValue value -> putBinaryField value
++            _ -> pure ()
++
++-- | Fixed EXECUTE header shared without wrapping ordinary scalar parameters.
++putExecuteHeader :: StmtID -> Word8 -> Put
++putExecuteHeader ident flags = putWord8 0x17 >> putWord32le ident >>
++    putWord8 flags >> putWord32le 1
++
+ --------------------------------------------------------------------------------
+ --  Prepared statment related
+ 
+diff --git a/src/Database/MySQL/TLS.hs b/src/Database/MySQL/TLS.hs
+index f51dcf7..4c77b93 100644
+--- a/src/Database/MySQL/TLS.hs
++++ b/src/Database/MySQL/TLS.hs
+@@ -25,6 +25,8 @@ import qualified Data.Binary                    as Binary
+ import qualified Data.Binary.Put                as Binary
+ import qualified Data.Connection                as Conn
+ import           Data.IORef                     (writeIORef)
++import           Data.Bits                      (testBit)
++import           Control.Monad                  (when)
+ import           Data.TLSSetting
+ import           Database.MySQL.Connection      hiding (connect, connectDetail, connectWithOptions, connectDetailWithOptions)
+ import           Database.MySQL.Protocol.Auth
+@@ -66,12 +68,13 @@ connectDetailWithOptions options ci (params,name) = withConnectDeadline options
+         bracketOnError (TLS.contextNew sock params') (\ctx -> TLS.contextClose ctx `finally` Conn.close raw) $ \ctx -> do
+             TLS.handshake ctx
+             secure <- TLS.tLsToConnection (ctx,addr)
+-            conn <- newByteConnection options (Conn.source secure) (\p -> Conn.send secure (Binary.runPut (Binary.put p))) (TLS.contextClose ctx `finally` Conn.close raw)
++            conn <- newTransportConnection options (Conn.source secure) (Conn.send secure) (TLS.contextClose ctx `finally` Conn.close raw)
+             setExchangeSequence conn 2
+             writeIORef (connectionCapabilities conn) (caps+0x800)
+             mysqlWrite conn (encodeToPacket 2 (mkAuthWithOptions options (caps+0x800) ci greeting))
+             response <- readConnPacket conn
+             completeAuth conn greeting True (ciPassword ci) response
++            when (testBit caps 5) (connectionCompressionStart conn)
+             role <- initializeSession conn
+             rememberInitialSession conn ci role
+             pure (greeting,conn)
+diff --git a/validation/check.py b/validation/check.py
+index 7728eac..0281b1e 100644
+--- a/validation/check.py
++++ b/validation/check.py
+@@ -15,6 +15,12 @@ import publish_results as live
+ import stage1_gates
+ 
+ 
++def unchanged_inputs(expected):
++    """Do not measure a binary built while source/test inputs were changing."""
++    current = live.input_snapshot()
++    return all(current.get(key) == expected.get(key) for key in ('files', 'commit', 'branch'))
++
++
+ def install_runtime_data():
+     """Exercise Cabal installation, rather than making CA lookup depend on cwd.
+ 
+@@ -62,6 +68,15 @@ def cdc_benchmarks(output, repetitions, config):
+     return json.loads((destination / 'results.json').read_text())
+ 
+ 
++def wire_benchmarks(output, repetitions, config):
++    """Keep all optional-wire alternatives in complete Stage 6 runs."""
++    destination = output / 'wire'
++    subprocess.run([sys.executable, str(run.HERE / 'stage6_benchmarks.py'),
++                    '--config', str(config), '--output', str(destination),
++                    '--repetitions', str(repetitions)], cwd=run.ROOT, check=True)
++    return json.loads((destination / 'results.json').read_text())
++
++
+ def main():
+     if "--help" in sys.argv or "-h" in sys.argv:
+         status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
+@@ -174,6 +189,26 @@ def main():
+                 except KeyboardInterrupt:
+                     attempt.update(state='FAILED', stage='CDC benchmarks', reason='CDC benchmarks interrupted.')
+                     data, gate, status = None, None, 130
++            if data is not None and any(case['id'].startswith('stage6.') for case in data.get('correctness', [])):
++                try:
++                    from stage6_benchmarks import verify_evidence as verify_wire
++                    wire = wire_benchmarks(output, args.repetitions, args.config)
++                    verify_wire(wire, inputs)
++                    attempt['wire_features'] = wire
++                    comparison = wire['baseline_comparison']
++                    for metric in ('timing_investigations', 'allocation_investigations'):
++                        gate['wire_' + metric] = comparison[metric]
++                    gate['performance_requires_confirmation'] = gate.get('performance_requires_confirmation', False) or bool(
++                        comparison['timing_investigations'] or comparison['allocation_investigations'])
++                    (run.HERE / 'results/stage1-gates.json').write_text(json.dumps(gate, indent=2) + '\n')
++                    if any(item['percent'] > 20 for item in comparison['timing_investigations']):
++                        status = status or 1
++                except (OSError, ValueError, KeyError, RuntimeError, subprocess.CalledProcessError) as error:
++                    attempt.update(state='FAILED', stage='wire feature benchmarks', reason='Wire feature evidence failed: ' + str(error))
++                    data, gate, status = None, None, status or 1
++                except KeyboardInterrupt:
++                    attempt.update(state='FAILED', stage='wire feature benchmarks', reason='Wire feature benchmarks interrupted.')
++                    data, gate, status = None, None, 130
+             attempt.update(exit_code=status, finished_at=live.now())
+             live.publish(attempt,data,gate=gate)
+             print("Live results updated:",live.REPORT,flush=True)
+@@ -198,6 +233,8 @@ def main():
+         return finish(130, "Validation interrupted during build.")
+     if build.returncode:
+         return finish(build.returncode,"Current source did not build; no suite results were produced.")
++    if not unchanged_inputs(inputs):
++        return finish(1, "Test/build inputs changed during build; no suite was measured.")
+     attempt["stage"]="runtime data installation"
+     try:
+         installed = install_runtime_data()
+@@ -207,6 +244,8 @@ def main():
+         return finish(130, "Validation interrupted during runtime data installation.")
+     if installed:
+         return finish(installed, "Runtime data installation failed; no suite results were produced.")
++    if not unchanged_inputs(inputs):
++        return finish(1, "Test/build inputs changed during runtime data installation; no suite was measured.")
+     attempt["stage"]="suite"
+     options = [*[arg for arg in sys.argv[1:] if arg != "--working-tree"],"--output",str(output)]
+     if full and not args.compare and not args.freeze:
+diff --git a/validation/feature_benchmarks.py b/validation/feature_benchmarks.py
+index 9c94a72..91000a2 100644
+--- a/validation/feature_benchmarks.py
++++ b/validation/feature_benchmarks.py
+@@ -65,12 +65,12 @@ def verify_heap(spec, ident, entries):
+             or any(not isinstance(entry, list) or len(entry) != 2
+                    or any(type(value) is not int for value in entry) or entry[1] <= 0 for entry in entries)
+             or [entry[0] for entry in entries] != checkpoints*3):
+-        raise ValueError('CDC retained heap checkpoints are incomplete')
++        raise ValueError('streaming retained heap checkpoints are incomplete')
+     width = len(checkpoints)
+     for offset in range(0, len(entries), width):
+         window = entries[offset:offset+width]
+         if window[-1][1] > window[0][1]+2*1024*1024:
+-            raise ValueError('CDC retained heap grows beyond its streaming allowance')
++            raise ValueError('streaming retained heap grows beyond its streaming allowance')
+ 
+ 
+ def verify_measurements(spec, data, inputs):
+diff --git a/validation/hs/Main.hs b/validation/hs/Main.hs
+index 94a168d..f25dcc2 100644
+--- a/validation/hs/Main.hs
++++ b/validation/hs/Main.hs
+@@ -24,9 +24,11 @@ import qualified Validation.Stage4Bench as Stage4Bench
+ import qualified Validation.Stage5 as Stage5
+ import qualified Validation.Stage5Review as Stage5Review
+ import qualified Validation.Stage5Bench as Stage5Bench
++import qualified Validation.Stage6 as Stage6
++import qualified Validation.Stage6Bench as Stage6Bench
+ 
+ allCases :: [Case]
+-allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases ++ Stage5.cases ++ Stage5Review.cases
++allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases ++ Stage5.cases ++ Stage5Review.cases ++ Stage6.cases
+ 
+ main :: IO ()
+ main=do
+@@ -46,6 +48,7 @@ main=do
+         Nothing -> throwIO (userError ("unknown test " ++ ident))
+         Just c -> caseRun c >> putStrLn ("PASS\t" ++ ident)
+     run ["stage5-bench",ident,n]=Stage5Bench.run ident (read n)
++    run ["stage6-bench",ident,n]=Stage6Bench.run ident (read n)
+     run ["stage4-bench",ident,n]=Stage4Bench.run ident (read n)
+     run ["stage3-bench",ident,n]=Stage3Bench.run ident (read n)
+     run ["stage1-bench",ident,n]=Supplementary.run ident (read n)
+diff --git a/validation/hs/Validation/Reliability.hs b/validation/hs/Validation/Reliability.hs
+index b265369..91f6a23 100644
+--- a/validation/hs/Validation/Reliability.hs
++++ b/validation/hs/Validation/Reliability.hs
+@@ -12,6 +12,7 @@ import System.Timeout
+ import Validation.Common
+ import qualified Validation.Stage3 as Stage3
+ import qualified Validation.Stage4 as Stage4
++import qualified Validation.Stage6 as Stage6
+ 
+ cases :: [Case]
+ cases =
+@@ -148,10 +149,10 @@ cases =
+     , Case "capability.extended-metadata" "capabilities" $ Stage3.extendedFeature
+     , Case "capability.session-tracking" "capabilities" $ Stage4.trackingFeature
+     , Case "capability.reset-connection" "capabilities" $ Stage4.resetFeature
+-    , Case "capability.progress-reporting" "capabilities" $ throwIO (Unsupported "no negotiated MariaDB progress callback")
+-    , Case "capability.cursor-fetch" "capabilities" $ throwIO (Unsupported "no COM_STMT_FETCH/cursor API")
+-    , Case "capability.long-data" "capabilities" $ throwIO (Unsupported "no COM_STMT_SEND_LONG_DATA API")
+-    , Case "capability.compression" "capabilities" $ throwIO (Unsupported "no compressed packet transport")
++    , Case "capability.progress-reporting" "capabilities" Stage6.progressFeature
++    , Case "capability.cursor-fetch" "capabilities" Stage6.cursorFeature
++    , Case "capability.long-data" "capabilities" Stage6.longDataFeature
++    , Case "capability.compression" "capabilities" Stage6.compressionFeature
+     ]
+   where
+     cancellation c = do
+diff --git a/validation/linux/verify.py b/validation/linux/verify.py
+index 0bb5c2f..25f417f 100644
+--- a/validation/linux/verify.py
++++ b/validation/linux/verify.py
+@@ -122,7 +122,7 @@ def main():
+         lost = [case['id'] for case in previous['correctness']
+                 if case['status']=='PASS' and current.get(case['id'])!='PASS']
+         added_failures = [case['id'] for case in data['correctness']
+-                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.', 'stage5.')) and case['status']!='PASS']
++                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.', 'stage5.', 'stage6.')) and case['status']!='PASS']
+         sys.path.insert(0, str(ROOT/'validation'))
+         import stage1_gates
+         native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS + stage1_gates.SESSION_TARGETS + stage1_gates.CDC_TARGETS if current.get(ident) != 'PASS']
+@@ -144,6 +144,9 @@ def main():
+         for profile in ['cdc.decode.single-table', 'cdc.decode.interleaved', 'cdc.decode.compressed',
+                         'cdc.decode.sparse-update', 'cdc.framing.crc32', 'cdc.live.rows', 'cdc.live.checkpoints', 'cdc.retention']:
+             command([binary, 'stage5-bench', profile, '1000', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
++        import stage6_benchmarks
++        for profile in stage6_benchmarks.PROFILES:
++            command([binary, 'stage6-bench', profile, '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
+         print('Linux correctness profile passed; frozen timings were not compared.', flush=True)
+     finally:
+         process.terminate()
+diff --git a/validation/publish_results.py b/validation/publish_results.py
+index fb1d2af..b06725a 100644
+--- a/validation/publish_results.py
++++ b/validation/publish_results.py
+@@ -45,7 +45,10 @@ def is_input(path):
+                         "validation/baselines/macos-arm64-session-reuse/SHA256SUMS",
+                         "validation/baselines/macos-arm64-cdc/results.json",
+                         "validation/baselines/macos-arm64-cdc/SUMMARY.md",
+-                        "validation/baselines/macos-arm64-cdc/SHA256SUMS"}
++                        "validation/baselines/macos-arm64-cdc/SHA256SUMS",
++                        "validation/baselines/macos-arm64-wire-features/results.json",
++                        "validation/baselines/macos-arm64-wire-features/SUMMARY.md",
++                        "validation/baselines/macos-arm64-wire-features/SHA256SUMS"}
+             or path.startswith(".github/workflows/"))
+ 
+ 
+@@ -319,6 +322,20 @@ def render(document, baseline):
+         last = [sample['retained_heap'][-1][1] for sample in retained]
+         lines += ["", f"Streaming retained heap at 1,000,000 rows: **{min(last):,}–{max(last):,} bytes** after major GC across the measured processes. All warmup/measured checkpoints are retained in [current.json](results/current.json). This is live heap, not a process high-water mark.", "",
+             f"CDC comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [First CDC capture](baselines/macos-arm64-cdc/results.json).", ""]
++    wire = attempt.get('wire_features')
++    if wire and wire.get('complete') and wire.get('inputs', {}).get('sha256') == attempt['inputs']['sha256']:
++        lines += ["### Streamed parameters and optional wire features", "",
++            "Same-build alternatives use identical values and checksums. Lower time/allocation is better; change is `(current / baseline - 1) × 100`. Upload units are bytes, cursor/transport units are rows, and progress units are complete SELECT queries. Preparation/connection setup are excluded. Progress measures the negotiated idle-callback path; real progress delivery is tested separately.", "",
++            "| Comparison | Baseline ns/unit | Current ns/unit | Change vs baseline | Allocation change |",
++            "| --- | ---: | ---: | ---: | ---: |"]
++        for name, pair in wire['comparisons'].items():
++            old = wire['profiles'][pair['baseline']]['median_elapsed_ns_per_unit']
++            new = wire['profiles'][pair['current']]['median_elapsed_ns_per_unit']
++            changes = pair['change_percent']
++            lines.append(f"| `{name}` | {old:,.2f} | {new:,.2f} | {changes['elapsed_ns']:+.1f}% | {changes['allocated_bytes']:+.1f}% |")
++        comparison = wire['baseline_comparison']
++        lines += ["", "Server cursors materialize results and add fetch round trips. Compression is optional and trades CPU/allocations for fewer network bytes; local timing is not a WAN result. These features need not outperform ordinary streaming on this Mac.", "",
++            f"[First wire-feature capture](baselines/macos-arm64-wire-features/results.json): **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. All seven-repetition samples are retained in [current.json](results/current.json).", ""]
+     engines = sorted({ident.partition("/")[0] for ident in data["benchmarks"]}, key=lambda engine: (engine != "haskell", engine))
+     for engine in engines:
+         title = {"haskell": "Haskell driver", "connector-c": "MariaDB Connector/C control"}.get(engine, engine)
+@@ -399,6 +416,9 @@ def verify(document, snapshot, *, allow_working_tree=False):
+     if any(case['id'].startswith('stage5.') for case in data['correctness']):
+         from stage5_benchmarks import verify_evidence as verify_cdc
+         verify_cdc(attempt.get('cdc', {}), attempt['inputs'])
++    if any(case['id'].startswith('stage6.') for case in data['correctness']):
++        from stage6_benchmarks import verify_evidence as verify_wire
++        verify_wire(attempt.get('wire_features', {}), attempt['inputs'])
+     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
+         raise ValueError("recorder and report disagree about the tested commit")
+ 
+diff --git a/validation/results/previous-stage.json b/validation/results/previous-stage.json
+index 5de5a55..a7bb75f 100644
+--- a/validation/results/previous-stage.json
++++ b/validation/results/previous-stage.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": 1,
+-  "reference": "references/stage5-publication-1.json",
+-  "sha256": "bf2741c054e4c94a721e17944432d187f39ed488ababdafbbf34fa0440d5e3eb",
+-  "tested_commit": "9d0eedc6ee47ac7316658c00d7825ba8f1faafa7",
+-  "purpose": "Preserve all 636 published Stage 5 passes during the follow-up CDC review. Original, accepted, native, reuse and CDC performance baselines remain unchanged."
++  "reference": "references/stage5-review-publication-1.json",
++  "sha256": "b201a122915149e7f0f15313be62f752421ecb151ad42eb293bda9838d84fe33",
++  "tested_commit": "ba99d8cb5554c993bdefba341ebce7923295cf31",
++  "purpose": "Preserve all 694 published passes during Stage 6. Original, accepted and feature performance references remain unchanged."
+ }
+diff --git a/validation/stage1_gates.py b/validation/stage1_gates.py
+index 89e4ffc..3cf6882 100644
+--- a/validation/stage1_gates.py
++++ b/validation/stage1_gates.py
+@@ -141,6 +141,12 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
+             if new.get(ident, {}).get('status') != 'PASS':
+                 failures.append('required CDC target not passing: '+ident)
+ 
++    if require_targets and any(ident.startswith('stage6.') for ident in new):
++        for ident in ('capability.long-data', 'capability.cursor-fetch',
++                      'capability.progress-reporting', 'capability.compression'):
++            if new.get(ident, {}).get('status') != 'PASS':
++                failures.append('required wire feature not passing: ' + ident)
++
+     for ident, benchmark in candidate.get("benchmarks", {}).items():
+         prior_status = original.get("benchmarks", {}).get(ident, {}).get("status")
+         if benchmark["status"] not in statuses:
+diff --git a/src/Database/MySQL/Protocol/Compression.hs b/src/Database/MySQL/Protocol/Compression.hs
+new file mode 100644
+index 0000000..0b109b6
+--- /dev/null
++++ b/src/Database/MySQL/Protocol/Compression.hs
+@@ -0,0 +1,118 @@
++{-# LANGUAGE BangPatterns #-}
++-- | Optional MariaDB zlib framing, below ordinary packet framing and above the
++-- raw TCP/TLS byte transport. Compressed frames may contain several packets or
++-- just part of one. Both directions share a separate modulo-256 sequence.
++module Database.MySQL.Protocol.Compression
++    ( CompressionTransport(..), CompressionException(..), newCompressionTransport ) where
++
++import Control.Exception (Exception, throwIO)
++import Control.Monad (unless, when)
++import qualified Codec.Compression.Zlib as Zlib
++import qualified Codec.Compression.Zlib.Internal as Z
++import Data.Binary.Put
++import Data.Bits
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Lazy as L
++import Data.IORef
++import Data.Word
++import qualified System.IO.Streams as S
++
++-- | Invalid compressed framing or expansion. The enclosing connection retires
++-- its transport; decompression errors never become a clean end-of-stream.
++data CompressionException = CompressionException String deriving Show
++instance Exception CompressionException
++
++-- | Start only after successful plugin authentication. Reset once before each
++-- ordinary command, never between its continuation packets or reply packets.
++data CompressionTransport = CompressionTransport
++    { compressionInput :: !(S.InputStream B.ByteString)
++    , compressionSend :: !(L.ByteString -> IO ())
++    , compressionStart :: !(IO ())
++    , compressionReset :: !(IO ())
++    }
++
++-- | Construct a disabled transport. Inbound compressed and expanded frames are
++-- independently bounded by the smaller of the supplied byte limit and 16 MiB-1.
++-- Outbound frames contain at most 64 KiB of ordinary wire bytes. Small or
++-- incompressible frames use the protocol's uncompressed representation.
++newCompressionTransport :: Word64 -> Int -> S.InputStream B.ByteString
++                        -> (L.ByteString -> IO ()) -> IO CompressionTransport
++newCompressionTransport limit threshold input output = do
++    enabled <- newIORef False
++    sequenceNumber <- newIORef (0 :: Word8)
++    pending <- newIORef []
++    let bad = throwIO . CompressionException
++        ceilingBytes = fromIntegral (min 16777215 (min limit (fromIntegral (maxBound :: Int))))
++        advance actual = do
++            expected <- readIORef sequenceNumber
++            unless (actual == expected) (bad "unexpected compressed packet sequence")
++            writeIORef sequenceNumber (expected + 1)
++        readFrame = do
++            header <- S.readExactly 7 input
++            let packed = word24 header 0
++                expanded = word24 header 4
++            when (packed == 0 || packed > ceilingBytes || expanded > ceilingBytes)
++                (bad "compressed frame exceeds client limit or is empty")
++            advance (B.index header 3)
++            bytes <- S.readExactly packed input
++            if expanded == 0 then pure [bytes]
++                else L.toChunks <$> inflateExact expanded bytes
++        readCompressed = do
++            chunks <- readIORef pending
++            case chunks of
++                first:rest -> writeIORef pending rest >> pure (Just first)
++                [] -> do
++                    chunks' <- readFrame
++                    case chunks' of
++                        [] -> bad "compressed frame produced no bytes"
++                        first:rest -> writeIORef pending rest >> pure (Just first)
++        sendFrames bytes
++            | L.null bytes = pure ()
++            | otherwise = do
++                let (part,rest) = L.splitAt 65536 bytes
++                    count = fromIntegral (L.length part)
++                    compressed = if count >= threshold then Zlib.compress part else part
++                    savesBytes = count >= threshold && L.length compressed < fromIntegral count
++                    payload = if savesBytes then compressed else part
++                    expanded = if savesBytes then count else 0
++                sequenceN <- readIORef sequenceNumber
++                writeIORef sequenceNumber (sequenceN + 1)
++                output (runPut (put24 (fromIntegral (L.length payload)) >> putWord8 sequenceN >>
++                    put24 expanded >> putLazyByteString payload))
++                sendFrames rest
++    source <- S.makeInputStream $ do
++        active <- readIORef enabled
++        if active then readCompressed else S.read input
++    let send bytes = readIORef enabled >>= \active -> if active then sendFrames bytes else output bytes
++        start = writeIORef sequenceNumber 0 >> writeIORef enabled True
++        reset = writeIORef sequenceNumber 0
++    pure (CompressionTransport source send start reset)
++  where
++    word24 :: B.ByteString -> Int -> Int
++    word24 bytes offset = fromIntegral (B.index bytes offset) .|.
++        (fromIntegral (B.index bytes (offset+1)) `shiftL` 8) .|.
++        (fromIntegral (B.index bytes (offset+2)) `shiftL` 16)
++    put24 :: Int -> Put
++    put24 n = putWord8 (fromIntegral n) >> putWord8 (fromIntegral (n `shiftR` 8)) >>
++        putWord8 (fromIntegral (n `shiftR` 16))
++
++-- Streaming zlib inspection bounds output before retaining it and checks both
++-- the advertised length and compressed stream termination. The lazy pure
++-- decompressor alone cannot distinguish a false length or trailing stream.
++inflateExact :: Int -> B.ByteString -> IO L.ByteString
++inflateExact expected input = go 0 [] [input] (Z.decompressIO Z.zlibFormat Z.defaultDecompressParams)
++  where
++    bad = throwIO . CompressionException
++    go !size chunks pending stream = case stream of
++        Z.DecompressInputRequired next -> case pending of
++            [] -> next B.empty >>= go size chunks []
++            first:rest -> next first >>= go size chunks rest
++        Z.DecompressOutputAvailable chunk next -> do
++            let total = size + B.length chunk
++            when (total > expected) (bad "zlib output exceeds advertised frame length")
++            next >>= go total (chunk:chunks) pending
++        Z.DecompressStreamEnd trailing -> do
++            unless (size == expected && B.null trailing && all B.null pending)
++                (bad "zlib frame length or trailing data mismatch")
++            pure (L.fromChunks (reverse chunks))
++        Z.DecompressStreamError err -> bad ("invalid zlib frame: " ++ show err)
+diff --git a/src/Database/MySQL/Protocol/Progress.hs b/src/Database/MySQL/Protocol/Progress.hs
+new file mode 100644
+index 0000000..0138e46
+--- /dev/null
++++ b/src/Database/MySQL/Protocol/Progress.hs
+@@ -0,0 +1,45 @@
++-- | MariaDB progress envelopes use a reserved ERR number without completing
++-- the command. Parsing remains separate from callback/lifecycle policy.
++module Database.MySQL.Protocol.Progress
++    ( Progress(..), isProgressPacket, getProgress ) where
++
++import Control.Monad (unless)
++import Data.Binary.Parser
++import Data.Bits
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Lazy as L
++import Data.Word
++import Database.MySQL.Protocol.Packet
++
++-- | One server stage. 'progressThousandths' ranges from zero to 100000 (100%);
++-- stages are one-based. Description bytes use the server encoding and are
++-- copied out of the wire buffer. A report does not guarantee eventual success.
++data Progress = Progress
++    { progressStage :: !Word8
++    , progressStageCount :: !Word8
++    , progressThousandths :: !Word32
++    , progressInfo :: !B.ByteString
++    } deriving (Eq, Show)
++
++-- | Recognize the reserved marker without flattening an ordinary packet.
++isProgressPacket :: Packet -> Bool
++isProgressPacket packet = L.take 3 (pBody packet) == L.pack [255,255,255]
++
++-- | Parse the single-description wire format. Use an exact packet parser to
++-- reject trailers; unknown description counts and invalid ranges fail closed.
++getProgress :: Get Progress
++getProgress = do
++    marker <- getByteString 3
++    unless (marker == B.pack [255,255,255]) (fail "invalid progress marker")
++    strings <- getWord8
++    unless (strings == 1) (fail "unsupported progress description count")
++    stage <- getWord8
++    stages <- getWord8
++    a <- fromIntegral <$> getWord8
++    b <- fromIntegral <$> getWord8
++    c <- fromIntegral <$> getWord8
++    let amount = a .|. (b `shiftL` 8) .|. (c `shiftL` 16)
++    unless (stage > 0 && stage <= stages && amount <= 100000)
++        (fail "invalid progress stage or percentage")
++    info <- B.copy <$> getLenEncBytes
++    pure (Progress stage stages amount info)
+diff --git a/validation/hs/Validation/Stage6.hs b/validation/hs/Validation/Stage6.hs
+new file mode 100644
+index 0000000..63000bf
+--- /dev/null
++++ b/validation/hs/Validation/Stage6.hs
+@@ -0,0 +1,625 @@
++{-# LANGUAGE ScopedTypeVariables #-}
++-- | Literal protocol fixtures and real MariaDB checks for streamed parameters,
++-- cursors, progress and compression. Inventory checks call real public APIs.
++module Validation.Stage6 (cases, longDataFeature, cursorFeature, progressFeature, compressionFeature) where
++
++import Control.Concurrent
++import Control.Exception hiding (assert)
++import Control.Monad
++import Data.Binary.Put
++import qualified Data.Binary as Binary
++import qualified Codec.Compression.Zlib as Zlib
++import Data.Bits
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Lazy as L
++import Data.IORef
++import qualified Data.Text as T
++import Data.Word
++import Database.MySQL.Base
++import qualified Database.MySQL.Connection as C
++import qualified Database.MySQL.TLS as TLS
++import qualified System.IO.Streams as S
++import System.Environment (getEnv)
++import System.Timeout
++import Validation.Common
++import Validation.FaultTransport (scripted)
++import Validation.WireProxy (withWireProxy)
++
++field :: ColumnDef
++field = ColumnDef "" "" "" "n" "" 63 20 mySQLTypeLongLong 0 0
++
++preparePackets :: Int -> Int -> [Packet]
++preparePackets parameters columns =
++    putToPacket 1 (putWord8 0 >> putWord32le 9 >> putWord16le (fromIntegral columns) >>
++        putWord16le (fromIntegral parameters) >> putWord8 0 >> putWord16le 0) :
++    [encodeToPacket (fromIntegral n) field | n <- [2..1+parameters+columns]]
++
++ending :: Word8 -> Word16 -> Packet
++ending n flags = putToPacket n (putWord8 254 >> putWord8 0 >> putWord8 0 >> putWord16le flags >> putWord16le 0)
++
++binaryRow :: Word8 -> Word64 -> Packet
++binaryRow n value = putToPacket n (putWord8 0 >> putWord8 0 >> putWord64le value)
++
++statementFixture :: ConnectionOptions -> Int -> Int -> [Packet]
++                 -> IO (MySQLConn, PreparedStatement, IO [Packet], IO Int)
++statementFixture options parameters columns packets = do
++    (conn,sent,closed) <- scripted options (preparePackets parameters columns ++ packets)
++    writeIORef (C.connectionCapabilities conn) (bit 24)
++    statement <- prepareStatement conn "SELECT ?"
++    pure (conn,statement,sent,closed)
++
++cursorFixture :: [Packet] -> IO (MySQLConn, PreparedCursor, IO [Packet], IO Int)
++cursorFixture batches = do
++    (conn,statement,sent,closed) <- statementFixture defaultConnectionOptions 0 1
++        ([putToPacket 1 (putWord8 1),encodeToPacket 2 field,ending 3 66] ++ batches)
++    (_,cursor) <- openCursor statement []
++    pure (conn,cursor,sent,closed)
++
++expectStatementError :: (StatementException -> Bool) -> IO a -> IO ()
++expectStatementError matches action = do
++    result <- try action
++    case result of
++        Left err -> assert (matches err) ("wrong statement exception: " ++ show err)
++        Right _ -> fail "expected a local statement error"
++
++expectLocal :: (ConnectionError -> Bool) -> IO a -> IO ()
++expectLocal matches action = do
++    result <- try action
++    case result of
++        Left err -> assert (matches err) ("wrong connection exception: " ++ show err)
++        Right _ -> fail "expected a local connection error"
++
++assertRetired :: MySQLConn -> IO Int -> IO a -> IO ()
++assertRetired conn closed action = do
++    expectRejection action
++    equal "retired" Broken =<< connectionStatus conn
++    equal "released once" 1 =<< closed
++
++progressPacket :: Word8 -> B.ByteString -> Packet
++progressPacket n info = putToPacket n $ do
++    putByteString (B.pack [255,255,255,1,1,2,80,195,0]) -- 50.000%, stage 1/2.
++    putLenEncBytes info
++
++-- Independent compressed-frame headers, including raw-frame representation.
++frame :: Word8 -> Int -> L.ByteString -> L.ByteString
++frame n expanded payload = runPut $ do
++    put24 (fromIntegral (L.length payload)); putWord8 n; put24 expanded; putLazyByteString payload
++  where
++    put24 :: Int -> Put
++    put24 x = mapM_ (putWord8 . fromIntegral . shiftR x) [0,8,16]
++
++compressedFixture :: [B.ByteString] -> ConnectionOptions
++                  -> IO (MySQLConn, IO [L.ByteString], IO Int)
++compressedFixture chunks options = do
++    input <- S.fromList chunks
++    sent <- newIORef []
++    closed <- newIORef (0::Int)
++    conn <- C.newTransportConnection options {enableCompression=True} input
++        (\bytes -> modifyIORef' sent (bytes:)) (modifyIORef' closed (+1))
++    writeIORef (C.connectionCapabilities conn) (bit 5)
++    C.connectionCompressionStart conn
++    pure (conn,reverse <$> readIORef sent,readIORef closed)
++
++case6 :: String -> IO () -> Case
++case6 name = Case ("stage6." ++ name) "stage6"
++
++withOptions :: ConnectionOptions -> (MySQLConn -> IO a) -> IO a
++withOptions options action = config >>= \ci -> withConnect (connectWithOptions options ci) action
++
++longDataFeature :: IO ()
++longDataFeature = withConn $ \conn -> do
++    exec conn "CREATE TEMPORARY TABLE mb_stage6_long(n INT,b LONGBLOB,t LONGTEXT)"
++    withPreparedStatement conn "INSERT INTO mb_stage6_long VALUES(?,?,?)" $ \statement -> do
++        bytes <- S.fromList [B.pack [0..255],B.replicate 200000 97]
++        text <- S.fromList ["雪",T.replicate 10000 "😀é"]
++        ok <- executePreparedStream statement [PreparedValue (MySQLInt32 7),PreparedBytes bytes,PreparedText text]
++        equal "inserted" 1 (okAffectedRows ok)
++    equal "all bytes/text stored" [[7,200256,60003,20001]] . map (map number) =<<
++        rows conn "SELECT n,OCTET_LENGTH(b),OCTET_LENGTH(t),CHAR_LENGTH(t) FROM mb_stage6_long"
++    healthy conn
++
++cursorFeature :: IO ()
++cursorFeature = withConn $ \conn -> withPreparedStatement conn "SELECT seq FROM seq_1_to_23" $ \statement -> do
++    withCursor statement [] $ \cursor -> do
++        let loop acc = do
++                done <- cursorExhausted cursor
++                if done then pure acc else do
++                    stream <- fetchCursor cursor 5
++                    values <- S.toList stream
++                    decoded <- forM values $ \row -> case row of
++                        [value] -> pure (number value)
++                        _ -> fail "unexpected cursor row width"
++                    loop (acc ++ decoded)
++        equal "cursor order and final batch" [1..23] =<< loop []
++    healthy conn
++
++progressFeature :: IO ()
++progressFeature = withOptions defaultConnectionOptions {enableProgressReporting=True} $ \conn -> do
++    reports <- newIORef []
++    setProgressCallback conn (Just (\p -> modifyIORef' reports (p:)))
++    exec conn "CREATE TEMPORARY TABLE mb_stage6_progress(n INT,v VARCHAR(200)) ENGINE=Aria"
++    exec conn "INSERT INTO mb_stage6_progress SELECT seq,REPEAT('x',200) FROM seq_1_to_20000"
++    exec conn "ALTER TABLE mb_stage6_progress ADD INDEX(n),ALGORITHM=COPY"
++    actual <- readIORef reports
++    assert (not (null actual)) "real ALTER must deliver at least one progress report"
++    assert (all (\p -> progressStage p > 0 && progressStage p <= progressStageCount p && progressThousandths p <= 100000) actual)
++        "valid real progress stages"
++    healthy conn
++
++compressionFeature :: IO ()
++compressionFeature = withOptions defaultConnectionOptions {enableCompression=True} $ \conn -> do
++    equal "compressed value" (T.replicate 100000 "é雪") . textOf =<< scalar conn "SELECT REPEAT('é雪',100000)"
++    withPreparedStatement conn "SELECT OCTET_LENGTH(?),?" $ \statement -> do
++        (_,stream) <- queryPrepared statement [MySQLBytes (B.replicate 100000 65),MySQLInt64 7]
++        equal "compressed prepared parity" [[100000,7]] . map (map number) =<< S.toList stream
++    healthy conn
++
++cases :: [Case]
++cases =
++    [ case6 "long-data-live" longDataFeature
++    , case6 "cursor-live" cursorFeature
++    , case6 "progress-live" progressFeature
++    , case6 "compression-live" compressionFeature
++    , case6 "long-data-query-empty-and-binary" $ withConn $ \conn ->
++        withPreparedStatement conn "SELECT OCTET_LENGTH(?),HEX(?)" $ \statement -> do
++            empty <- S.fromList []
++            bytes <- S.fromList [B.pack [0,255,0],B.pack [128,1]]
++            (_,stream) <- queryPreparedStream statement [PreparedBytes empty,PreparedBytes bytes]
++            values <- S.toList stream
++            case values of
++                [[size,value]] -> do
++                    equal "empty non-NULL" 0 (number size)
++                    equal "exact bytes" "00FF008001" (textOf value)
++                _ -> fail "unexpected streamed query result shape"
++            healthy conn
++    , case6 "cursor-close-pending-batch" $ withConn $ \conn ->
++        withPreparedStatement conn "SELECT seq FROM seq_1_to_1000" $ \statement -> do
++            (_,cursor) <- openCursor statement []
++            batch <- fetchCursor cursor 100
++            equal "first cursor row" (Just [1]) . fmap (map number) =<< S.read batch
++            closeCursor cursor
++            closeCursor cursor
++            healthy conn
++            (_,stream) <- queryPrepared statement []
++            equal "statement survives reset" 1000 . length =<< S.toList stream
++    , case6 "compression-tls" $ do
++        ci <- config
++        ca <- getEnv "MB_TLS_CA"
++        params <- TLS.makeClientParams (TLS.CustomCAStore ca)
++        withConnect (TLS.connectWithOptions defaultConnectionOptions {enableCompression=True} ci (params,"localhost")) $ \conn -> do
++            equal "TLS compressed length" 1000000 =<< scalarInt conn "SELECT OCTET_LENGTH(REPEAT('x',1000000))"
++            healthy conn
++    , case6 "compression-socket" $ do
++        ci <- config; path <- socketPath
++        withConnect (connectUnixSocketWithOptions defaultConnectionOptions {enableCompression=True} path ci) healthy
++    ] ++ longDataCases ++ cursorCases ++ progressCases ++ compressionCases ++ lifecycleCases
++
++longDataCases :: [Case]
++longDataCases =
++    [ case6 "long-data-wire-omission" $ do
++        (_,statement,sent,_) <- statementFixture defaultConnectionOptions 1 0 [encodeToPacket 1 (OK 1 0 2 0)]
++        source <- S.fromList ["ab","cd"]
++        void (executePreparedStream statement [PreparedBytes source])
++        packets <- sent
++        equal "prepare, empty marker, coalesced chunk, execute" [22,24,24,23] (map (L.head . pBody) packets)
++        equal "coalesced data retains byte order" "abcd" (L.drop 7 (pBody (packets !! 2)))
++        equal "uploaded parameter has type but no inline value"
++            (L.pack [23,9,0,0,0,0,1,0,0,0,0,1,252,0]) (pBody (last packets))
++        equal "each no-reply command resets sequence" [0,0,0,0] (map pSeqN packets)
++    , case6 "long-data-arity-does-not-read-source" $ do
++        (conn,statement,sent,_) <- statementFixture defaultConnectionOptions 1 0 []
++        consumed <- newIORef (0::Int)
++        source <- S.makeInputStream (modifyIORef' consumed (+1) >> pure Nothing)
++        result <- try (executePreparedStream statement [PreparedBytes source,PreparedValue MySQLNull])
++        case result of Left WrongParamsCount -> pure (); _ -> fail "expected exact arity rejection"
++        equal "no source reads" 0 =<< readIORef consumed
++        equal "no upload writes" 1 . length =<< sent
++        equal "connection still ready" Ready =<< connectionStatus conn
++    , case6 "long-data-budget" $ do
++        (conn,statement,_,closed) <- statementFixture defaultConnectionOptions {maximumLongDataBytes=3} 1 0 []
++        source <- S.fromList ["ab","cd"]
++        assertRetired conn closed (executePreparedStream statement [PreparedBytes source])
++    , case6 "long-data-source-failure" $ do
++        (conn,statement,_,closed) <- statementFixture defaultConnectionOptions 1 0 []
++        source <- S.makeInputStream (throwIO (userError "source-marker"))
++        result <- try (executePreparedStream statement [PreparedBytes source])
++        case result of
++            Left (err::SomeException) -> assert ("source-marker" `T.isInfixOf` T.pack (displayException err)) "source error identity"
++            Right _ -> fail "source did not fail"
++        equal "retired after no-reply command" Broken =<< connectionStatus conn
++        equal "one close" 1 =<< closed
++    , case6 "long-data-cancellation" $ do
++        (conn,statement,_,closed) <- statementFixture defaultConnectionOptions 1 0 []
++        blocked <- newEmptyMVar
++        source <- S.makeInputStream (takeMVar blocked :: IO (Maybe B.ByteString))
++        result <- timeout 20000 (executePreparedStream statement [PreparedBytes source])
++        equal "cancel propagated" Nothing result
++        equal "cancel retired" Broken =<< connectionStatus conn
++        equal "one release" 1 =<< closed
++    , case6 "long-data-exclusive-source" $ do
++        (conn,statement,sent,_) <- statementFixture defaultConnectionOptions 1 0 [encodeToPacket 1 (OK 1 0 2 0)]
++        source <- S.makeInputStream $ do
++            expectLocal (\e -> case e of ConcurrentConnectionUse -> True; _ -> False) (ping conn)
++            pure Nothing
++        void (executePreparedStream statement [PreparedBytes source])
++        equal "no nested ping bytes" [22,24,23] . map (L.head . pBody) =<< sent
++    , case6 "long-data-large-chunk-split" $ do
++        (_,statement,sent,_) <- statementFixture defaultConnectionOptions 1 0 [encodeToPacket 1 (OK 1 0 2 0)]
++        source <- S.fromList [B.replicate 200000 42]
++        void (executePreparedStream statement [PreparedBytes source])
++        packets <- sent
++        let sizes = [pLen p-7 | p <- packets,L.head (pBody p)==24]
++        equal "bounded chunk lengths" [0,65536,65536,65536,3392] sizes
++    , case6 "long-data-following-normal-execution" $ withConn $ \conn ->
++        withPreparedStatement conn "SELECT OCTET_LENGTH(?)" $ \statement -> do
++            forM_ [100,0,200] $ \size -> do
++                source <- S.fromList [B.replicate size 42]
++                (_,stream) <- queryPreparedStream statement [PreparedBytes source]
++                equal "new upload replaces prior state" [[toInteger size]] . map (map number) =<< S.toList stream
++                (_,normal) <- queryPrepared statement [MySQLBytes "abc"]
++                equal "normal execute has no old upload" [[3]] . map (map number) =<< S.toList normal
++    , case6 "long-data-text-client-charset" $ withConn $ \conn -> do
++        exec conn "SET NAMES latin1"
++        withPreparedStatement conn "SELECT HEX(?)" $ \statement -> do
++            source <- S.fromList ["é"]
++            (_,stream) <- queryPreparedStream statement [PreparedText source]
++            values <- S.toList stream
++            equal "latin1 streamed bytes" [["E9"]] (map (map textOf) values)
++    , case6 "long-data-rollback" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage6_rollback(v BLOB) ENGINE=InnoDB"
++        withPreparedStatement conn "INSERT INTO mb_stage6_rollback VALUES(?)" $ \statement -> do
++            result <- try $ withTransaction conn $ do
++                source <- S.fromList ["abc"]
++                void (executePreparedStream statement [PreparedBytes source])
++                throwIO (userError "rollback-marker")
++            case result of Left (_::SomeException) -> pure (); Right () -> fail "expected body exception"
++        equal "streamed insert rolled back" 0 =<< scalarInt conn "SELECT COUNT(*) FROM mb_stage6_rollback"
++    ]
++
++cursorCases :: [Case]
++cursorCases =
++    [ case6 "cursor-wire-and-final-empty-fetch" $ do
++        (_,cursor,sent,_) <- cursorFixture [binaryRow 1 7,ending 2 66,ending 1 130]
++        first <- fetchCursor cursor 1 >>= S.toList
++        equal "binary row" [[7]] (map (map number) first)
++        equal "server still reports open" False =<< cursorExhausted cursor
++        equal "final empty batch" [] =<< (fetchCursor cursor 1 >>= S.toList)
++        equal "server exhausted" True =<< cursorExhausted cursor
++        packets <- sent
++        equal "read-only execute flag" 1 (L.index (pBody (packets !! 1)) 5)
++        equal "literal FETCH" (L.pack [28,9,0,0,0,1,0,0,0]) (pBody (last packets))
++    , case6 "cursor-invalid-count-is-local" $ do
++        (conn,cursor,sent,_) <- cursorFixture [encodeToPacket 1 (OK 0 0 2 0)]
++        forM_ [0,65537] $ \n -> expectStatementError (\e -> case e of InvalidCursorUse _ -> True; _ -> False) (fetchCursor cursor n)
++        equal "no FETCH sent" 2 . length =<< sent
++        equal "cursor still owns connection" Streaming =<< connectionStatus conn
++        closeCursor cursor
++    , case6 "cursor-unfinished-batch-is-local" $ do
++        (_,cursor,sent,_) <- cursorFixture [binaryRow 1 7,ending 2 66,encodeToPacket 1 (OK 0 0 2 0)]
++        batch <- fetchCursor cursor 2
++        expectStatementError (\e -> case e of InvalidCursorUse _ -> True; _ -> False) (fetchCursor cursor 2)
++        equal "one fetch only" 3 . length =<< sent
++        equal "batch remains readable" [[7]] . map (map number) =<< S.toList batch
++        closeCursor cursor
++    , case6 "cursor-more-rows-than-requested" $ do
++        (conn,cursor,_,closed) <- cursorFixture [binaryRow 1 7,binaryRow 2 8,ending 3 130]
++        assertRetired conn closed (fetchCursor cursor 1 >>= S.toList)
++    , case6 "cursor-invalid-end-status" $ do
++        (conn,cursor,_,closed) <- cursorFixture [ending 1 2]
++        assertRetired conn closed (fetchCursor cursor 2 >>= S.toList)
++    , case6 "cursor-close-without-fetch" $ do
++        (conn,cursor,sent,_) <- cursorFixture [encodeToPacket 1 (OK 0 0 2 0)]
++        closeCursor cursor
++        equal "close uses RESET without fetching" [22,23,26] . map (L.head . pBody) =<< sent
++        equal "ready after cursor close" Ready =<< connectionStatus conn
++    , case6 "cursor-foreign-thread" $ do
++        (_,cursor,sent,_) <- cursorFixture [encodeToPacket 1 (OK 0 0 2 0)]
++        done <- newEmptyMVar
++        _ <- forkIO (try (fetchCursor cursor 1) >>= putMVar done)
++        result <- takeMVar done
++        case result of Left ConcurrentConnectionUse -> pure (); _ -> fail "foreign thread must be rejected"
++        equal "no foreign writes" 2 . length =<< sent
++        closeCursor cursor
++    , case6 "cursor-normal-query-blocked" $ withConn $ \conn ->
++        withPreparedStatement conn "SELECT seq FROM seq_1_to_100" $ \statement ->
++            withCursor statement [] $ \cursor -> do
++                result <- try (ping conn)
++                case result of Left UnconsumedResultSet -> pure (); _ -> fail "cursor must retain command lease"
++                batch <- fetchCursor cursor 3
++                void (S.read batch)
++    , case6 "cursor-cleanup-transaction-rollback" $ withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage6_cursor_tx(n INT) ENGINE=InnoDB"
++        void (try (withTransaction conn $ do
++            exec conn "INSERT INTO mb_stage6_cursor_tx VALUES(1)"
++            withPreparedStatement conn "SELECT seq FROM seq_1_to_1000" $ \statement ->
++                withCursor statement [] $ \cursor -> do
++                    batch <- fetchCursor cursor 50
++                    void (S.read batch)
++                    throwIO (userError "cursor-body-marker")) :: IO (Either SomeException ()))
++        equal "rollback after cursor release" 0 =<< scalarInt conn "SELECT COUNT(*) FROM mb_stage6_cursor_tx"
++        healthy conn
++    , case6 "cursor-empty-live" $ withConn $ \conn ->
++        withPreparedStatement conn "SELECT 1 WHERE 0" $ \statement ->
++            withCursor statement [] $ \cursor -> do
++                equal "empty cursor" [] =<< (fetchCursor cursor 10 >>= S.toList)
++                equal "empty exhaustion" True =<< cursorExhausted cursor
++    , case6 "cursor-metadata-cache-reexecution" $ withConn $ \conn ->
++        withPreparedStatement conn "SELECT CAST(? AS SIGNED)" $ \statement -> do
++            forM_ [1..3] $ \n -> withCursor statement [MySQLInt64 n] $ \cursor -> do
++                equal "cached cursor metadata" [[toInteger n]] . map (map number) =<< (fetchCursor cursor 2 >>= S.toList)
++            (_,normal) <- queryPrepared statement [MySQLInt64 9]
++            equal "normal after cursor" [[9]] . map (map number) =<< S.toList normal
++    ]
++
++progressCases :: [Case]
++progressCases =
++    [ case6 "progress-literal-envelope" $ do
++        (conn,_,_) <- scripted defaultConnectionOptions {enableProgressReporting=True}
++            [progressPacket 1 "building",encodeToPacket 2 (OK 0 0 2 0)]
++        writeIORef (C.connectionCapabilities conn) (bit 32)
++        reports <- newIORef []
++        setProgressCallback conn (Just (\p -> modifyIORef' reports (p:)))
++        void (ping conn)
++        equal "literal progress decoded" [Progress 1 2 50000 "building"] =<< readIORef reports
++    , case6 "progress-callback-failure-retires" $ do
++        (conn,_,closed) <- scripted defaultConnectionOptions {enableProgressReporting=True}
++            [progressPacket 1 "building",encodeToPacket 2 (OK 0 0 2 0)]
++        writeIORef (C.connectionCapabilities conn) (bit 32)
++        setProgressCallback conn (Just (const (throwIO (userError "callback-marker"))))
++        assertRetired conn closed (ping conn)
++    , case6 "progress-callback-reentry-rejected" $ do
++        (conn,sent,_) <- scripted defaultConnectionOptions {enableProgressReporting=True}
++            [progressPacket 1 "",encodeToPacket 2 (OK 0 0 2 0)]
++        writeIORef (C.connectionCapabilities conn) (bit 32)
++        setProgressCallback conn (Just (const (expectLocal (\e -> case e of ConcurrentConnectionUse -> True; _ -> False) (ping conn))))
++        void (ping conn)
++        equal "only original ping" 1 . length =<< sent
++    , case6 "progress-discard-without-handler" $ do
++        (conn,_,_) <- scripted defaultConnectionOptions {enableProgressReporting=True}
++            [progressPacket 1 "",progressPacket 2 "next",encodeToPacket 3 (OK 0 0 2 0)]
++        writeIORef (C.connectionCapabilities conn) (bit 32)
++        void (ping conn)
++        equal "reports are not command completion" Ready =<< connectionStatus conn
++    , case6 "progress-not-negotiated" $ do
++        (conn,sent,_) <- scripted defaultConnectionOptions []
++        expectLocal (\e -> case e of ProtocolError _ -> True; _ -> False) (setProgressCallback conn Nothing)
++        equal "no negotiation or callback SQL" [] =<< sent
++    ] ++
++    [ case6 ("progress-malformed-" ++ name) $ do
++        (conn,_,closed) <- scripted defaultConnectionOptions {enableProgressReporting=True} [Packet (L.length body) 1 body]
++        writeIORef (C.connectionCapabilities conn) (bit 32)
++        assertRetired conn closed (ping conn)
++    | (name,body) <-
++        [("count",L.pack [255,255,255,2,1,2,0,0,0,0]),
++         ("stage",L.pack [255,255,255,1,0,2,0,0,0,0]),
++         ("percent",L.pack [255,255,255,1,1,2,255,255,255,0]),
++         ("truncated",L.pack [255,255,255,1,1]),
++         ("trailer",pBody (progressPacket 1 "") <> L.singleton 1)]
++    ]
++
++compressionCases :: [Case]
++compressionCases =
++    [ case6 ("compression-byte-split-" ++ show split) $ do
++        let bytes = L.toStrict (frame 1 0 (Binary.encode (encodeToPacket 1 (OK 0 0 2 0))))
++        (conn,_,_) <- compressedFixture [B.take split bytes,B.drop split bytes] defaultConnectionOptions
++        void (ping conn)
++        equal "valid split" Ready =<< connectionStatus conn
++    | split <- [1..17]
++    ] ++
++    [ case6 "compression-zlib-envelope" $ do
++        (conn,_,_) <- compressedFixture [L.toStrict (frame 1 (fromIntegral (L.length ordinary)) (Zlib.compress ordinary))] defaultConnectionOptions
++        void (ping conn)
++    , case6 "compression-small-write-raw-frame" $ do
++        (conn,sent,_) <- compressedFixture [L.toStrict (frame 1 0 (Binary.encode (encodeToPacket 1 (OK 0 0 2 0))))] defaultConnectionOptions
++        void (ping conn)
++        equal "literal compressed-transport PING" [L.pack [5,0,0,0,0,0,0,1,0,0,0,14]] =<< sent
++    , case6 "compression-large-roundtrip" $ withOptions defaultConnectionOptions {enableCompression=True} $ \conn ->
++        withPreparedStatement conn "SELECT ?" $ \statement -> do
++            let bytes = B.replicate 16777216 90
++            (_,stream) <- queryPrepared statement [MySQLBytes bytes]
++            equal "continued compressed row" [[MySQLBytes bytes]] =<< S.toList stream
++            healthy conn
++    , case6 "all-features-together" $ withOptions defaultConnectionOptions {enableCompression=True,enableProgressReporting=True} $ \conn -> do
++        setProgressCallback conn (Just (const (pure ())))
++        withPreparedStatement conn "SELECT OCTET_LENGTH(?)" $ \statement -> do
++            source <- S.fromList (replicate 20 (B.replicate 65536 42))
++            (_,stream) <- queryPreparedStream statement [PreparedBytes source]
++            equal "compressed streamed parameters" [[1310720]] . map (map number) =<< S.toList stream
++        withPreparedStatement conn "SELECT seq FROM seq_1_to_100" $ \statement ->
++            withCursor statement [] $ \cursor -> do
++                values <- fetchCursor cursor 200 >>= S.toList
++                equal "compressed cursor" 5050 (sum (map (sum . map number) values))
++        void (resetConnection conn)
++        healthy conn
++    ] ++
++    [ case6 ("compression-invalid-" ++ name) $ do
++        (conn,_,closed) <- compressedFixture [L.toStrict bytes] defaultConnectionOptions
++        assertRetired conn closed (ping conn)
++    | (name,bytes) <-
++        [("sequence",frame 2 0 ordinary),
++         ("zlib",frame 1 11 "garbage"),
++         ("length",frame 1 12 (Zlib.compress ordinary)),
++         ("expansion",frame 1 1 (Zlib.compress ordinary)),
++         ("trailing",frame 1 11 (Zlib.compress ordinary <> "tail")),
++         ("empty",frame 1 0 ""),
++         ("short-header",L.pack [1,0,0]),
++         ("short-body",L.take 10 (frame 1 0 ordinary))]
++    ]
++  where ordinary = Binary.encode (encodeToPacket 1 (OK 0 0 2 0))
++
++-- These cases exercise the boundaries between the new APIs and existing
++-- cancellation, metadata, transaction and session contracts.
++lifecycleCases :: [Case]
++lifecycleCases =
++    [ case6 "cursor-stream-buffered-source-cancellation" $ do
++        (conn,statement,_,closed) <- statementFixture defaultConnectionOptions 1 1
++            [putToPacket 1 (putWord8 1),encodeToPacket 2 field,ending 3 66,encodeToPacket 1 (OK 0 0 2 0)]
++        consumed <- newIORef (0::Int)
++        source <- S.makeInputStream $ do
++            n <- atomicModifyIORef' consumed (\x -> (x+1,x))
++            pure (if n < 10000000 then Just B.empty else Nothing)
++        result <- timeout 20000 (withCursorStream statement [PreparedBytes source] (const (pure ())))
++        equal "buffered acquisition cancellation propagated" Nothing result
++        equal "incomplete upload retired" Broken =<< connectionStatus conn
++        equal "acquisition finalizer ran once" 1 =<< closed
++        count <- readIORef consumed
++        assert (count < 10000000) "source ran to completion under a masked acquisition"
++    , case6 "long-data-text-collation-parity" $ withConn $ \conn ->
++        withPreparedStatement conn "SELECT COLLATION(?),?='É'" $ \statement ->
++            forM_ ["é",""] $ \text -> do
++                -- COLLATION is conservatively opaque to the SQL classifier;
++                -- explicitly refresh facts before each charset-bound execution.
++                refreshSessionState conn
++                (_,normal) <- queryPrepared statement [MySQLText text,MySQLText text]
++                expected <- S.toList normal
++                refreshSessionState conn
++                first <- S.fromList [text]
++                second <- S.fromList [text]
++                (_,streamed) <- queryPreparedStream statement [PreparedText first,PreparedText second]
++                equal "text collation and comparison survive upload" expected =<< S.toList streamed
++    , case6 "cursor-non-row-more-results-drained" $ do
++        (conn,statement,sent,_) <- statementFixture defaultConnectionOptions 0 0
++            [encodeToPacket 1 (OK 1 0 10 0),putToPacket 2 (putWord8 1),encodeToPacket 3 field,
++             binaryRow 4 7,ending 5 2,encodeToPacket 1 (OK 0 0 2 0)]
++        expectStatementError (\e -> case e of InvalidCursorUse _ -> True; _ -> False) (openCursor statement [])
++        void (ping conn)
++        equal "non-row cursor refusal stays synchronized" [22,23,14] . map (L.head . pBody) =<< sent
++    , case6 "cursor-reset-extra-results-rejected" $ do
++        (conn,cursor,_,closed) <- cursorFixture [encodeToPacket 1 (OK 0 0 10 0)]
++        assertRetired conn closed (closeCursor cursor)
++    , case6 "long-data-tiny-chunks-coalesced-with-bounded-segments" $ do
++        (_,statement,sent,_) <- statementFixture defaultConnectionOptions 1 0 [encodeToPacket 1 (OK 1 0 2 0)]
++        source <- S.fromList (replicate 5000 "x")
++        void (executePreparedStream statement [PreparedBytes source])
++        packets <- sent
++        equal "tiny source segments stay bounded" [0,1024,1024,1024,1024,904]
++            [pLen p-7 | p <- packets,L.head (pBody p)==24]
++        equal "every tiny byte survives" (L.replicate 5000 120)
++            (L.concat [L.drop 7 (pBody p) | p <- packets,L.head (pBody p)==24])
++    , case6 "cursor-streamed-parameters" $ withOptions defaultConnectionOptions {enableCompression=True} $ \conn ->
++        withPreparedStatement conn "SELECT OCTET_LENGTH(?),seq FROM seq_1_to_3" $ \statement -> do
++            source <- S.fromList (replicate 64 (B.replicate 16384 42))
++            withCursorStream statement [PreparedBytes source] $ \cursor -> do
++                batch <- fetchCursor cursor 5 >>= S.toList
++                equal "uploaded parameter used by compressed cursor" [[1048576,1],[1048576,2],[1048576,3]] (map (map number) batch)
++            healthy conn
++    , case6 "compression-real-wire-byte-savings" $ do
++        ci <- config
++        counts <- forM [False,True] $ \compressed -> withWireProxy ci $ \proxied counters ->
++            withConnect (connectWithOptions defaultConnectionOptions {enableCompression=compressed} proxied) $ \conn -> do
++                before <- counters
++                equal "complete transfer" (T.replicate 1000000 "x") . textOf =<< scalar conn "SELECT REPEAT('x',1000000)"
++                after <- counters
++                pure (snd after - snd before)
++        case counts of
++            [plain,zlib] -> do
++                assert (plain > 1000000 && zlib*10 < plain) "real zlib result must reduce wire bytes substantially"
++                putStrLn ("STAGE6_WIRE\tplain=" ++ show plain ++ "\tzlib=" ++ show zlib)
++            _ -> fail "missing byte-counter alternatives"
++    , case6 "cursor-close-after-terminal-connection" $ withConn $ \conn ->
++        withPreparedStatement conn "SELECT seq FROM seq_1_to_100" $ \statement -> do
++            (_,cursor) <- openCursor statement []
++            close conn
++            closeCursor cursor
++            equal "cursor locally closed" True =<< cursorExhausted cursor
++            equal "connection stays closed" Closed =<< connectionStatus conn
++    , case6 "long-data-server-error-remains-synchronized" $ do
++        let err = putToPacket 1 (putWord8 255 >> putWord16le 1366 >> putByteString "#HY000bad value")
++        (conn,statement,sent,closed) <- statementFixture defaultConnectionOptions 1 0
++            [err,encodeToPacket 1 (OK 0 0 2 0)]
++        source <- S.fromList ["abc"]
++        expectERR [1366] (executePreparedStream statement [PreparedBytes source])
++        void (ping conn)
++        equal "complete server error did not retire" 0 =<< closed
++        equal "following ping synchronized" 14 . L.head . pBody . last =<< sent
++    , case6 "long-data-closed-handle-no-source-read" $ do
++        (_,statement,sent,_) <- statementFixture defaultConnectionOptions 1 0 []
++        closePrepared statement
++        source <- S.makeInputStream (fail "closed statement consumed source")
++        expectStatementError (\e -> case e of StatementClosed -> True; _ -> False)
++            (executePreparedStream statement [PreparedBytes source])
++        equal "only prepare and close" 2 . length =<< sent
++    , case6 "long-data-multiple-results" $ withConn $ \conn ->
++        bracket_ (exec conn "CREATE PROCEDURE mb_stage6_long_results(IN b BLOB,OUT n INT) BEGIN SELECT HEX(b) AS b; SET n=OCTET_LENGTH(b); END")
++            (exec conn "DROP PROCEDURE mb_stage6_long_results") $
++            withPreparedStatement conn "CALL mb_stage6_long_results(?,?)" $ \statement -> do
++                source <- S.fromList ["abc"]
++                results <- queryPreparedStreamMulti statement [PreparedBytes source,PreparedValue MySQLNull]
++                equal "row result with uploaded data" [["616263"]]
++                    [map textOf row | PreparedRows _ values <- results,row <- values]
++                equal "OUT parameter after upload" [[3]]
++                    [map number values | PreparedOutParameters _ values <- results]
++    , case6 "cursor-progress-reentry-is-local" $ do
++        let options = defaultConnectionOptions {enableProgressReporting=True}
++        (conn,statement,sent,_) <- statementFixture options 0 1
++            [putToPacket 1 (putWord8 1),encodeToPacket 2 field,ending 3 66,
++             progressPacket 1 "fetching",binaryRow 2 7,ending 3 130]
++        writeIORef (C.connectionCapabilities conn) (bit 24 .|. bit 32)
++        holder <- newIORef Nothing
++        setProgressCallback conn (Just (\_ -> do
++            cursor <- readIORef holder >>= maybe (fail "cursor not installed") pure
++            expectLocal (\e -> case e of ConcurrentConnectionUse -> True; _ -> False) (closeCursor cursor)))
++        (_,cursor) <- openCursor statement []
++        writeIORef holder (Just cursor)
++        equal "callback cannot drain the outer fetch" [[7]] . map (map number) =<< (fetchCursor cursor 3 >>= S.toList)
++        equal "no nested RESET" [22,23,28] . map (L.head . pBody) =<< sent
++    , case6 "progress-callback-cancellation" $ do
++        (conn,_,closed) <- scripted defaultConnectionOptions {enableProgressReporting=True}
++            [progressPacket 1 "",encodeToPacket 2 (OK 0 0 2 0)]
++        writeIORef (C.connectionCapabilities conn) (bit 32)
++        blocked <- newEmptyMVar
++        setProgressCallback conn (Just (const (takeMVar blocked)))
++        equal "callback cancellation propagates" Nothing =<< timeout 20000 (ping conn)
++        equal "callback cancellation retires" Broken =<< connectionStatus conn
++        equal "callback release once" 1 =<< closed
++    , case6 "compression-bounds-before-body" $ do
++        readCount <- newIORef (0::Int)
++        header <- newIORef True
++        let tooLarge = L.toStrict (L.take 7 (frame 1 1029 "x"))
++        input <- S.makeInputStream $ do
++            modifyIORef' readCount (+1)
++            first <- atomicModifyIORef' header (\x -> (False,x))
++            if first then pure (Just tooLarge) else fail "body was read before expansion bound"
++        closed <- newIORef (0::Int)
++        conn <- C.newTransportConnection defaultConnectionOptions {enableCompression=True,maximumMessageBytes=1024}
++            input (const (pure ())) (modifyIORef' closed (+1))
++        writeIORef (C.connectionCapabilities conn) (bit 5)
++        C.connectionCompressionStart conn
++        assertRetired conn (readIORef closed) (ping conn)
++        equal "header only" 1 =<< readIORef readCount
++    ] ++
++    [ case6 ("cursor-metadata-parity-" ++ show tracking ++ "-" ++ show caching) $
++        withOptions defaultConnectionOptions {enableSessionTracking=tracking,enableMetadataCaching=caching} $ \conn ->
++            withPreparedStatement conn "SELECT seq,IF(seq%2,NULL,REPEAT('雪',10)),CAST(seq*1.25 AS DECIMAL(20,2)) FROM seq_1_to_9" $ \statement -> do
++                (_,normal) <- queryPrepared statement []
++                expected <- S.toList normal
++                withCursor statement [] $ \cursor -> do
++                    let loop acc = do
++                            done <- cursorExhausted cursor
++                            if done then pure acc else do
++                                batch <- fetchCursor cursor 2 >>= S.toList
++                                loop (acc ++ batch)
++                    equal "cursor/scalar/NULL/Unicode/decimal parity" expected =<< loop []
++    | tracking <- [False,True],caching <- [False,True]
++    ] ++
++    [ case6 ("cursor-" ++ operation ++ "-deadline-retires") $ do
++        inputPackets <- newIORef (preparePackets 0 1 ++
++            [putToPacket 1 (putWord8 1),encodeToPacket 2 field,ending 3 66])
++        blocked <- newEmptyMVar
++        input <- S.makeInputStream $ do
++            packet <- atomicModifyIORef' inputPackets (\xs -> case xs of [] -> ([],Nothing); p:ps -> (ps,Just p))
++            maybe (takeMVar blocked) (pure . Just) packet
++        closed <- newIORef (0::Int)
++        conn <- C.newConnection defaultConnectionOptions {cleanupTimeoutMicros=20000} input
++            (const (pure ())) (modifyIORef' closed (+1))
++        writeIORef (C.connectionCapabilities conn) (bit 24)
++        statement <- prepareStatement conn "SELECT 1"
++        (_,cursor) <- openCursor statement []
++        if operation == "fetch" then do
++            result <- timeout 20000 (fetchCursor cursor 1 >>= S.toList)
++            equal "fetch timeout propagated" Nothing result
++        else expectLocal (\e -> case e of CleanupDeadlineExceeded -> True; _ -> False) (closeCursor cursor)
++        equal "deadline retired" Broken =<< connectionStatus conn
++        equal "deadline one release" 1 =<< readIORef closed
++    | operation <- ["fetch","close"]
++    ]
+diff --git a/validation/hs/Validation/Stage6Bench.hs b/validation/hs/Validation/Stage6Bench.hs
+new file mode 100644
+index 0000000..0238701
+--- /dev/null
++++ b/validation/hs/Validation/Stage6Bench.hs
+@@ -0,0 +1,137 @@
++-- | Additive Stage 6 workloads. Every alternative consumes and verifies the
++-- same values. Two complete warmups precede each measured process. Cursor
++-- materialization and upload/execution are timed; connection/preparation are not.
++module Validation.Stage6Bench (run) where
++
++import Control.Exception (evaluate)
++import Control.Monad
++import qualified Data.ByteString as B
++import qualified Data.ByteString.Internal as BI
++import Data.List (intercalate, isPrefixOf, isSuffixOf)
++import Data.IORef
++import qualified Data.Text as T
++import Database.MySQL.Base
++import GHC.Clock
++import GHC.Stats
++import System.Mem
++import Foreign.Marshal.Utils (fillBytes)
++import qualified System.IO.Streams as S
++import Validation.Common
++
++run :: String -> Int -> IO ()
++run ident iterations
++    | iterations <= 0 = fail "positive Stage 6 work count required"
++    | ident == "upload.retention" = withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage6_upload_heap(v LONGBLOB) ENGINE=InnoDB"
++        withPreparedStatement conn "INSERT INTO mb_stage6_upload_heap VALUES(?)" $ \statement -> do
++            let operation = do
++                    exec conn "TRUNCATE mb_stage6_upload_heap"
++                    produced <- newIORef 0
++                    chunk <- BI.create 65536 (\ptr -> fillBytes ptr 42 65536)
++                    source <- S.makeInputStream $ do
++                        n <- readIORef produced
++                        if n >= iterations then pure Nothing else do
++                            let size = min 65536 (iterations-n)
++                                total = n+size
++                            writeIORef produced total
++                            when (total `elem` [65536,1048576,16777216,67108864] || total == iterations) $ do
++                                performGC
++                                stats <- getRTSStats
++                                putStrLn ("STAGE6_HEAP\t" ++ show total ++ "\t" ++ show (gcdetails_live_bytes (gc stats)))
++                            pure (Just (B.take size chunk))
++                    void (executePreparedStream statement [PreparedBytes source])
++                    actual <- scalarInt conn "SELECT OCTET_LENGTH(v) FROM mb_stage6_upload_heap"
++                    equal "retention upload size" (toInteger iterations) actual
++                    equal "retention upload every byte" 1 =<< scalarInt conn
++                        ("SELECT BINARY v=BINARY REPEAT('*'," ++ show iterations ++ ") FROM mb_stage6_upload_heap")
++                    pure actual
++            measure ident (toInteger iterations) (toInteger iterations) operation
++    | "upload." `isPrefixOf` ident = withConn $ \conn -> do
++        exec conn "CREATE TEMPORARY TABLE mb_stage6_upload_bench(n INT,v LONGBLOB) ENGINE=InnoDB"
++        withPreparedStatement conn "INSERT INTO mb_stage6_upload_bench VALUES(?,?)" $ \statement -> do
++            let operation = do
++                    exec conn "TRUNCATE mb_stage6_upload_bench"
++                    -- Generate equivalent data inside timing. The buffered
++                    -- alternative must materialize a full MiB; the streamed
++                    -- alternative retains only its reusable 16 KiB chunk.
++                    withTransaction conn $ forM_ [1..iterations] $ \n -> do
++                        -- IO allocation prevents full-laziness from hoisting
++                        -- payload construction out of the warmup/measured runs.
++                        chunk <- BI.create 16384 (\ptr -> fillBytes ptr (fromIntegral n) 16384)
++                        if ident == "upload.streamed" then do
++                            source <- S.fromList (replicate 64 chunk)
++                            ok <- executePreparedStream statement [PreparedValue (MySQLInt32 (fromIntegral n)),PreparedBytes source]
++                            equal "stream insert" 1 (okAffectedRows ok)
++                        else if ident == "upload.buffered" then do
++                            let payload = B.concat (replicate 64 chunk)
++                            ok <- executePrepared statement [MySQLInt32 (fromIntegral n),MySQLBytes payload]
++                            equal "buffered insert" 1 (okAffectedRows ok)
++                        else fail "unknown upload profile"
++                    actual <- scalarInt conn "SELECT SUM(OCTET_LENGTH(v)) FROM mb_stage6_upload_bench"
++                    equal "all stored bytes" (toInteger iterations * 1048576) actual
++                    equal "every stored byte matches its row" (toInteger iterations) =<<
++                        scalarInt conn "SELECT SUM(BINARY v=BINARY REPEAT(CHAR(MOD(n,256)),1048576)) FROM mb_stage6_upload_bench"
++                    pure actual
++            measure ident (toInteger iterations * 1048576) (toInteger iterations * 1048576) operation
++    | "cursor." `isPrefixOf` ident = withConn $ \conn ->
++        withPreparedStatement conn "SELECT seq,REPEAT('x',128) FROM seq_1_to_10000" $ \statement -> do
++            let operation = if ident == "cursor.stream" then do
++                    (_,stream) <- queryPrepared statement []
++                    consume stream
++                  else withCursor statement [] $ \cursor -> do
++                    let batchSize = case ident of
++                            "cursor.batch32" -> 32
++                            "cursor.batch512" -> 512
++                            "cursor.batch4096" -> 4096
++                            _ -> 0
++                        loop total = do
++                            done <- cursorExhausted cursor
++                            if done then pure total else do
++                                value <- fetchCursor cursor batchSize >>= consume
++                                loop (total + value)
++                    loop 0
++            measure ident (toInteger iterations * 10000) (toInteger iterations * 51285000)
++                (sum <$> replicateM iterations operation)
++    | "transport." `isPrefixOf` ident = do
++        ci <- config
++        let compressed = ".zlib" `isSuffixOf` ident
++            wide = "transport.wide." `isPrefixOf` ident
++            width = if wide then 2048 else 32 :: Int
++            statementText = sql ("SELECT seq,REPEAT('x'," ++ show width ++ ") FROM seq_1_to_1000")
++            expected = 500500 + 1000 * toInteger width
++        withConnect (connectWithOptions defaultConnectionOptions {enableCompression=compressed} ci) $ \conn ->
++            withPreparedStatement conn statementText $ \statement -> do
++                let operation = queryPrepared statement [] >>= consume . snd
++                measure ident (toInteger iterations * 1000) (toInteger iterations * expected)
++                    (sum <$> replicateM iterations operation)
++    | "progress." `isPrefixOf` ident = do
++        ci <- config
++        let enabled = ident == "progress.enabled"
++        withConnect (connectWithOptions defaultConnectionOptions {enableProgressReporting=enabled} ci) $ \conn -> do
++            when enabled (setProgressCallback conn (Just (const (pure ()))))
++            let operation = scalarInt conn "SELECT 937"
++            measure ident (toInteger iterations) (toInteger iterations * 937)
++                (sum <$> replicateM iterations operation)
++    | otherwise = fail "unknown Stage 6 benchmark"
++
++consume :: S.InputStream [MySQLValue] -> IO Integer
++consume = S.fold (\total row -> total + sum (map value row)) 0
++  where
++    value (MySQLText text) = toInteger (T.length text)
++    value (MySQLBytes bytes) = toInteger (B.length bytes)
++    value other = number other
++
++measure :: String -> Integer -> Integer -> IO Integer -> IO ()
++measure ident units expected operation = do
++    replicateM_ 2 (operation >>= equal "Stage 6 warmup checksum" expected)
++    performGC
++    before <- getRTSStats
++    start <- getMonotonicTimeNSec
++    checksum <- operation >>= evaluate
++    end <- getMonotonicTimeNSec
++    performGC
++    after <- getRTSStats
++    equal "Stage 6 measured checksum" expected checksum
++    putStrLn (intercalate "\t" ["STAGE6",ident,show units,show (end-start),
++        show (allocated_bytes after-allocated_bytes before),show (cpu_ns after-cpu_ns before),
++        show (gc_cpu_ns after-gc_cpu_ns before),show checksum])
+diff --git a/validation/hs/Validation/WireProxy.hs b/validation/hs/Validation/WireProxy.hs
+new file mode 100644
+index 0000000..e9b78b7
+--- /dev/null
++++ b/validation/hs/Validation/WireProxy.hs
+@@ -0,0 +1,63 @@
++{-# LANGUAGE ScopedTypeVariables #-}
++-- | Transparent byte counters for real compressed/plain server exchanges.
++-- Neither TLS nor MariaDB framing is decoded or rewritten by this proxy.
++module Validation.WireProxy (withWireProxy) where
++
++import Control.Concurrent
++import Control.Exception
++import Control.Monad
++import Data.IORef
++import qualified Data.ByteString as B
++import qualified Network.Socket as N
++import qualified Network.Socket.ByteString as NS
++import System.Timeout
++import Database.MySQL.Base (ConnectInfo(..))
++
++-- | Counters are (bytes sent to MariaDB, bytes received from MariaDB). Updates
++-- happen before forwarding, so a fully consumed reply has already been charged.
++-- The proxy accepts one connection and joins every worker during cleanup.
++withWireProxy :: ConnectInfo -> (ConnectInfo -> IO (Integer,Integer) -> IO a) -> IO a
++withWireProxy ci action = bracket listener N.close $ \server -> do
++    N.SockAddrInet port _ <- N.getSocketName server
++    counters <- newIORef (0,0)
++    finished <- newEmptyMVar
++    let serve = bracket (fst <$> N.accept server) N.close $ \client -> do
++            addresses <- N.getAddrInfo (Just N.defaultHints {N.addrSocketType=N.Stream})
++                (Just (ciHost ci)) (Just (show (ciPort ci)))
++            address <- case addresses of first:_ -> pure first; [] -> fail "proxy backend address unavailable"
++            bracket (N.socket (N.addrFamily address) N.Stream N.defaultProtocol) N.close $ \backend -> do
++                N.connect backend (N.addrAddress address)
++                done <- newEmptyMVar
++                let forward upstream from to = do
++                        bytes <- NS.recv from 32768
++                        unless (B.null bytes) $ do
++                            atomicModifyIORef' counters $ \(sent,received) ->
++                                let size = toInteger (B.length bytes)
++                                in (if upstream then (sent+size,received) else (sent,received+size),())
++                            NS.sendAll to bytes
++                            forward upstream from to
++                mask $ \restore -> do
++                    firstDone <- newEmptyMVar
++                    secondDone <- newEmptyMVar
++                    first <- forkFinally (restore (forward True client backend))
++                        (\_ -> putMVar firstDone () >> void (tryPutMVar done ()))
++                    second <- forkFinally (restore (forward False backend client))
++                        (\_ -> putMVar secondDone () >> void (tryPutMVar done ())) `onException` killThread first
++                    let cleanup = do
++                            killThread first
++                            killThread second
++                            joined <- timeout 1000000 (takeMVar firstDone >> takeMVar secondDone)
++                            when (joined == Nothing) (fail "proxy forwarding workers did not finish")
++                    restore (takeMVar done) `finally` cleanup
++        stop worker = do
++            killThread worker
++            joined <- timeout 2000000 (takeMVar finished)
++            when (joined == Nothing) (fail "proxy server did not finish")
++    bracket (forkFinally serve (const (putMVar finished ()))) stop $ \_ ->
++        action ci {ciHost="127.0.0.1",ciPort=port} (readIORef counters)
++  where
++    listener = bracketOnError (N.socket N.AF_INET N.Stream N.defaultProtocol) N.close $ \sock -> do
++        N.setSocketOption sock N.ReuseAddr 1
++        N.bind sock (N.SockAddrInet 0 (N.tupleToHostAddress (127,0,0,1)))
++        N.listen sock 1
++        pure sock
+diff --git a/validation/stage6_benchmarks.py b/validation/stage6_benchmarks.py
+new file mode 100644
+index 0000000..9dd35a9
+--- /dev/null
++++ b/validation/stage6_benchmarks.py
+@@ -0,0 +1,44 @@
++#!/usr/bin/env python3
++"""Streamed parameters, cursor batches and optional wire feature costs."""
++from pathlib import Path
++import feature_benchmarks as features
++
++PROFILES = {'upload.buffered': 4, 'upload.streamed': 4, 'upload.retention': 67108864,
++            'cursor.stream': 1, 'cursor.batch32': 1, 'cursor.batch512': 1, 'cursor.batch4096': 1,
++            'transport.narrow.plain': 2, 'transport.narrow.zlib': 2,
++            'transport.wide.plain': 2, 'transport.wide.zlib': 2,
++            'progress.disabled': 500, 'progress.enabled': 500}
++BASELINE_DIRECTORY = Path('baselines/macos-arm64-wire-features')
++WORKLOAD_PATHS = ('validation/hs/Validation/Stage6Bench.hs', 'validation/hs/Validation/Common.hs')
++
++
++def specification():
++    units, checksums = {}, {}
++    for name, count in PROFILES.items():
++        if name == 'upload.retention':
++            units[name] = checksums[name] = count
++        elif name.startswith('upload.'):
++            units[name] = checksums[name] = count * 1048576
++        elif name.startswith('cursor.'):
++            units[name], checksums[name] = count * 10000, count * 51285000
++        elif name.startswith('transport.'):
++            width = 2048 if '.wide.' in name else 32
++            units[name], checksums[name] = count * 1000, count * (500500 + 1000 * width)
++        else:
++            units[name], checksums[name] = count, count * 937
++    return features.FeatureSpec(marker='STAGE6', command='stage6-bench', label='Wire features',
++        profiles=PROFILES, units=units, checksums=checksums,
++        pairs={'streamed upload': ('upload.streamed', 'upload.buffered'),
++               **{f'cursor batch {size}': (f'cursor.batch{size}', 'cursor.stream') for size in (32, 512, 4096)},
++               **{f'{width} compression': (f'transport.{width}.zlib', f'transport.{width}.plain') for width in ('narrow','wide')},
++               'progress negotiation': ('progress.enabled', 'progress.disabled')},
++        baseline_directory=BASELINE_DIRECTORY, workload_paths=WORKLOAD_PATHS,
++        heap_profiles={'upload.retention': (65536, 1048576, 16777216, 67108864)})
++
++
++def verify_evidence(data, inputs):
++    features.verify_evidence(specification(), data, inputs)
++
++
++if __name__ == '__main__':
++    features.main(specification())
+diff --git a/validation/test_stage6.py b/validation/test_stage6.py
+new file mode 100644
+index 0000000..0aaa1b8
+--- /dev/null
++++ b/validation/test_stage6.py
+@@ -0,0 +1,145 @@
++"""Optional-wire evidence cannot disappear from a complete Stage 6 report."""
++import unittest
++from unittest.mock import patch
++
++import feature_benchmarks as features
++import publish_results as live
++import stage6_benchmarks as wire
++
++
++class WireEvidenceTests(unittest.TestCase):
++    def test_expected_work_and_checksum(self):
++        spec = wire.specification()
++        self.assertEqual(13, len(spec.profiles))
++        self.assertEqual(7, len(spec.pairs))
++        for name in spec.profiles:
++            line = 'STAGE6\t' + name + '\t' + '\t'.join(map(str,
++                (spec.units[name], 1000, 2000, 100, 0, spec.checksums[name])))
++            features.sample(spec, line, name)
++            with self.assertRaisesRegex(ValueError, 'checksum'):
++                features.sample(spec, line.rsplit('\t', 1)[0]+'\t0', name)
++
++    def test_baseline_artifacts_are_inputs(self):
++        for name in ('results.json', 'SUMMARY.md', 'SHA256SUMS'):
++            self.assertTrue(live.is_input('validation/baselines/macos-arm64-wire-features/'+name))
++
++    def test_retention_requires_all_upload_checkpoints(self):
++        spec = wire.specification()
++        checkpoints = (65536, 1048576, 16777216, 67108864)
++        self.assertEqual(checkpoints, spec.heap_profiles['upload.retention'])
++        entries = [[n, 100000] for n in checkpoints] * 3
++        features.verify_heap(spec, 'upload.retention', entries)
++        with self.assertRaisesRegex(ValueError, 'incomplete'):
++            features.verify_heap(spec, 'upload.retention', entries[4:])
++        entries[-1][1] += 3 * 1024 * 1024
++        with self.assertRaisesRegex(ValueError, 'grows'):
++            features.verify_heap(spec, 'upload.retention', entries)
++
++    def fixture(self):
++        inputs = {'sha256':'source', 'files':{}, 'commit':'code', 'dirty_inputs':[]}
++        attempt = {'state':'COMPLETED', 'inputs':inputs}
++        data = {'complete_suite':True, 'repetitions':7, 'source_unchanged_during_run':True,
++                'correctness':[{'id':'stage6.fixture', 'status':'PASS'}], 'build':{'git_commit':'code'}}
++        return {'latest_attempt':attempt, 'latest_completed_run':{'attempt':attempt, 'results':data}}, inputs
++
++    def test_missing_wire_evidence_blocks_publication(self):
++        document, inputs = self.fixture()
++        with self.assertRaisesRegex(ValueError, 'Wire features'):
++            live.verify(document, inputs)
++
++    def test_wire_evidence_is_reverified(self):
++        document, inputs = self.fixture()
++        document['latest_attempt']['wire_features'] = {'captured':'evidence'}
++        with patch('stage6_benchmarks.verify_evidence') as verify:
++            live.verify(document, inputs)
++        verify.assert_called_once_with({'captured':'evidence'}, inputs)
++
++
++class WireWrapperTests(unittest.TestCase):
++    def test_changed_build_inputs_are_rejected_before_recording(self):
++        import check
++        import tempfile
++        from pathlib import Path
++        with tempfile.TemporaryDirectory() as folder:
++            config = Path(folder)/'config.json'
++            config.write_text('{}')
++            before = {'files':{'source.hs':'old'}, 'commit':'parent', 'branch':'main'}
++            after = dict(before, files={'source.hs':'new'})
++            with (patch('sys.argv', ['check.py','--working-tree','--config',str(config),'--output',str(Path(folder)/'run')]),
++                  patch.object(check.live,'input_snapshot',side_effect=[before,after]),
++                  patch.object(check.run,'sql_client',return_value='12.3.3-MariaDB'),
++                  patch.object(check.subprocess,'run') as build,
++                  patch.object(check.subprocess,'call') as recorder,
++                  patch.object(check.live,'publish') as publish):
++                build.return_value.returncode = 0
++                self.assertEqual(1,check.main())
++            recorder.assert_not_called()
++            attempt,data = publish.call_args.args
++            self.assertEqual('FAILED',attempt['state'])
++            self.assertIn('changed during build',attempt['reason'])
++            self.assertIsNone(data)
++
++    def check_capture(self, failure, expected_status, timing=()):
++        import json
++        from pathlib import Path
++        import tempfile
++        from unittest.mock import patch
++        import check
++        with tempfile.TemporaryDirectory() as folder:
++            root=Path(folder)
++            (root/'results').mkdir()
++            output=root/'run'
++            config=root/'config.json'
++            config.write_text('{}')
++            inputs={'sha256':'candidate','files':{},'commit':'parent'}
++            candidate={'complete_suite':True,'correctness':[{'id':'stage6.fixture','status':'PASS'}]}
++            gate={'correctness_accepted':True,'evidence_accepted':True}
++            measurements={'baseline_comparison':{'timing_investigations':list(timing),'allocation_investigations':[]}}
++            def recorder(*args,**kwargs):
++                output.mkdir()
++                (output/'results.json').write_text(json.dumps(candidate))
++                return 0
++            with (patch('sys.argv',['check.py','--working-tree','--config',str(config),'--output',str(output)]),
++                  patch.object(check.live,'input_snapshot',return_value=inputs),
++                  patch.object(check.run,'HERE',root),
++                  patch.object(check.run,'sql_client',return_value='12.3.3-MariaDB'),
++                  patch.object(check.subprocess,'run') as build,
++                  patch.object(check.subprocess,'call',side_effect=recorder),
++                  patch.object(check,'install_runtime_data',return_value=0),
++                  patch.object(check.stage1_gates,'reference',return_value=({},{})),
++                  patch.object(check.stage1_gates,'compare',return_value=gate),
++                  patch.object(check,'native_benchmarks',return_value={}),
++                  patch('stage3_benchmarks.verify_evidence'),
++                  patch.object(check,'wire_benchmarks',return_value=measurements,side_effect=failure) as capture,
++                  patch('stage6_benchmarks.verify_evidence'),
++                  patch.object(check.live,'publish') as publish):
++                build.return_value.returncode=0
++                self.assertEqual(expected_status,check.main())
++            capture.assert_called_once_with(output.resolve(),7,config)
++            attempt,data=publish.call_args.args
++            if failure is None:
++                self.assertEqual('COMPLETED',attempt['state'])
++                self.assertEqual(measurements,attempt['wire_features'])
++                self.assertEqual(candidate,data)
++                if timing:
++                    self.assertTrue(gate['performance_requires_confirmation'])
++            else:
++                self.assertEqual('FAILED',attempt['state'])
++                self.assertEqual('wire feature benchmarks',attempt['stage'])
++                self.assertIsNone(data)
++
++    def test_recorder_failure_is_visible(self):
++        self.check_capture(RuntimeError('incomplete wire capture'),1)
++
++    def test_interruption_is_visible(self):
++        self.check_capture(KeyboardInterrupt(),130)
++
++    def test_small_timing_signal_stays_open(self):
++        self.check_capture(None,0,[{'id':'transport.wide.zlib','percent':6}])
++
++    def test_large_timing_signal_fails_wrapper(self):
++        self.check_capture(None,1,[{'id':'transport.wide.zlib','percent':21}])
++
++
++if __name__ == '__main__':
++    unittest.main()

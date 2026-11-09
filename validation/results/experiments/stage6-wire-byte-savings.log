@@ -1,0 +1,2 @@
+STAGE6_WIRE	plain=1000071	zlib=1109
+PASS	stage6.compression-real-wire-byte-savings

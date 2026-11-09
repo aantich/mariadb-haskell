@@ -1,0 +1,356 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Stage6Evidence.Dockerfile
+#1 transferring dockerfile: 9.29kB done
+#1 DONE 0.0s
+
+#2 [context confirmationinputs] load .dockerignore
+#2 transferring confirmationinputs: 140B done
+#2 DONE 0.0s
+
+#3 [context finalinputs] load .dockerignore
+#3 transferring finalinputs: 140B done
+#3 DONE 0.0s
+
+#4 [context reviewinputs] load .dockerignore
+#4 transferring reviewinputs: 140B done
+#4 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#5 DONE 0.0s
+
+#6 [context fixesinputs] load .dockerignore
+#6 transferring fixesinputs: 140B done
+#6 DONE 0.0s
+
+#7 [context finalreviewinputs] load .dockerignore
+#7 transferring finalreviewinputs: 140B done
+#7 DONE 0.0s
+
+#8 [context cachedinputs] load .dockerignore
+#8 transferring cachedinputs: 140B done
+#8 DONE 0.0s
+
+#9 [context stage6inputs] load .dockerignore
+#9 transferring stage6inputs: 140B done
+#9 DONE 0.0s
+
+#10 [internal] load metadata for docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#10 DONE 0.0s
+
+#11 [context stage6finalinputs] load .dockerignore
+#11 transferring stage6finalinputs: 140B done
+#11 DONE 0.0s
+
+#12 [internal] load .dockerignore
+#12 transferring context: 140B done
+#12 DONE 0.0s
+
+#13 [verification  1/10] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#13 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 done
+#13 DONE 0.0s
+
+#14 [tooling 1/1] FROM docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#14 resolve docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32 0.0s done
+#14 DONE 0.0s
+
+#15 [context reviewinputs] load from client
+#15 transferring reviewinputs: 9.65kB 0.0s done
+#15 DONE 0.0s
+
+#16 [context cachedinputs] load from client
+#16 transferring cachedinputs: 9.65kB 0.0s done
+#16 DONE 0.0s
+
+#17 [context confirmationinputs] load from client
+#17 transferring confirmationinputs: 9.65kB 0.0s done
+#17 DONE 0.0s
+
+#18 [context finalinputs] load from client
+#18 transferring finalinputs: 9.65kB 0.0s done
+#18 DONE 0.1s
+
+#19 [internal] load build context
+#19 transferring context: 182.65kB 0.3s done
+#19 DONE 0.4s
+
+#20 [context finalreviewinputs] load from client
+#20 transferring finalreviewinputs: 197.74kB 0.4s done
+#20 DONE 0.4s
+
+#21 [context fixesinputs] load from client
+#21 transferring fixesinputs: 197.74kB 0.4s done
+#21 DONE 0.4s
+
+#22 [context stage6inputs] load from client
+#22 transferring stage6inputs: 209.09kB 0.4s done
+#22 DONE 0.4s
+
+#23 [context stage6finalinputs] load from client
+#23 ...
+
+#24 [verification  7/10] RUN cabal build all --only-dependencies --enable-tests -O2
+#24 CACHED
+
+#25 [confirmationverification 2/2] RUN python3 - <<'PYRUN'
+#25 CACHED
+
+#26 [verification  8/10] COPY . .
+#26 CACHED
+
+#27 [verification 10/10] RUN python3 - <<'PYRUN'
+#27 CACHED
+
+#28 [reviewverification 2/2] RUN python3 - <<'PYRUN'
+#28 CACHED
+
+#29 [reviewverification 1/2] COPY --from=reviewinputs / /workspace/
+#29 CACHED
+
+#30 [finalverification 2/2] RUN python3 - <<'PYRUN'
+#30 CACHED
+
+#31 [finalreviewverification 2/2] RUN python3 - <<'PYRUN'
+#31 CACHED
+
+#32 [finalreviewverification 1/2] COPY --from=finalreviewinputs / /workspace/
+#32 CACHED
+
+#33 [stage6verification 1/2] COPY --from=stage6inputs / /workspace/
+#33 CACHED
+
+#34 [verification  9/10] COPY validation/linux/mysql-haskell.stage5.cabal.txt ./mysql-haskell.cabal
+#34 CACHED
+
+#35 [cachedverification 2/2] RUN python3 - <<'PYRUN'
+#35 CACHED
+
+#36 [verification  6/10] RUN cabal user-config init && sed -i 's|url: http://hackage.haskell.org/|url: https://hackage.haskell.org/|' /root/.cabal/config && cabal update
+#36 CACHED
+
+#37 [verification  3/10] COPY --from=tooling /usr/local/bin/cabal /usr/local/bin/cabal
+#37 CACHED
+
+#38 [finalverification 1/2] COPY --from=finalinputs / /workspace/
+#38 CACHED
+
+#39 [fixesverification 1/2] COPY --from=fixesinputs / /workspace/
+#39 CACHED
+
+#40 [confirmationverification 1/2] COPY --from=confirmationinputs / /workspace/
+#40 CACHED
+
+#41 [cachedverification 1/2] COPY --from=cachedinputs / /workspace/
+#41 CACHED
+
+#42 [verification  2/10] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     ghc cabal-install build-essential libgmp-dev zlib1g-dev libffi-dev pkg-config     libmariadb-dev openssl python3 git ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#42 CACHED
+
+#43 [fixesverification 2/2] RUN python3 - <<'PYRUN'
+#43 CACHED
+
+#44 [verification  4/10] WORKDIR /workspace
+#44 CACHED
+
+#45 [verification  5/10] COPY mysql-haskell.cabal ./
+#45 CACHED
+
+#46 [stage6verification 2/2] RUN python3 - <<'PYRUN'
+#46 CACHED
+
+#23 [context stage6finalinputs] load from client
+#23 transferring stage6finalinputs: 20.67MB 0.7s done
+#23 DONE 0.7s
+
+#47 [stage6finalverification 1/2] COPY --from=stage6finalinputs / /workspace/
+#47 DONE 0.4s
+
+#48 [stage6finalverification 2/2] RUN python3 - <<'PYRUN'
+#48 2.455 Server verified before build: 12.3.3-MariaDB-ubu2404-log
+#48 2.672 Configured dedicated validation accounts on 12.3.3-MariaDB-ubu2404-log
+#48 2.672 Connection settings: /workspace/validation/.local/linux-environment.json (mode 0600; excluded from Git)
+#48 2.672 Authentication fixtures: ed25519, parsec, caching_sha2_password
+#48 2.767 Server verified before build: 12.3.3-MariaDB
+#48 2.767 Live results updated: /workspace/validation/RESULTS.md
+#48 2.768 .Server verified before build: 12.3.3-MariaDB
+#48 2.769 Live results updated: /workspace/validation/RESULTS.md
+#48 2.771 .Server verified before build: 12.3.3-MariaDB
+#48 2.771 Live results updated: /workspace/validation/RESULTS.md
+#48 2.773 ..Server verified before build: 12.3.3-MariaDB
+#48 2.773 Live results updated: /workspace/validation/RESULTS.md
+#48 2.775 ..Server verified before build: 12.3.3-MariaDB
+#48 2.775 Live results updated: /workspace/validation/RESULTS.md
+#48 2.776 .Server verified before build: 12.3.3-MariaDB
+#48 2.776 Live results updated: /workspace/validation/RESULTS.md
+#48 2.778 .Server verified before build: 12.3.3-MariaDB
+#48 2.778 Live results updated: /workspace/validation/RESULTS.md
+#48 2.779 .Server verified before build: 12.3.3-MariaDB
+#48 2.780 Live results updated: /workspace/validation/RESULTS.md
+#48 2.781 .Server verified before build: 12.3.3-MariaDB
+#48 2.783 Live results updated: /workspace/validation/RESULTS.md
+#48 2.785 .Server verified before build: 12.3.3-MariaDB
+#48 2.787 Live results updated: /workspace/validation/RESULTS.md
+#48 2.790 .Server verified before build: 12.3.3-MariaDB
+#48 2.793 Live results updated: /workspace/validation/RESULTS.md
+#48 2.794 .Server verified before build: 12.3.3-MariaDB
+#48 2.797 Live results updated: /workspace/validation/RESULTS.md
+#48 2.798 .Server verified before build: 12.3.3-MariaDB
+#48 2.800 Live results updated: /workspace/validation/RESULTS.md
+#48 2.801 .Server verified before build: 12.3.3-MariaDB
+#48 2.804 Live results updated: /workspace/validation/RESULTS.md
+#48 2.805 .Server verified before build: 12.3.3-MariaDB
+#48 2.807 Live results updated: /workspace/validation/RESULTS.md
+#48 2.811 .Server verified before build: 12.3.3-MariaDB
+#48 2.813 Live results updated: /workspace/validation/RESULTS.md
+#48 2.815 .Server verified before build: 12.3.3-MariaDB
+#48 2.817 Live results updated: /workspace/validation/RESULTS.md
+#48 2.818 .Server verified before build: 12.3.3-MariaDB
+#48 2.820 Live results updated: /workspace/validation/RESULTS.md
+#48 3.187 ........................................................................................................................Server verified before build: 12.3.3-MariaDB
+#48 3.188 Live results updated: /workspace/validation/RESULTS.md
+#48 3.190 .Server verified before build: 12.3.3-MariaDB
+#48 3.192 Live results updated: /workspace/validation/RESULTS.md
+#48 3.194 .Server verified before build: 12.3.3-MariaDB
+#48 3.197 Live results updated: /workspace/validation/RESULTS.md
+#48 3.198 .Server verified before build: 12.3.3-MariaDB
+#48 3.200 Live results updated: /workspace/validation/RESULTS.md
+#48 3.202 ......Server verified before build: 12.3.3-MariaDB
+#48 3.202 Live results updated: /workspace/validation/RESULTS.md
+#48 3.204 .Server verified before build: 12.3.3-MariaDB
+#48 3.206 Live results updated: /workspace/validation/RESULTS.md
+#48 3.208 .Server verified before build: 12.3.3-MariaDB
+#48 3.209 Live results updated: /workspace/validation/RESULTS.md
+#48 3.213 .Server verified before build: 12.3.3-MariaDB
+#48 3.215 Live results updated: /workspace/validation/RESULTS.md
+#48 3.216 .Server verified before build: 12.3.3-MariaDB
+#48 3.218 Live results updated: /workspace/validation/RESULTS.md
+#48 3.218 .
+#48 3.218 ----------------------------------------------------------------------
+#48 3.218 Ran 153 tests in 0.454s
+#48 3.218 
+#48 3.218 OK
+#48 4.116 Resolving dependencies...
+#48 5.219 Build profile: -w ghc-9.4.7 -O2
+#48 5.219 In order, the following will be built (use -v for more details):
+#48 5.219  - mysql-haskell-1.3.3 (lib) (file validation/test_stage6.py changed)
+#48 5.219  - mysql-haskell-1.3.3 (test:test) (dependency rebuilt)
+#48 5.219  - mysql-haskell-1.3.3 (exe:mariadb-validation) (dependency rebuilt)
+#48 5.219  - mysql-haskell-1.3.3 (test:integration) (dependency rebuilt)
+#48 5.237 mysql-haskell.cabal has been changed. Re-configuring with most recently used
+#48 5.237 options. If this fails, please run configure manually.
+#48 5.245 Configuring library for mysql-haskell-1.3.3...
+#48 5.692 Preprocessing library for mysql-haskell-1.3.3...
+#48 5.698 Building library for mysql-haskell-1.3.3...
+#48 5.847 
+#48 5.847 <no location info>: warning: [-Wunused-packages]
+#48 5.847     The following packages were specified via -package or -package-id flags,
+#48 5.847     but were not needed for compilation:
+#48 5.847       - data-default-class-0.2.0.0 (exposed by flag -package-id data-default-class-0.2.0.0-38ba4eaa6c2f97e322f0e5bd35f5c4f1f63fed09c9db0a3008e005e9ef9cf6b4)
+#48 5.847       - monad-loops-0.4.3 (exposed by flag -package-id monad-loops-0.4.3-6141bef5a371bac7903f35712b12ea8ec9041eea496eb1f476db6411a0db7649)
+#48 5.973 [12 of 29] Compiling Database.MySQL.Protocol.Command ( src/Database/MySQL/Protocol/Command.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Command.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Command.dyn_o ) [Source file changed]
+#48 7.495 [25 of 29] Compiling Database.MySQL.Connection ( src/Database/MySQL/Connection.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Connection.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Connection.dyn_o ) [Source file changed]
+#48 16.73 [26 of 29] Compiling Database.MySQL.Base ( src/Database/MySQL/Base.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.dyn_o ) [Source file changed]
+#48 20.96 [27 of 29] Compiling Database.MySQL.BinLog ( src/Database/MySQL/BinLog.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLog.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLog.dyn_o ) [Database.MySQL.Base changed]
+#48 22.88 mysql-haskell.cabal has been changed. Re-configuring with most recently used
+#48 22.88 options. If this fails, please run configure manually.
+#48 22.88 mysql-haskell.cabal has been changed. Re-configuring with most recently used
+#48 22.88 options. If this fails, please run configure manually.
+#48 22.88 mysql-haskell.cabal has been changed. Re-configuring with most recently used
+#48 22.88 options. If this fails, please run configure manually.
+#48 22.88 Configuring test suite 'test' for mysql-haskell-1.3.3...
+#48 22.89 Configuring executable 'mariadb-validation' for mysql-haskell-1.3.3...
+#48 22.89 Configuring test suite 'integration' for mysql-haskell-1.3.3...
+#48 23.32 Preprocessing test suite 'integration' for mysql-haskell-1.3.3...
+#48 23.32 Preprocessing test suite 'test' for mysql-haskell-1.3.3...
+#48 23.32 Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+#48 23.33 Building test suite 'test' for mysql-haskell-1.3.3...
+#48 23.33 Building test suite 'integration' for mysql-haskell-1.3.3...
+#48 23.33 Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+#48 23.39 [ 1 of 17] Compiling BinLog           ( test/BinLog.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLog.o ) [Database.MySQL.Base changed]
+#48 23.42 [ 1 of 22] Compiling Validation.Common ( validation/hs/Validation/Common.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Common.o ) [Database.MySQL.Base changed]
+#48 23.52 [10 of 14] Compiling Sha1Scramble     ( test/Sha1Scramble.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Sha1Scramble.o ) [Database.MySQL.Connection changed]
+#48 23.66 [ 2 of 17] Compiling BinLogNew        ( test/BinLogNew.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLogNew.o ) [Database.MySQL.Base changed]
+#48 23.67 [11 of 14] Compiling Sha256Scramble   ( test/Sha256Scramble.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Sha256Scramble.o ) [Database.MySQL.Connection changed]
+#48 23.72 [ 3 of 17] Compiling BinaryRow        ( test/BinaryRow.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRow.o ) [Database.MySQL.Base changed]
+#48 23.95 [15 of 15] Linking dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test [Objects changed]
+#48 23.96 [ 2 of 22] Compiling Validation.Benchmark ( validation/hs/Validation/Benchmark.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Benchmark.o ) [Database.MySQL.Base changed]
+#48 24.03 [ 4 of 17] Compiling BinaryRowNew     ( test/BinaryRowNew.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRowNew.o ) [Database.MySQL.Base changed]
+#48 24.11 [ 5 of 17] Compiling CachingSha2      ( test/CachingSha2.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/CachingSha2.o ) [Database.MySQL.Base changed]
+#48 24.14 [ 6 of 17] Compiling ExecuteMany      ( test/ExecuteMany.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/ExecuteMany.o ) [Database.MySQL.Base changed]
+#48 24.19 [ 7 of 17] Compiling MultipleResults  ( test/MultipleResults.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MultipleResults.o ) [Database.MySQL.Base changed]
+#48 24.63 [ 8 of 17] Compiling QueryWithoutResultSet ( test/QueryWithoutResultSet.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/QueryWithoutResultSet.o ) [Database.MySQL.Base changed]
+#48 24.87 [ 9 of 17] Compiling RoundtripBit     ( test/RoundtripBit.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripBit.o ) [Database.MySQL.Base changed]
+#48 24.91 [10 of 17] Compiling RoundtripYear    ( test/RoundtripYear.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripYear.o ) [Database.MySQL.Base changed]
+#48 24.96 [11 of 17] Compiling SelectOne        ( test/SelectOne.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/SelectOne.o ) [Database.MySQL.Base changed]
+#48 24.98 [12 of 17] Compiling TLSConnection    ( test/TLSConnection.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TLSConnection.o ) [Database.MySQL.Base changed]
+#48 25.09 [13 of 17] Compiling TextRow          ( test/TextRow.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRow.o ) [Database.MySQL.Base changed]
+#48 25.29 [14 of 17] Compiling TextRowNew       ( test/TextRowNew.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRowNew.o ) [Database.MySQL.Base changed]
+#48 25.40 [15 of 17] Compiling MysqlTests       ( test/MysqlTests.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MysqlTests.o ) [Database.MySQL.Base changed]
+#48 25.47 [16 of 17] Compiling UnixSocket       ( test/UnixSocket.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/UnixSocket.o ) [Database.MySQL.Base changed]
+#48 25.54 [17 of 17] Compiling Main             ( test/Integration.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/Main.o ) [Database.MySQL.Base changed]
+#48 25.54 [ 3 of 22] Compiling Validation.FaultTransport ( validation/hs/Validation/FaultTransport.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/FaultTransport.o ) [Database.MySQL.Base changed]
+#48 25.71 [18 of 18] Linking dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration [Objects changed]
+#48 26.46 [ 4 of 22] Compiling Validation.Functional ( validation/hs/Validation/Functional.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Functional.o ) [Database.MySQL.Base changed]
+#48 28.68 [ 5 of 22] Compiling Validation.Protocol ( validation/hs/Validation/Protocol.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Protocol.o ) [Database.MySQL.Base changed]
+#48 31.58 [ 6 of 22] Compiling Validation.Security ( validation/hs/Validation/Security.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Security.o ) [Database.MySQL.Base changed]
+#48 31.72 [ 7 of 22] Compiling Validation.Stage1 ( validation/hs/Validation/Stage1.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage1.o ) [Database.MySQL.Base changed]
+#48 38.98 [ 8 of 22] Compiling Validation.Stage2 ( validation/hs/Validation/Stage2.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage2.o ) [Database.MySQL.Base changed]
+#48 39.02 
+#48 39.02 validation/hs/Validation/Stage2.hs:219:20: warning: [-Wtype-defaults]
+#48 39.02     • Defaulting the type variable ‘a0’ to type ‘String’ in the following constraints
+#48 39.02         (Data.String.IsString a0)
+#48 39.02           arising from the literal ‘"tcp"’
+#48 39.02           at validation/hs/Validation/Stage2.hs:219:20-24
+#48 39.02         (Eq a0)
+#48 39.02           arising from the literal ‘"tcp"’
+#48 39.02           at validation/hs/Validation/Stage2.hs:228:25-29
+#48 39.02     • In the expression: "tcp"
+#48 39.02       In the first argument of ‘forM_’, namely ‘["tcp", "tls", "socket"]’
+#48 39.02       In the first argument of ‘($)’, namely
+#48 39.02         ‘forM_ ["tcp", "tls", "socket"]’
+#48 39.02     |
+#48 39.02 219 |             forM_ ["tcp","tls","socket"] $ \transport -> do
+#48 39.02     |                    ^^^^^
+#48 40.08 [ 9 of 22] Compiling Validation.Stage3 ( validation/hs/Validation/Stage3.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3.o ) [Database.MySQL.Base changed]
+#48 49.21 [10 of 22] Compiling Validation.Stage3Bench ( validation/hs/Validation/Stage3Bench.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3Bench.o ) [Database.MySQL.Base changed]
+#48 49.39 [11 of 22] Compiling Validation.Stage4 ( validation/hs/Validation/Stage4.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4.o ) [Database.MySQL.Base changed]
+#48 54.15 [12 of 22] Compiling Validation.Stage4Bench ( validation/hs/Validation/Stage4Bench.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4Bench.o ) [Database.MySQL.Base changed]
+#48 54.33 [13 of 22] Compiling Validation.Stage5 ( validation/hs/Validation/Stage5.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5.o ) [Database.MySQL.Base changed]
+#48 58.95 [14 of 22] Compiling Validation.CDC   ( validation/hs/Validation/CDC.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/CDC.o ) [Database.MySQL.Base changed]
+#48 59.47 [15 of 22] Compiling Validation.Stage5Bench ( validation/hs/Validation/Stage5Bench.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5Bench.o ) [Database.MySQL.Base changed]
+#48 60.46 [16 of 22] Compiling Validation.Stage5Review ( validation/hs/Validation/Stage5Review.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5Review.o ) [Database.MySQL.Base changed]
+#48 60.48 
+#48 60.48 validation/hs/Validation/Stage5Review.hs:123:13: warning: [-Wname-shadowing]
+#48 60.48     This binding for ‘query’ shadows the existing binding
+#48 60.48       imported from ‘Database.MySQL.Base’ at validation/hs/Validation/Stage5Review.hs:15:1-26
+#48 60.48     |
+#48 60.48 123 |             query=packet BINLOG_QUERY_EVENT $ do
+#48 60.48     |             ^^^^^
+#48 61.93 [17 of 22] Compiling Validation.Stage6Bench ( validation/hs/Validation/Stage6Bench.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6Bench.o ) [Database.MySQL.Base changed]
+#48 62.18 [18 of 22] Compiling Validation.Supplementary ( validation/hs/Validation/Supplementary.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Supplementary.o ) [Database.MySQL.Base changed]
+#48 62.36 [19 of 22] Compiling Validation.WireProxy ( validation/hs/Validation/WireProxy.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/WireProxy.o ) [Database.MySQL.Base changed]
+#48 62.51 [20 of 22] Compiling Validation.Stage6 ( validation/hs/Validation/Stage6.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6.o ) [Source file changed]
+#48 70.67 [21 of 22] Compiling Validation.Reliability ( validation/hs/Validation/Reliability.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Reliability.o ) [Database.MySQL.Base changed]
+#48 70.98 [22 of 22] Compiling Main             ( validation/hs/Main.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Main.o ) [Validation.CDC changed]
+#48 71.29 [23 of 23] Linking dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation [Objects changed]
+#48 72.22 Installing library in /root/.cabal/lib/aarch64-linux-ghc-9.4.7/mysql-haskell-1.3.3-inplace
+#48 72.23 /workspace/./dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Connection.hi: copyFile: resource exhausted (No space left on device)
+#48 72.28 Traceback (most recent call last):
+#48 72.28   File "/workspace/validation/linux/verify.py", line 162, in <module>
+#48 72.28     main()
+#48 72.28   File "/workspace/validation/linux/verify.py", line 113, in main
+#48 72.28     command(['cabal', 'v1-copy', 'lib:mysql-haskell', '--builddir='+str(setups[0].parent)])
+#48 72.28   File "/workspace/validation/linux/verify.py", line 22, in command
+#48 72.28     return subprocess.run(list(map(str, args)), cwd=ROOT, check=True, **kwargs)
+#48 72.28            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#48 72.28   File "/usr/lib/python3.12/subprocess.py", line 571, in run
+#48 72.28     raise CalledProcessError(retcode, process.args,
+#48 72.28 subprocess.CalledProcessError: Command '['cabal', 'v1-copy', 'lib:mysql-haskell', '--builddir=/workspace/dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt']' returned non-zero exit status 1.
+#48 DONE 72.6s
+
+#49 [stage6finalevidence 1/1] COPY --from=stage6finalverification /tmp/stage6-final-linux-evidence/ /
+#49 DONE 0.0s
+
+#50 exporting to client directory
+#50 copying files 42.20kB done
+#50 DONE 0.0s

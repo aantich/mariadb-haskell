@@ -215,3 +215,38 @@ corrects temporal values, full GTID history and resource accounting. `CDCGtidLis
 now exposes `GtidList` history and flags, separately from `GtidSet` resume state.
 Two-phase ALTER and unknown GTID extension semantics fail before checkpoints;
 they are not treated as ordinary transaction groups.
+
+### Stage 6: streamed parameters and optional wire features
+
+The four remaining API inventory rows invoke actual long-data, cursor, progress
+and compression checks. [Stage 6 contracts](../docs/STAGE6_IMPLEMENTATION.md)
+describe ownership, callback behavior, negotiation and resource limits. PAM and
+GSSAPI remain separate authentication implementation/environment work; the
+frozen timeout-reuse expectation still conflicts with safe retirement.
+
+Every complete run adds thirteen independent profiles to the previous 47, for
+**60 runnable profiles**, each with seven repetitions and two warmups. Use
+`python3 validation/stage6_benchmarks.py --output NEW_DIRECTORY` for a separate
+complete capture. The first capture must use `--freeze` once to create
+`baselines/macos-arm64-wire-features`; later captures refuse to replace that
+reference. Existing references are unchanged.
+Upload units are bytes, cursor/transport units are rows, and progress units are
+complete queries. All alternatives check consumed/stored values. Cursor and
+compression costs are reported even when they are slower than ordinary reads.
+Progress throughput measures negotiation with no emitted reports; real report
+delivery, callback failure and cancellation have separate correctness coverage.
+
+**Current checkpoint, 9 November 2026:** all follow-up findings are fixed.
+Complete Mac and exact-source Linux correctness record **793 PASS / 1 known
+timeout-contract FAIL / 0 UNSUPPORTED / 2 unavailable**. All 95 Stage 6 cases
+and 155 policy tests pass. Two complete Mac captures each measure all 60 profiles
+with seven repetitions and exit 0; the second supplies the live report.
+The first wire-feature reference is frozen independently. Its fresh-chunk
+64 MiB profile checks all twelve checkpoints per process; a separate buffering
+negative control must be rejected by the actual guard. Every checkpoint is
+checked against the streaming allowance. Six ordinary timing/reference, two
+reuse and three wire-feature timing signals remain open in capture 2; all
+allocation investigation lists are empty. No existing reference advances.
+See the [confirmation manifest](results/stage6-confirmation.json),
+[resolved review](../docs/STAGE6_CODE_REVIEW.md) and
+[final checkpoint](../docs/STAGE6_IMPLEMENTATION.md#final-review-fix-validation--9-november-2026).

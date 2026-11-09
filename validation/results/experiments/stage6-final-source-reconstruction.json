@@ -1,0 +1,9 @@
+{
+  "base_commit": "15162161b6eec4e08003c2a61d887a20edb8468e",
+  "input_sha256": "413b8f4e267ca8b749b9da72c0fda6e3523bb4e638c4b45d04d7ddbda359a050",
+  "file_count": 172,
+  "patch_sha256": "b0eda17caaccf513a7378ebef022e79d34daa06d2ea39532cd7d46db4836180b",
+  "all_input_hashes_reconstructed": true,
+  "method": "git archive base commit, apply retained binary patch, hash every executable input",
+  "scope": "Final implementation source for Mac correctness and Linux checks. Final benchmark capture and the independent first feature baseline await user-confirmed idle time."
+}

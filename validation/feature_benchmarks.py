@@ -65,12 +65,12 @@ def verify_heap(spec, ident, entries):
             or any(not isinstance(entry, list) or len(entry) != 2
                    or any(type(value) is not int for value in entry) or entry[1] <= 0 for entry in entries)
             or [entry[0] for entry in entries] != checkpoints*3):
-        raise ValueError('CDC retained heap checkpoints are incomplete')
+        raise ValueError('streaming retained heap checkpoints are incomplete')
     width = len(checkpoints)
     for offset in range(0, len(entries), width):
         window = entries[offset:offset+width]
-        if window[-1][1] > window[0][1]+2*1024*1024:
-            raise ValueError('CDC retained heap grows beyond its streaming allowance')
+        if any(entry[1] > window[0][1]+2*1024*1024 for entry in window):
+            raise ValueError('streaming retained heap grows beyond its streaming allowance')
 
 
 def verify_measurements(spec, data, inputs):

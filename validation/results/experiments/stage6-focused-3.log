@@ -1,0 +1,38 @@
+Server verified before build: 12.3.3-MariaDB-log
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (exe:mariadb-validation) (file validation/hs/Validation/Stage6.hs changed)
+Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+[17 of 20] Compiling Validation.Stage6 ( validation/hs/Validation/Stage6.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6.o ) [Source file changed]
+validation/hs/Validation/Stage6.hs:407:9: error: [GHC-83865]
+    • Couldn't match type ‘OK’ with ‘()’
+      Expected: IO ()
+        Actual: IO OK
+    • In a stmt of a 'do' block: ping conn
+      In the second argument of ‘($)’, namely
+        ‘do let ordinary = Binary.encode (encodeToPacket 1 (OK 0 0 2 0))
+            (conn, _, _) <- compressedFixture
+                              [L.toStrict
+                                 (frame
+                                    1 (fromIntegral (L.length ordinary)) (Zlib.compress ordinary))]
+                              defaultConnectionOptions
+            ping conn’
+      In the expression:
+        case6 "compression-zlib-envelope"
+          $ do let ordinary = Binary.encode (encodeToPacket 1 (OK 0 0 2 0))
+               (conn, _, _) <- compressedFixture
+                                 [L.toStrict
+                                    (frame
+                                       1 (fromIntegral (L.length ordinary))
+                                       (Zlib.compress ordinary))]
+                                 defaultConnectionOptions
+               ping conn
+    |
+407 |         ping conn
+    |         ^^^^^^^^^
+
+Error: [Cabal-7125]
+Failed to build exe:mariadb-validation from mysql-haskell-1.3.3.
+
+Partial/short development run: live full-suite results were not replaced.

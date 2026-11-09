@@ -1,0 +1,108 @@
+Server verified before build: 12.3.3-MariaDB-log
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (exe:mariadb-validation) (file validation/hs/Validation/Stage6Review.hs changed)
+Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+[18 of 23] Compiling Validation.Stage6Review ( validation/hs/Validation/Stage6Review.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6Review.o ) [Source file changed]
+[24 of 24] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation [Objects changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+Installing library in /Users/aantich/.cabal/lib/aarch64-osx-ghc-9.10.3-fe9c/mysql-haskell-1.3.3-inplace
+MariaDB preflight passed: 12.3.3-MariaDB-log
+PASS stage6.long-data-live
+PASS stage6.cursor-live
+PASS stage6.progress-live
+PASS stage6.compression-live
+PASS stage6.long-data-query-empty-and-binary
+PASS stage6.cursor-close-pending-batch
+PASS stage6.compression-tls
+PASS stage6.compression-socket
+PASS stage6.long-data-wire-omission
+PASS stage6.long-data-arity-does-not-read-source
+PASS stage6.long-data-budget
+PASS stage6.long-data-source-failure
+PASS stage6.long-data-cancellation
+PASS stage6.long-data-exclusive-source
+PASS stage6.long-data-large-chunk-split
+PASS stage6.long-data-following-normal-execution
+PASS stage6.long-data-text-client-charset
+PASS stage6.long-data-rollback
+PASS stage6.cursor-wire-and-final-empty-fetch
+PASS stage6.cursor-invalid-count-is-local
+PASS stage6.cursor-unfinished-batch-is-local
+PASS stage6.cursor-more-rows-than-requested
+PASS stage6.cursor-invalid-end-status
+PASS stage6.cursor-close-without-fetch
+PASS stage6.cursor-foreign-thread
+PASS stage6.cursor-normal-query-blocked
+PASS stage6.cursor-cleanup-transaction-rollback
+PASS stage6.cursor-empty-live
+PASS stage6.cursor-metadata-cache-reexecution
+PASS stage6.progress-literal-envelope
+PASS stage6.progress-callback-failure-retires
+PASS stage6.progress-callback-reentry-rejected
+PASS stage6.progress-discard-without-handler
+PASS stage6.progress-not-negotiated
+PASS stage6.progress-malformed-count
+PASS stage6.progress-malformed-stage
+PASS stage6.progress-malformed-percent
+PASS stage6.progress-malformed-truncated
+PASS stage6.progress-malformed-trailer
+PASS stage6.compression-byte-split-1
+PASS stage6.compression-byte-split-2
+PASS stage6.compression-byte-split-3
+PASS stage6.compression-byte-split-4
+PASS stage6.compression-byte-split-5
+PASS stage6.compression-byte-split-6
+PASS stage6.compression-byte-split-7
+PASS stage6.compression-byte-split-8
+PASS stage6.compression-byte-split-9
+PASS stage6.compression-byte-split-10
+PASS stage6.compression-byte-split-11
+PASS stage6.compression-byte-split-12
+PASS stage6.compression-byte-split-13
+PASS stage6.compression-byte-split-14
+PASS stage6.compression-byte-split-15
+PASS stage6.compression-byte-split-16
+PASS stage6.compression-byte-split-17
+PASS stage6.compression-zlib-envelope
+PASS stage6.compression-small-write-raw-frame
+PASS stage6.compression-large-roundtrip
+PASS stage6.all-features-together
+PASS stage6.compression-invalid-sequence
+PASS stage6.compression-invalid-zlib
+PASS stage6.compression-invalid-length
+PASS stage6.compression-invalid-expansion
+PASS stage6.compression-invalid-trailing
+PASS stage6.compression-invalid-empty
+PASS stage6.compression-invalid-short-header
+PASS stage6.compression-invalid-short-body
+PASS stage6.cursor-stream-buffered-source-cancellation
+PASS stage6.long-data-text-collation-parity
+PASS stage6.cursor-non-row-more-results-drained
+PASS stage6.cursor-reset-extra-results-rejected
+PASS stage6.long-data-tiny-chunks-coalesced-with-bounded-segments
+PASS stage6.cursor-streamed-parameters
+PASS stage6.compression-real-wire-byte-savings
+PASS stage6.cursor-close-after-terminal-connection
+PASS stage6.long-data-server-error-remains-synchronized
+PASS stage6.long-data-closed-handle-no-source-read
+PASS stage6.long-data-multiple-results
+PASS stage6.cursor-progress-reentry-is-local
+PASS stage6.progress-callback-cancellation
+PASS stage6.compression-bounds-before-body
+PASS stage6.cursor-metadata-parity-False-False
+PASS stage6.cursor-metadata-parity-False-True
+PASS stage6.cursor-metadata-parity-True-False
+PASS stage6.cursor-metadata-parity-True-True
+PASS stage6.cursor-fetch-deadline-retires
+PASS stage6.cursor-close-deadline-retires
+PASS stage6.review-cursor-repeated-cancellation-scalar
+PASS stage6.review-cursor-repeated-cancellation-streamed
+PASS stage6.review-compressed-cdc-manual
+PASS stage6.review-compressed-cdc-on-read
+PASS stage6.review-compressed-cdc-resume
+PASS stage6.review-compressed-ack-preserves-buffered-reply
+PASS stage6.review-heap-buffering-negative-control
+Results: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/results/runs/stage6-fixes-focused-2/SUMMARY.md
+Partial/short development run: live full-suite results were not replaced.

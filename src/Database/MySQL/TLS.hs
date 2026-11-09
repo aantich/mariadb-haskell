@@ -25,6 +25,8 @@ import qualified Data.Binary                    as Binary
 import qualified Data.Binary.Put                as Binary
 import qualified Data.Connection                as Conn
 import           Data.IORef                     (writeIORef)
+import           Data.Bits                      (testBit)
+import           Control.Monad                  (when)
 import           Data.TLSSetting
 import           Database.MySQL.Connection      hiding (connect, connectDetail, connectWithOptions, connectDetailWithOptions)
 import           Database.MySQL.Protocol.Auth
@@ -66,12 +68,13 @@ connectDetailWithOptions options ci (params,name) = withConnectDeadline options 
         bracketOnError (TLS.contextNew sock params') (\ctx -> TLS.contextClose ctx `finally` Conn.close raw) $ \ctx -> do
             TLS.handshake ctx
             secure <- TLS.tLsToConnection (ctx,addr)
-            conn <- newByteConnection options (Conn.source secure) (\p -> Conn.send secure (Binary.runPut (Binary.put p))) (TLS.contextClose ctx `finally` Conn.close raw)
+            conn <- newTransportConnection options (Conn.source secure) (Conn.send secure) (TLS.contextClose ctx `finally` Conn.close raw)
             setExchangeSequence conn 2
             writeIORef (connectionCapabilities conn) (caps+0x800)
             mysqlWrite conn (encodeToPacket 2 (mkAuthWithOptions options (caps+0x800) ci greeting))
             response <- readConnPacket conn
             completeAuth conn greeting True (ciPassword ci) response
+            when (testBit caps 5) (connectionCompressionStart conn)
             role <- initializeSession conn
             rememberInitialSession conn ci role
             pure (greeting,conn)

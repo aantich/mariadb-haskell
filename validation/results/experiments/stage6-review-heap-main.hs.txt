@@ -1,0 +1,3 @@
+module Main where
+import qualified Validation.Stage6Bench as Bench
+main = Bench.run "upload.retention" 67108864

@@ -72,6 +72,8 @@ import qualified Data.IntMap.Strict as IM
 import Database.MySQL.Session
 import Database.MySQL.Protocol.ColumnDef
 import Database.MySQL.Protocol.MySQLValue
+import Database.MySQL.Protocol.Progress
+import Database.MySQL.Protocol.Compression
 import Database.MySQL.Query
 
 -- | Per-connection resource bounds. Limits are validated before opening a
@@ -88,6 +90,11 @@ data ConnectionOptions = ConnectionOptions
     , enableExtendedMetadata :: !Bool -- ^ Retain native type/format attributes.
     , maximumPreparedStatements :: !Int -- ^ Maximum registered server statements.
     , maximumBulkRows :: !Int -- ^ Rows per bulk command; batches are never silently split.
+    , maximumLongDataBytes :: !Word64 -- ^ Total streamed parameter bytes per execution.
+    , maximumCursorFetchRows :: !Word32 -- ^ Maximum requested rows in one server cursor fetch.
+    , enableProgressReporting :: !Bool -- ^ Negotiate reports; install callbacks separately.
+    , enableCompression :: !Bool -- ^ Negotiate zlib transport framing; off by default.
+    , compressionThresholdBytes :: !Int -- ^ Try compression for outbound frames at least this large.
     } deriving (Eq, Show)
 
 -- | 64 MiB messages, 16 MiB metadata, 65,535 columns, one-second cleanup,
@@ -105,6 +112,11 @@ defaultConnectionOptions = ConnectionOptions
     , enableExtendedMetadata = True
     , maximumPreparedStatements = 1024
     , maximumBulkRows = 10000
+    , maximumLongDataBytes = 64 * 1024 * 1024
+    , maximumCursorFetchRows = 65536
+    , enableProgressReporting = False
+    , enableCompression = False
+    , compressionThresholdBytes = 1024
     }
 
 -- A cached fact must not pin a large result buffer or grow without bound.
@@ -119,7 +131,9 @@ validateOptions options = unless
       && maximumMetadataBytes options > 0 && maximumColumns options > 0 && cleanupTimeoutMicros options > 0
       && connectTimeoutMicros options > 0 && maximumAuthIterations options >= 1024
       && maximumAuthIterations options <= 1073741824
-      && maximumPreparedStatements options > 0 && maximumBulkRows options > 0)
+      && maximumPreparedStatements options > 0 && maximumBulkRows options > 0
+      && maximumLongDataBytes options > 0 && maximumCursorFetchRows options > 0
+      && compressionThresholdBytes options >= 0 && compressionThresholdBytes options <= 65536)
     (throwIO (ProtocolError "invalid connection resource options"))
 
 -- | Observable lifecycle. Only 'Ready' admits a new command. 'Broken' and
@@ -176,6 +190,11 @@ data MySQLConn = MySQLConn
     , connectionResultIndex :: !(IORef Int)
     , connectionSession :: !(IORef SessionCache)
     , connectionInitialSession :: !(IORef (Maybe InitialSession))
+    , connectionProgressCallback :: !(IORef (Maybe (Progress -> IO ())))
+    , connectionCallbackActive :: !(IORef Bool)
+    , connectionCompressionStart :: !(IO ())
+    , connectionCompressionReset :: !(IO ())
+    , connectionCompressionAllowReplicationResets :: !(IO ())
     }
 
 -- A decoder is compiled per metadata shape, not per row/execution. Metadata
@@ -228,6 +247,20 @@ newConnection options input output abort = newConnectionUsing options makeReader
 newByteConnection :: ConnectionOptions -> InputStream ByteString -> (Packet -> IO ()) -> IO () -> IO MySQLConn
 newByteConnection options input output abort = newConnectionUsing options (\framing -> decodeFramedInput (maximumMessageBytes options) framing input) output abort
 
+-- Raw transports share one optional byte layer; ordinary connections retain
+-- their existing reader/writer path without compression checks per packet.
+newTransportConnection :: ConnectionOptions -> InputStream ByteString -> (L.ByteString -> IO ()) -> IO () -> IO MySQLConn
+newTransportConnection options input output abort
+    | not (enableCompression options) = newByteConnection options input (output . Binary.encode) abort
+    | otherwise = do
+        transport <- newCompressionTransport (maximumMessageBytes options + 4)
+            (compressionThresholdBytes options) input output
+        conn <- newByteConnection options (compressionInput transport)
+            (compressionSend transport . Binary.encode) abort
+        pure conn {connectionCompressionStart = compressionStart transport,
+                   connectionCompressionReset = compressionReset transport,
+                   connectionCompressionAllowReplicationResets = compressionAllowReplicationResets transport}
+
 newConnectionUsing :: ConnectionOptions -> (IORef FramingState -> IO (InputStream Packet)) -> (Packet -> IO ()) -> IO () -> IO MySQLConn
 newConnectionUsing options makeReader output abort = do
     validateOptions options
@@ -249,6 +282,8 @@ newConnectionUsing options makeReader output abort = do
     resultIndex <- newIORef 0
     observations <- newIORef (emptySessionCache 0)
     initial <- newIORef Nothing
+    progressCallback <- newIORef Nothing
+    callbackActive <- newIORef False
     input <- makeReader framing
     let checkedOutput packet = advanceFraming (maximumMessageBytes options) framing (pLen packet) (pSeqN packet) >> output packet
     pure MySQLConn
@@ -274,6 +309,11 @@ newConnectionUsing options makeReader output abort = do
         , connectionResultIndex = resultIndex
         , connectionSession = observations
         , connectionInitialSession = initial
+        , connectionProgressCallback = progressCallback
+        , connectionCallbackActive = callbackActive
+        , connectionCompressionStart = pure ()
+        , connectionCompressionReset = pure ()
+        , connectionCompressionAllowReplicationResets = pure ()
         }
 
 -- Retain only restoration facts, never ConnectInfo or authentication material.
@@ -291,15 +331,26 @@ data FramingState = FramingState {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word64
 emptyFramingStates :: V.Vector FramingState
 emptyFramingStates=V.generate 257 (\n -> FramingState (fromIntegral n) 0)
 {-# NOINLINE emptyFramingStates #-}
--- 256 is the dedicated replication sequence policy; continuations still use
--- the logical assembler's modulo-256 check. Ordinary exchanges never use it.
+-- 256 permits physical packet-number resets in replication and compressed
+-- exchanges. Logical continuations still use the assembler's modulo-256 check.
 setExchangeSequence :: MySQLConn -> Word16 -> IO ()
-setExchangeSequence conn sequenceN = writeIORef (connectionSequence conn) (FramingState sequenceN 0)
+setExchangeSequence conn sequenceN = do
+    -- MariaDB net_flush synchronizes ordinary pkt_nr to compress_pkt_nr.
+    -- Thus ordinary packet numbers may jump at compressed flush boundaries;
+    -- Connector/C also validates only compressed-frame sequence in this mode.
+    -- Logical continuation ordering remains checked by readPacketWithLimit.
+    effective <- if sequenceN == 0 && enableCompression (connectionOptions conn)
+        then do
+            caps <- readIORef (connectionCapabilities conn)
+            pure (if testBit caps 5 then 256 else sequenceN)
+        else pure sequenceN
+    writeIORef (connectionSequence conn) (FramingState effective 0)
 
 advanceFraming :: Word64 -> IORef FramingState -> Int64 -> Word8 -> IO ()
 advanceFraming limit ref lengthBytes sequenceN = do
     FramingState expected accumulated <- readIORef ref
-    unless (expected==256 || expected==fromIntegral sequenceN) (throwIO (ProtocolError "unexpected packet sequence"))
+    unless (expected==256 || expected==fromIntegral sequenceN)
+        (throwIO (ProtocolError ("unexpected packet sequence: expected " ++ show expected ++ ", received " ++ show sequenceN)))
     when (lengthBytes<0 || lengthBytes>16777215) (throwIO (ProtocolError "invalid physical packet length"))
     let bytes=fromIntegral lengthBytes
     when (accumulated>limit || bytes>limit-accumulated) (throwIO (ProtocolError "logical packet exceeds client limit"))
@@ -319,6 +370,7 @@ releaseTransport conn = do
 abortConnection :: MySQLConn -> Bool -> IO ()
 abortConnection conn uncertain = mask_ $ do
     clearStatements conn
+    writeIORef (connectionProgressCallback conn) Nothing
     invalidateSession conn
     phase <- atomicModifyIORef' (connectionRuntime conn) $ \rt ->
         (rt { runtimeStatus=if runtimeStatus rt == Closed then Closed else Broken, runtimeOwner=Nothing },runtimeStatus rt)
@@ -394,6 +446,9 @@ withCommand conn action = mask $ \restore -> do
 -- before ownership so stale handles fail without consuming a single packet.
 streamGuard :: MySQLConn -> Word64 -> IO a -> IO a
 streamGuard conn generation action = do
+    when (enableProgressReporting (connectionOptions conn)) $ do
+        callbackActive <- readIORef (connectionCallbackActive conn)
+        when callbackActive (throwIO ConcurrentConnectionUse)
     rt <- readIORef (connectionRuntime conn)
     tid <- myThreadId
     unless (runtimeGeneration rt == generation) (throwIO StaleResultStream)
@@ -464,13 +519,14 @@ connectDetailWithOptions :: ConnectionOptions -> ConnectInfo -> IO (Greeting,MyS
 connectDetailWithOptions opts ci = withConnectDeadline opts $ do
     validateOptions opts
     bracketOnError (TCP.connectSocketTimeout (connectTimeoutMicros opts) (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
-        conn <- newByteConnection opts (Conn.source raw) (\packet -> Conn.send raw (Binary.runPut (Binary.put packet))) (Conn.close raw)
+        conn <- newTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
         greet <- readGreeting conn
         let caps=negotiatedCapabilities opts greet
         writeIORef (connectionCapabilities conn) caps
         mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
         q <- readConnPacket conn
         completeAuth conn greet False (ciPassword ci) q
+        when (testBit caps 5) (connectionCompressionStart conn)
         role <- initializeSession conn
         rememberInitialSession conn ci role
         pure (greet,conn)
@@ -492,13 +548,14 @@ connectUnixSocketDetailWithOptions opts path ci = withConnectDeadline opts $ do
             N.connect sock (N.SockAddrUnix path)
             TCP.socketToConnectionAdaptive bUFSIZE (sock,N.SockAddrUnix path)
     bracketOnError open Conn.close $ \raw -> do
-        conn <- newByteConnection opts (Conn.source raw) (\packet -> Conn.send raw (Binary.runPut (Binary.put packet))) (Conn.close raw)
+        conn <- newTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
         greet <- readGreeting conn
         let caps=negotiatedCapabilities opts greet
         writeIORef (connectionCapabilities conn) caps
         mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
         q <- readConnPacket conn
         completeAuth conn greet True (ciPassword ci) q
+        when (testBit caps 5) (connectionCompressionStart conn)
         role <- initializeSession conn
         rememberInitialSession conn ci role
         pure (greet,conn)
@@ -518,6 +575,8 @@ negotiatedCapabilities options greeting = (implemented .&. greetingCaps greeting
     (if enableSessionTracking options && greetingCaps greeting .&. 0x01800000 == 0x01800000 then 0x01800000 else 0)
   where
     implemented = clientCap .|. bit 34 .|. bit 37
+        .|. (if enableProgressReporting options then bit 32 else 0)
+        .|. (if enableCompression options then bit 5 else 0)
         .|. (if enableMetadataCaching options then bit 36 else 0)
         .|. (if enableExtendedMetadata options then bit 35 else 0)
 
@@ -793,7 +852,35 @@ readPacketWithLimit limit input = do
         else go size (pSeqN packet) (pBody packet:chunks)
 
 readConnPacket :: MySQLConn -> IO Packet
-readConnPacket conn = readPacketWithLimit (maximumMessageBytes (connectionOptions conn)) (mysqlRead conn)
+readConnPacket conn
+    | not (enableProgressReporting (connectionOptions conn)) = readOne
+    | otherwise = reports
+  where
+    readOne = readPacketWithLimit (maximumMessageBytes (connectionOptions conn)) (mysqlRead conn)
+    reports = do
+        packet <- readOne
+        if not (isProgressPacket packet) then pure packet else do
+            caps <- readIORef (connectionCapabilities conn)
+            unless (testBit caps 32) (throwIO (ProtocolError "unnegotiated progress packet"))
+            when (pLen packet > 16384 || fromIntegral (pLen packet) > maximumMetadataBytes (connectionOptions conn))
+                (throwIO (ProtocolError "progress description exceeds client limit"))
+            progress <- getFromPacketExact getProgress packet
+            callback <- readIORef (connectionProgressCallback conn)
+            forM_ callback $ \notify -> bracket_
+                (writeIORef (connectionCallbackActive conn) True)
+                (writeIORef (connectionCallbackActive conn) False) (notify progress)
+            reports
+
+-- | Replace the progress callback while idle. Negotiate
+-- 'enableProgressReporting' at connect time; without a callback reports are
+-- consumed and discarded. Callbacks run synchronously on the command owner:
+-- they must not reenter this connection. Exceptions/cancellation retire an
+-- incomplete exchange. No background worker or unbounded queue exists.
+setProgressCallback :: MySQLConn -> Maybe (Progress -> IO ()) -> IO ()
+setProgressCallback conn callback = withCommand conn $ do
+    caps <- readIORef (connectionCapabilities conn)
+    unless (testBit caps 32) (throwIO (ProtocolError "progress reporting was not negotiated"))
+    writeIORef (connectionProgressCallback conn) callback
 
 writeCommand :: Command -> (Packet -> IO ()) -> IO ()
 writeCommand cmd writer = let body=Binary.runPut (putCommand cmd) in writeEncoded (L.length body) body writer
@@ -819,6 +906,9 @@ sendCommand conn cmd = do
         COM_STMT_EXECUTE ident _ _ -> do
             opaque <- readIORef (connectionOpaqueStatements conn)
             writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
+        COM_STMT_EXECUTE_EXT ident _ _ _ -> do
+            opaque <- readIORef (connectionOpaqueStatements conn)
+            writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
         COM_STMT_BULK_EXECUTE ident _ _ _ -> do
             opaque <- readIORef (connectionOpaqueStatements conn)
             writeIORef (connectionQueryEffect conn) (Just (ident `elem` opaque))
@@ -840,6 +930,27 @@ sendCommand conn cmd = do
                     Binary.putByteString (fromBitMap nullMap)
                     Binary.putWord8 1
                     mapM_ putParamMySQLType values
+                    sequence_ encoded
+        COM_STMT_EXECUTE_EXT ident flags values nullMap -> do
+            unless (flags `elem` [0,1]) (throwIO (ProtocolError "unsupported cursor mode"))
+            let ordinary = [value | ExecuteValue value <- values]
+            charset <- if any (\value -> case value of MySQLText _ -> True; _ -> False) ordinary
+                then renderClientCharset <$> getRenderContext conn else pure "utf8mb4"
+            mapM_ (either (throwIO . UnencodableParameter) pure . validateValue) ordinary
+            encoded <- forM values $ \value -> case value of
+                ExecuteValue (MySQLText text) -> either (throwIO . UnencodableParameter)
+                    (pure . putLenEncBytes) (encodeCharsetText charset text)
+                ExecuteValue cell -> pure (putBinaryField cell)
+                _ -> pure (pure ())
+            pure $ do
+                Binary.putWord8 0x17
+                Binary.putWord32le ident
+                Binary.putWord8 flags
+                Binary.putWord32le 1
+                unless (null values) $ do
+                    Binary.putByteString (fromBitMap nullMap)
+                    Binary.putWord8 1
+                    mapM_ (putParamMySQLType . executeParameterValue) values
                     sequence_ encoded
         COM_STMT_BULK_EXECUTE ident flags types rows -> do
             caps <- readIORef (connectionCapabilities conn)
@@ -895,6 +1006,8 @@ sendCommand conn cmd = do
     size <- encodedLength (min serverLimit (maximumMessageBytes (connectionOptions conn))) body
     writeIORef (connectionActiveStatement conn) $ case cmd of
         COM_STMT_EXECUTE ident _ _ -> Just ident
+        COM_STMT_EXECUTE_EXT ident _ _ _ -> Just ident
+        COM_STMT_FETCH ident _ -> Just ident
         COM_STMT_BULK_EXECUTE ident _ _ _ -> Just ident
         _ -> Nothing
     writeIORef (connectionResultIndex conn) 0
@@ -910,6 +1023,7 @@ sendCommand conn cmd = do
             invalidateSession conn
         _ -> pure ()
     setExchangeSequence conn 0
+    connectionCompressionReset conn
     writeIORef (connectionExchangeProgress conn) WireInFlight
     writeEncoded size body (mysqlWrite conn)
 
@@ -963,6 +1077,7 @@ lengthWithin limit = go 0
 close :: MySQLConn -> IO ()
 close conn = mask_ $ do
     clearStatements conn
+    writeIORef (connectionProgressCallback conn) Nothing
     invalidateSession conn
     prior <- atomicModifyIORef' (connectionRuntime conn) (\rt -> (rt {runtimeStatus=Closed,runtimeOwner=Nothing},runtimeStatus rt))
     unless (prior == Closed) $ do
@@ -972,6 +1087,7 @@ close conn = mask_ $ do
         writeIORef (connectionDrain conn) Nothing
         let goodbye=when (prior==Ready) $ void $ timeout (cleanupTimeoutMicros (connectionOptions conn)) $ do
                 setExchangeSequence conn 0
+                connectionCompressionReset conn
                 writeCommand COM_QUIT (mysqlWrite conn)
         (goodbye `catch` (\(err :: SomeException) -> when (isCancellation err) (throwIO err))) `finally` releaseTransport conn
 

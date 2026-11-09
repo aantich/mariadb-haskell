@@ -37,6 +37,8 @@ module Database.MySQL.Base
     , ConnectionError(..)
     , connectionStatus
     , connectionFailure
+    , Progress(..)
+    , setProgressCallback
     , resetConnection
     , resetConnectionWith
     , getSessionState
@@ -84,6 +86,18 @@ module Database.MySQL.Base
     , resetPrepared
     , queryPrepared
     , executePrepared
+    , PreparedParameter(..)
+    , executePreparedStream
+    , queryPreparedStream
+    , queryPreparedStreamMulti
+    , PreparedCursor
+    , openCursor
+    , openCursorStream
+    , fetchCursor
+    , closeCursor
+    , cursorExhausted
+    , withCursor
+    , withCursorStream
     , queryStmtMulti
     , queryPreparedMulti
     , PreparedResult(..)
@@ -105,6 +119,7 @@ module Database.MySQL.Base
     , ERRException(..)
     , UnexpectedPacket(..)
     , DecodePacketException(..)
+    , CompressionException(..)
     , WrongParamsCount(..)
     , ExtraResultSets(..)
       -- * MySQL protocol
@@ -119,18 +134,23 @@ import           Control.Exception
 import           Control.Monad
 import           Data.Binary                        (Get)
 import Data.Binary.Put (runPut, putWord8)
-import Data.Word (Word16, Word64)
+import Data.Word (Word8, Word16, Word32, Word64)
+import qualified Data.ByteString as B
+import qualified Data.Text as T
+import Control.Concurrent (myThreadId)
 import qualified Data.IntMap.Strict as IM
 import Data.List (transpose, find)
 import System.Timeout (timeout)
 import           Data.Bits                          ((.&.))
-import           Data.IORef                         (newIORef, readIORef, writeIORef, atomicModifyIORef')
+import           Data.IORef                         (IORef, newIORef, readIORef, writeIORef, atomicModifyIORef')
 import           Database.MySQL.Connection
 import           Database.MySQL.Protocol.Auth
 import           Database.MySQL.Protocol.ColumnDef
 import           Database.MySQL.Protocol.Command
 import           Database.MySQL.Protocol.MySQLValue
 import           Database.MySQL.Protocol.Packet
+import           Database.MySQL.Protocol.Progress (Progress(..))
+import           Database.MySQL.Protocol.Compression (CompressionException(..))
 
 import           Database.MySQL.Session (SessionState(..), SessionChange(..))
 import           Database.MySQL.Query
@@ -287,6 +307,7 @@ executeCore conn cmd = do
 
 isBinaryCommand :: Command -> Bool
 isBinaryCommand (COM_STMT_EXECUTE _ _ _) = True
+isBinaryCommand (COM_STMT_EXECUTE_EXT _ _ _ _) = True
 isBinaryCommand (COM_STMT_BULK_EXECUTE _ _ _ _) = True
 isBinaryCommand _ = False
 
@@ -463,8 +484,12 @@ queryStmtVector conn ident values = withCommand conn $ do
 -- every handle. Raw-ID functions remain available for compatibility.
 data PreparedStatement = PreparedStatement !MySQLConn !StmtID !Word64
 
--- | Local statement misuse. No command is sent for these errors.
+-- | Statement/parameter misuse. Closed handles, invalid fetch sizes and pending
+-- batches fail before writing. 'InvalidCursorUse' can also follow a synchronized
+-- non-row reply. A streamed-parameter error arising after upload begins retires
+-- its incomplete connection before throwing.
 data StatementException = StatementClosed | InvalidBulkBatch String
+                        | InvalidPreparedParameter String | InvalidCursorUse String
     deriving (Show)
 instance Exception StatementException
 
@@ -574,6 +599,304 @@ executePrepared statement@(PreparedStatement conn ident _) values = withCommand 
     state <- checkedStatement statement
     validateStatementValues state values
     executeCore conn (COM_STMT_EXECUTE ident values (makeNullMap values))
+
+-- | A scalar binding or a one-shot source for a large binary/text parameter.
+-- Text chunks use the current client charset; chunk boundaries need not match
+-- wire boundaries. Sources remain owned by the caller and are never replayed
+-- or closed by the driver. Empty sources bind an empty, non-NULL value with
+-- the corresponding binary or text type/collation.
+data PreparedParameter
+    = PreparedValue !MySQLValue
+    | PreparedBytes !(InputStream B.ByteString)
+    | PreparedText !(InputStream T.Text)
+
+-- Upload and EXECUTE hold the same command lease. A no-reply upload command
+-- cannot acknowledge server acceptance: MariaDB can defer its error to EXECUTE.
+-- Any source/encoding/cancellation failure after upload starts retires the
+-- connection, preventing partially accumulated parameters from leaking into a
+-- later execution. Limit arithmetic uses subtraction before adding each chunk.
+uploadParameters :: PreparedStatement -> [PreparedParameter] -> IO ([ExecuteParameter], BitMap)
+uploadParameters statement@(PreparedStatement conn ident _) parameters = do
+    state <- checkedStatement statement
+    unless (lengthWithin (statementArity state) parameters == Just (statementArity state))
+        (throwIO WrongParamsCount)
+    let values = map scalar parameters
+        scalar (PreparedValue value) = ExecuteValue value
+        scalar (PreparedBytes _) = UploadedBytes
+        scalar (PreparedText _) = UploadedText
+        bitmap = makeNullMap (map executeParameterValue values)
+    forM_ [value | ExecuteValue value <- values] $
+        either (throwIO . UnencodableParameter) pure . validateValue
+    charset <- if any needsCharset parameters then renderClientCharset <$> getRenderContext conn else pure "utf8mb4"
+    -- Validate ordinary text too, before consuming any one-shot input.
+    forM_ values $ \value -> case value of
+        ExecuteValue (MySQLText text) -> void (either (throwIO . UnencodableParameter) pure (encodeCharsetText charset text))
+        _ -> pure ()
+    serverLimit <- readIORef (connectionServerPacketLimit conn)
+    let messageLimit = min serverLimit (maximumMessageBytes (connectionOptions conn))
+        totalLimit = min serverLimit (maximumLongDataBytes (connectionOptions conn))
+    when (messageLimit <= 7) (throwIO (InvalidPreparedParameter "message limit cannot hold a long-data chunk"))
+    remaining <- newIORef totalLimit
+    let chunkSize = fromIntegral (min 65536 (messageLimit - 7))
+        send index bytes = do
+            left <- readIORef remaining
+            when (fromIntegral (B.length bytes) > left)
+                (throwIO (InvalidPreparedParameter "streamed parameters exceed byte limit"))
+            writeIORef remaining (left - fromIntegral (B.length bytes))
+            sendCommand conn (COM_STMT_SEND_LONG_DATA ident index bytes)
+        upload index source = do
+            -- Even a source with no chunks must set MariaDB's long-data state.
+            send index B.empty
+            -- A source's chunk size is an application detail. Coalesce small
+            -- chunks to avoid one command/builder allocation per tiny read,
+            -- while bounding retained payload to 64 KiB and segment metadata
+            -- to 1024 entries. Large input chunks are sliced without copying.
+            let flush [one] = send index one
+                flush chunks = send index (B.concat (reverse chunks))
+                fill used segments chunks = do
+                    next <- Stream.read source
+                    case next of
+                        Nothing -> unless (used == 0) (flush chunks)
+                        Just bytes -> push used segments chunks bytes
+                push used segments chunks bytes
+                    | B.null bytes = fill used segments chunks
+                    | B.length bytes >= chunkSize-used = do
+                        let (part,rest) = B.splitAt (chunkSize-used) bytes
+                        flush (part:chunks)
+                        if B.null rest then fill 0 0 [] else push 0 0 [] rest
+                    | segments >= (1023 :: Int) = flush (bytes:chunks) >> fill 0 0 []
+                    | otherwise = fill (used+B.length bytes) (segments+1) (bytes:chunks)
+            fill 0 0 []
+    forM_ (zip [0..] parameters) $ \(index,parameter) -> case parameter of
+        PreparedValue _ -> pure ()
+        PreparedBytes source -> upload index source
+        PreparedText source -> do
+            pending <- newIORef T.empty
+            let encodePart text = do
+                    let (part,rest) = T.splitAt 8192 text
+                    writeIORef pending rest
+                    Just <$> either (throwIO . UnencodableParameter) pure (encodeCharsetText charset part)
+                next = do
+                    rest <- readIORef pending
+                    if T.null rest then Stream.read source >>= maybe (pure Nothing) encodePart
+                        else encodePart rest
+            encoded <- Stream.makeInputStream next
+            upload index encoded
+    pure (values,bitmap)
+  where
+    needsCharset (PreparedText _) = True
+    needsCharset (PreparedValue (MySQLText _)) = True
+    needsCharset _ = False
+
+uploadCommand :: PreparedStatement -> Word8 -> [PreparedParameter] -> IO Command
+uploadCommand statement@(PreparedStatement _ ident _) flags parameters = do
+    (values,bitmap) <- uploadParameters statement parameters
+    pure (COM_STMT_EXECUTE_EXT ident flags values bitmap)
+
+-- | Upload bounded one-shot parameters and execute a non-row statement.
+-- Server packet/parameter limits still apply; chunking reduces client buffering,
+-- not MariaDB's accumulated-value limits. Use a transaction for atomic writes.
+executePreparedStream :: PreparedStatement -> [PreparedParameter] -> IO OK
+executePreparedStream statement@(PreparedStatement conn _ _) parameters = withCommand conn $ do
+    cmd <- uploadCommand statement 0 parameters
+    executeCore conn cmd
+
+-- | Stream the first binary row result with uploaded parameters. The returned
+-- result has the same owner, lifetime and extra-result rules as 'queryPrepared'.
+queryPreparedStream :: PreparedStatement -> [PreparedParameter] -> IO ([ColumnDef], InputStream [MySQLValue])
+queryPreparedStream statement@(PreparedStatement conn _ _) parameters = withCommand conn $ do
+    cmd <- uploadCommand statement 0 parameters
+    queryCore conn cmd True
+
+-- | Upload parameters and collect complete prepared results, including OUT
+-- parameters. This materializes result rows, as 'queryPreparedMulti' does.
+queryPreparedStreamMulti :: PreparedStatement -> [PreparedParameter] -> IO [PreparedResult]
+queryPreparedStreamMulti statement@(PreparedStatement conn _ _) parameters = withCommand conn $ do
+    cmd <- uploadCommand statement 0 parameters
+    sendCommand conn cmd
+    readPreparedResults conn
+
+data CursorPhase = CursorOpen | CursorFetching | CursorFinished deriving Eq
+
+-- | An exclusive, read-only server cursor. Its creating thread owns the
+-- connection until the cursor is exhausted or closed. Each fetch returns an
+-- incremental stream; finish that batch before requesting another. MariaDB may
+-- materialize the result on the server. A cursor is not a snapshot guarantee.
+data PreparedCursor = PreparedCursor
+    { cursorStatement :: !PreparedStatement
+    , cursorGeneration :: !Word64
+    , cursorColumns :: !CachedColumns
+    , cursorPhase :: !(IORef CursorPhase)
+    , cursorBatchDrain :: !(IORef (Maybe (IO ())))
+    }
+
+-- | Open a read-only cursor on a prepared SELECT. The metadata cache is shared
+-- with ordinary executions. Other SQL commands, including reset/close of the
+-- statement, are rejected until exhaustion or 'closeCursor'. The cursor flag
+-- does not prove that arbitrary SQL is read-only: use this API with SELECTs;
+-- MariaDB can execute other SQL before reporting that no cursor was opened.
+openCursor :: PreparedStatement -> [MySQLValue] -> IO ([ColumnDef], PreparedCursor)
+openCursor statement@(PreparedStatement conn _ _) values = withCommand conn (openCursorCore statement values)
+
+openCursorCore :: PreparedStatement -> [MySQLValue] -> IO ([ColumnDef], PreparedCursor)
+openCursorCore statement@(PreparedStatement _ ident _) values = do
+    state <- checkedStatement statement
+    validateStatementValues state values
+    openCursorCommand statement (COM_STMT_EXECUTE_EXT ident 1 (map ExecuteValue values) (makeNullMap values))
+
+-- | Open a read-only cursor with streamed binary/text parameters. Upload and
+-- cursor execution share one lease, with the same one-shot and byte-limit
+-- contracts as 'queryPreparedStream'. Consume or close the cursor before reuse.
+openCursorStream :: PreparedStatement -> [PreparedParameter] -> IO ([ColumnDef], PreparedCursor)
+openCursorStream statement@(PreparedStatement conn _ _) parameters = withCommand conn (openCursorStreamCore statement parameters)
+
+openCursorStreamCore :: PreparedStatement -> [PreparedParameter] -> IO ([ColumnDef], PreparedCursor)
+openCursorStreamCore statement parameters = do
+    cmd <- uploadCommand statement 1 parameters
+    openCursorCommand statement cmd
+
+openCursorCommand :: PreparedStatement -> Command -> IO ([ColumnDef], PreparedCursor)
+openCursorCommand statement@(PreparedStatement conn _ _) cmd = do
+    sendCommand conn cmd
+    packet <- readConnPacket conn
+    when (isERR packet) (serverError conn packet)
+    when (isOK packet) $ do
+        ok <- consumeOK conn packet
+        when (moreResults (okStatus ok)) (void (skipFurtherResults conn True False))
+        finishResponse conn
+        throwIO (InvalidCursorUse "statement did not return a cursor result")
+    columns <- readResultColumns conn packet
+    modern <- usesOKTerminator conn
+    flags <- if modern then readConnPacket conn >>= consumeEnd conn
+        else maybe (throwIO (ProtocolError "cursor metadata has no status")) pure =<< readIORef (connectionServerStatus conn)
+    unless (flags .&. 64 /= 0 && flags .&. 8 == 0)
+        (throwIO (ProtocolError "server did not open a read-only cursor"))
+    generation <- markStreaming conn
+    phase <- newIORef CursorOpen
+    drain <- newIORef Nothing
+    let cursor = PreparedCursor statement generation columns phase drain
+    writeIORef (connectionDrain conn) (Just (closeCursor cursor))
+    pure (cachedFields columns,cursor)
+
+-- | Whether the server has exhausted the cursor, or the caller has closed it.
+-- This observation sends no command and does not claim connection ownership.
+cursorExhausted :: PreparedCursor -> IO Bool
+cursorExhausted cursor = (== CursorFinished) <$> readIORef (cursorPhase cursor)
+
+checkCursorOwner :: PreparedCursor -> IO ()
+checkCursorOwner cursor = do
+    let PreparedStatement conn _ _ = cursorStatement cursor
+    callbackActive <- readIORef (connectionCallbackActive conn)
+    when callbackActive (throwIO ConcurrentConnectionUse)
+    runtime <- readIORef (connectionRuntime conn)
+    tid <- myThreadId
+    unless (runtimeGeneration runtime == cursorGeneration cursor) (throwIO StaleResultStream)
+    unless (runtimeStatus runtime == Streaming) (throwIO (ConnectionUnavailable (runtimeStatus runtime)))
+    unless (runtimeOwner runtime == Just tid) (throwIO ConcurrentConnectionUse)
+
+-- | Request at most this many rows, bounded by 'maximumCursorFetchRows'. Rows
+-- are decoded one at a time. An exact-sized final batch may need one final
+-- empty fetch before MariaDB reports exhaustion. Zero/excessive counts and an
+-- unfinished preceding batch fail locally without sending bytes.
+fetchCursor :: PreparedCursor -> Word32 -> IO (InputStream [MySQLValue])
+fetchCursor cursor count = do
+    let PreparedStatement conn ident _ = cursorStatement cursor
+    when (count == 0 || count > maximumCursorFetchRows (connectionOptions conn))
+        (throwIO (InvalidCursorUse "invalid cursor fetch size"))
+    checkCursorOwner cursor
+    phase <- readIORef (cursorPhase cursor)
+    unless (phase == CursorOpen) (throwIO (InvalidCursorUse "cursor batch is pending or cursor is closed"))
+    streamGuard conn (cursorGeneration cursor) $ do
+        sendCommand conn (COM_STMT_FETCH ident count)
+        writeIORef (cursorPhase cursor) CursorFetching
+        finished <- newIORef False
+        received <- newIORef (0 :: Word32)
+        let next decode = do
+                done <- readIORef finished
+                if done then pure Nothing else streamGuard conn (cursorGeneration cursor) $ do
+                    packet <- readConnPacket conn
+                    ending <- isResultEnd conn packet
+                    if ending then do
+                        flags <- consumeEnd conn packet
+                        unless (flags .&. 8 == 0 && flags .&. 192 `elem` [64,128])
+                            (throwIO (ProtocolError "invalid cursor batch status"))
+                        writeIORef finished True
+                        writeIORef (cursorBatchDrain cursor) Nothing
+                        let exhausted = flags .&. 128 /= 0
+                        writeIORef (cursorPhase cursor) (if exhausted then CursorFinished else CursorOpen)
+                        when exhausted (finishResponse conn)
+                        pure Nothing
+                    else if isERR packet then do
+                        writeIORef (cursorPhase cursor) CursorFinished
+                        serverError conn packet
+                    else do
+                        n <- readIORef received
+                        when (n >= count) (throwIO (ProtocolError "cursor sent more rows than requested"))
+                        writeIORef received (n+1)
+                        Just <$> decode packet
+            drain = next (const (pure ())) >>= maybe (pure ()) (const drain)
+        writeIORef (cursorBatchDrain cursor) (Just drain)
+        Stream.makeInputStream (next (decodeBinaryRow (cachedBinaryDecoder (cursorColumns cursor))))
+
+-- | Drain only an outstanding batch, then reset the statement to release the
+-- remaining server cursor without fetching it. One cleanup deadline bounds
+-- draining/reset. Repeated close is a local no-op; interruption retires the
+-- connection. Metadata remains cached, matching MariaDB's statement reset.
+closeCursor :: PreparedCursor -> IO ()
+closeCursor cursor = mask $ \restore -> cleanupCursor restore cursor
+
+-- The bracket must enter this helper masked, just as explicit close does.
+-- Restoring around the helper call would let a pending second cancellation
+-- escape before its failure handler can retire the unfinished connection.
+-- Restore only the timed I/O, retaining the caller's original masking state.
+cleanupCursor :: (IO () -> IO ()) -> PreparedCursor -> IO ()
+cleanupCursor restore cursor = do
+    let PreparedStatement conn ident _ = cursorStatement cursor
+    status <- connectionStatus conn
+    when (status `elem` [Broken,Closed]) $ do
+        writeIORef (cursorPhase cursor) CursorFinished
+        writeIORef (cursorBatchDrain cursor) Nothing
+    done <- cursorExhausted cursor
+    unless done $ do
+        checkCursorOwner cursor
+        result <- try $ timeout (cleanupTimeoutMicros (connectionOptions conn)) $ restore $ streamGuard conn (cursorGeneration cursor) $ do
+            pending <- readIORef (cursorBatchDrain cursor)
+            maybe (pure ()) id pending
+            exhausted <- cursorExhausted cursor
+            unless exhausted $ do
+                sendCommand conn (COM_STMT_RESET ident)
+                ok <- readConnPacket conn >>= consumeCommandOK conn
+                when (moreResults (okStatus ok)) (throwIO (ProtocolError "cursor reset returned extra results"))
+                writeIORef (cursorPhase cursor) CursorFinished
+                finishResponse conn
+        case result of
+            Right (Just ()) -> pure ()
+            Right Nothing -> abortConnection conn False >> throwIO CleanupDeadlineExceeded
+            Left (err :: SomeException) -> abortConnection conn False >> throwIO err
+
+-- | Bracket an exclusive cursor, releasing unfinished batches/server state on
+-- return or an application exception. A primary exception keeps its identity;
+-- a new asynchronous cancellation during cleanup still propagates.
+withCursor :: PreparedStatement -> [MySQLValue] -> (PreparedCursor -> IO a) -> IO a
+withCursor statement@(PreparedStatement conn _ _) values = withOpenedCursor conn (openCursorCore statement values)
+
+-- | Bracket 'openCursorStream', releasing unfinished batches and the server
+-- cursor on return or exception. Caller-owned parameter sources are not closed.
+withCursorStream :: PreparedStatement -> [PreparedParameter] -> (PreparedCursor -> IO a) -> IO a
+withCursorStream statement@(PreparedStatement conn _ _) parameters = withOpenedCursor conn (openCursorStreamCore statement parameters)
+
+withOpenedCursor :: MySQLConn -> IO ([ColumnDef], PreparedCursor) -> (PreparedCursor -> IO a) -> IO a
+withOpenedCursor conn open action = mask $ \restore -> do
+    -- Restore acquisition only inside withCommand's failure handler. A fully
+    -- buffered one-shot source must remain cancellable, while the return to
+    -- bracket bookkeeping stays masked so no cursor can escape its finalizer.
+    (_,cursor) <- withCommand conn (restore open)
+    result <- try (restore (action cursor))
+    case result of
+        Right value -> cleanupCursor restore cursor >> pure value
+        Left (err :: SomeException) -> do
+            cleanupCursor restore cursor `catch` \(secondary :: SomeException) -> when (isCancellation secondary) (throwIO secondary)
+            throwIO err
 
 -- | Complete prepared results in wire order. OUT parameters are identified by
 -- SERVER_PS_OUT_PARAMS on their terminator, not guessed from column names.

@@ -15,6 +15,12 @@ import publish_results as live
 import stage1_gates
 
 
+def unchanged_inputs(expected):
+    """Do not measure a binary built while source/test inputs were changing."""
+    current = live.input_snapshot()
+    return all(current.get(key) == expected.get(key) for key in ('files', 'commit', 'branch'))
+
+
 def install_runtime_data():
     """Exercise Cabal installation, rather than making CA lookup depend on cwd.
 
@@ -57,6 +63,15 @@ def cdc_benchmarks(output, repetitions, config):
     """Preserve complete CDC measurements alongside every full Stage 5 run."""
     destination = output / 'cdc'
     subprocess.run([sys.executable, str(run.HERE / 'stage5_benchmarks.py'),
+                    '--config', str(config), '--output', str(destination),
+                    '--repetitions', str(repetitions)], cwd=run.ROOT, check=True)
+    return json.loads((destination / 'results.json').read_text())
+
+
+def wire_benchmarks(output, repetitions, config):
+    """Keep all optional-wire alternatives in complete Stage 6 runs."""
+    destination = output / 'wire'
+    subprocess.run([sys.executable, str(run.HERE / 'stage6_benchmarks.py'),
                     '--config', str(config), '--output', str(destination),
                     '--repetitions', str(repetitions)], cwd=run.ROOT, check=True)
     return json.loads((destination / 'results.json').read_text())
@@ -174,6 +189,26 @@ def main():
                 except KeyboardInterrupt:
                     attempt.update(state='FAILED', stage='CDC benchmarks', reason='CDC benchmarks interrupted.')
                     data, gate, status = None, None, 130
+            if data is not None and any(case['id'].startswith('stage6.') for case in data.get('correctness', [])):
+                try:
+                    from stage6_benchmarks import verify_evidence as verify_wire
+                    wire = wire_benchmarks(output, args.repetitions, args.config)
+                    verify_wire(wire, inputs)
+                    attempt['wire_features'] = wire
+                    comparison = wire['baseline_comparison']
+                    for metric in ('timing_investigations', 'allocation_investigations'):
+                        gate['wire_' + metric] = comparison[metric]
+                    gate['performance_requires_confirmation'] = gate.get('performance_requires_confirmation', False) or bool(
+                        comparison['timing_investigations'] or comparison['allocation_investigations'])
+                    (run.HERE / 'results/stage1-gates.json').write_text(json.dumps(gate, indent=2) + '\n')
+                    if any(item['percent'] > 20 for item in comparison['timing_investigations']):
+                        status = status or 1
+                except (OSError, ValueError, KeyError, RuntimeError, subprocess.CalledProcessError) as error:
+                    attempt.update(state='FAILED', stage='wire feature benchmarks', reason='Wire feature evidence failed: ' + str(error))
+                    data, gate, status = None, None, status or 1
+                except KeyboardInterrupt:
+                    attempt.update(state='FAILED', stage='wire feature benchmarks', reason='Wire feature benchmarks interrupted.')
+                    data, gate, status = None, None, 130
             attempt.update(exit_code=status, finished_at=live.now())
             live.publish(attempt,data,gate=gate)
             print("Live results updated:",live.REPORT,flush=True)
@@ -198,6 +233,8 @@ def main():
         return finish(130, "Validation interrupted during build.")
     if build.returncode:
         return finish(build.returncode,"Current source did not build; no suite results were produced.")
+    if not unchanged_inputs(inputs):
+        return finish(1, "Test/build inputs changed during build; no suite was measured.")
     attempt["stage"]="runtime data installation"
     try:
         installed = install_runtime_data()
@@ -207,6 +244,8 @@ def main():
         return finish(130, "Validation interrupted during runtime data installation.")
     if installed:
         return finish(installed, "Runtime data installation failed; no suite results were produced.")
+    if not unchanged_inputs(inputs):
+        return finish(1, "Test/build inputs changed during runtime data installation; no suite was measured.")
     attempt["stage"]="suite"
     options = [*[arg for arg in sys.argv[1:] if arg != "--working-tree"],"--output",str(output)]
     if full and not args.compare and not args.freeze:

@@ -24,9 +24,12 @@ import qualified Validation.Stage4Bench as Stage4Bench
 import qualified Validation.Stage5 as Stage5
 import qualified Validation.Stage5Review as Stage5Review
 import qualified Validation.Stage5Bench as Stage5Bench
+import qualified Validation.Stage6 as Stage6
+import qualified Validation.Stage6Bench as Stage6Bench
+import qualified Validation.Stage6Review as Stage6Review
 
 allCases :: [Case]
-allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases ++ Stage5.cases ++ Stage5Review.cases
+allCases=Protocol.cases ++ Functional.cases ++ Reliability.cases ++ Security.cases ++ CDC.cases ++ Stage1.cases ++ Stage2.cases ++ Stage3.cases ++ Stage4.cases ++ Stage5.cases ++ Stage5Review.cases ++ Stage6.cases ++ Stage6Review.cases
 
 main :: IO ()
 main=do
@@ -46,6 +49,8 @@ main=do
         Nothing -> throwIO (userError ("unknown test " ++ ident))
         Just c -> caseRun c >> putStrLn ("PASS\t" ++ ident)
     run ["stage5-bench",ident,n]=Stage5Bench.run ident (read n)
+    run ["stage6-bench",ident,n]=Stage6Bench.run ident (read n)
+    run ["stage6-heap-control"]=Stage6Bench.retentionNegativeControl
     run ["stage4-bench",ident,n]=Stage4Bench.run ident (read n)
     run ["stage3-bench",ident,n]=Stage3Bench.run ident (read n)
     run ["stage1-bench",ident,n]=Supplementary.run ident (read n)

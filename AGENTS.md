@@ -142,3 +142,23 @@ Superseding user instruction, 8 November 2026 after the Stage 5 follow-up review
 commit and push all reviewed CDC fixes and retained evidence directly on main.
 Use the committed-input publication workflow above, preserve immutable references
 and earlier unsuccessful attempts, and keep deferred timing investigations visible.
+
+User approval, 8 November 2026: implement phase 1 of the remaining capabilities:
+streamed long-data parameters, server cursor fetch, MariaDB progress callbacks
+and opt-in transport compression. Add correctness/fault tests and independent
+benchmarks, protect all 694 published passes and preserve frozen workloads and
+references. Develop on main and leave changes uncommitted for review. PAM/GSSAPI
+and a different timeout-recovery contract remain outside this phase.
+
+User approval, 9 November 2026: fix all Stage 6 review findings, then run the
+complete documented correctness/benchmark workflow and refresh the live report.
+Include repeated cursor cancellation, compressed semisync acknowledgements and
+an effective fresh-chunk heap workload with a buffering negative control.
+Keep prior evidence and references intact. Continue on main, leaving the work
+uncommitted for review; no commit or push was requested.
+
+Superseding user instruction, 9 November 2026 after the Stage 6 review fixes:
+commit and push the reviewed implementation and retained evidence directly on
+main. Use the committed-input publication workflow above, preserve all immutable
+references and unsuccessful attempts, and keep timing investigations visible.
+Provide the GitHub link to the refreshed live report after verifying the push.

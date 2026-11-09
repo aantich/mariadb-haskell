@@ -1,0 +1,41 @@
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+import Control.Concurrent
+import Control.Exception
+import Control.Monad
+import Data.Binary.Put
+import Data.Bits
+import Data.IORef
+import Database.MySQL.Base
+import qualified Database.MySQL.Connection as C
+import qualified System.IO.Streams as S
+
+field = ColumnDef "" "" "" "n" "" 63 20 mySQLTypeLongLong 0 0
+ending n flags = putToPacket n (putWord8 254 >> putWord8 0 >> putWord8 0 >> putWord16le flags >> putWord16le 0)
+fixture = do
+ input <- S.fromList [putToPacket 1 (putWord8 0 >> putWord32le 9 >> putWord16le 1 >> putWord16le 0 >> putWord8 0 >> putWord16le 0),encodeToPacket 2 field,putToPacket 1 (putWord8 1),encodeToPacket 2 field,ending 3 66,encodeToPacket 1 (OK 0 0 2 0)]
+ sent <- newIORef (0::Int)
+ closed <- newIORef (0::Int)
+ conn <- C.newConnection defaultConnectionOptions input (const (modifyIORef' sent (+1))) (modifyIORef' closed (+1))
+ writeIORef (C.connectionCapabilities conn) (bit 24)
+ statement <- prepareStatement conn "SELECT 1"
+ pure (conn,statement,sent,closed)
+main = do
+ totals <- newIORef (0::Int)
+ forM_ [1..10::Int] $ \trial -> do
+  (conn,statement,sent,closed) <- fixture
+  started <- newEmptyMVar
+  done <- newEmptyMVar
+  blocker <- newEmptyMVar
+  worker <- forkFinally (withCursor statement [] (\_ -> putMVar started () >> takeMVar blocker)) (putMVar done)
+  takeMVar started
+  throwTo worker ThreadKilled
+  throwTo worker ThreadKilled
+  takeMVar done
+  status <- connectionStatus conn
+  when (status==Streaming) $ do
+   modifyIORef' totals (+1)
+   writes <- readIORef sent
+   closeCount <- readIORef closed
+   putStrLn ("LEAK trial="++show trial++" writes="++show writes++" closes="++show closeCount)
+  close conn
+ readIORef totals >>= print

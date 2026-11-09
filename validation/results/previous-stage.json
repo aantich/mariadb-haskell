@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "reference": "references/stage5-publication-1.json",
-  "sha256": "bf2741c054e4c94a721e17944432d187f39ed488ababdafbbf34fa0440d5e3eb",
-  "tested_commit": "9d0eedc6ee47ac7316658c00d7825ba8f1faafa7",
-  "purpose": "Preserve all 636 published Stage 5 passes during the follow-up CDC review. Original, accepted, native, reuse and CDC performance baselines remain unchanged."
+  "reference": "references/stage5-review-publication-1.json",
+  "sha256": "b201a122915149e7f0f15313be62f752421ecb151ad42eb293bda9838d84fe33",
+  "tested_commit": "ba99d8cb5554c993bdefba341ebce7923295cf31",
+  "purpose": "Preserve all 694 published passes during Stage 6. Original, accepted and feature performance references remain unchanged."
 }

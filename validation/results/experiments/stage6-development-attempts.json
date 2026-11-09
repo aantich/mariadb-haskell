@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "attempts": [
+    {
+      "attempt": "stage6-focused-1",
+      "log": "experiments/stage6-focused-1.log",
+      "scope": "Initial large compressed exchange exposed MariaDB flush-time ordinary packet numbering; corrected against server source.",
+      "results": "references/stage6-focused-1.json",
+      "counts": {
+        "PASS": 7,
+        "FAIL": 1
+      },
+      "source_unchanged_during_run": true
+    },
+    {
+      "attempt": "stage6-focused-2",
+      "log": "experiments/stage6-focused-2.log",
+      "scope": "Intermediate development evidence; final focused and full correctness checks supersede this source.",
+      "results": "references/stage6-focused-2.json",
+      "counts": {
+        "PASS": 8
+      },
+      "source_unchanged_during_run": true
+    },
+    {
+      "attempt": "stage6-focused-3",
+      "log": "experiments/stage6-focused-3.log",
+      "scope": "Development compile failure; no correctness evidence."
+    },
+    {
+      "attempt": "stage6-focused-4",
+      "log": "experiments/stage6-focused-4.log",
+      "scope": "Inputs changed while the development run was in progress; not confirmation evidence.",
+      "results": "references/stage6-focused-4.json",
+      "counts": {
+        "PASS": 68
+      },
+      "source_unchanged_during_run": true
+    },
+    {
+      "attempt": "stage6-focused-5",
+      "log": "experiments/stage6-focused-5.log",
+      "scope": "Intermediate development evidence; final focused and full correctness checks supersede this source.",
+      "results": "references/stage6-focused-5.json",
+      "counts": {
+        "PASS": 80
+      },
+      "source_unchanged_during_run": true
+    },
+    {
+      "attempt": "stage6-focused-6",
+      "log": "experiments/stage6-focused-6.log",
+      "scope": "Source changed during run; recorder rejected the attempt."
+    },
+    {
+      "attempt": "stage6-focused-7",
+      "log": "experiments/stage6-focused-7.log",
+      "scope": "Intermediate development evidence; final focused and full correctness checks supersede this source.",
+      "results": "references/stage6-focused-7.json",
+      "counts": {
+        "PASS": 82
+      },
+      "source_unchanged_during_run": true
+    },
+    {
+      "attempt": "stage6-focused-8",
+      "log": "experiments/stage6-focused-8.log",
+      "scope": "Mixed development build failed to compile; pre-run changed-input guards were added afterwards."
+    },
+    {
+      "attempt": "stage6-focused-9",
+      "log": "experiments/stage6-focused-9.log",
+      "scope": "Intermediate typed-parameter/cursor implementation; superseded by the final source.",
+      "results": "references/stage6-focused-9.json",
+      "counts": {
+        "PASS": 84
+      },
+      "source_unchanged_during_run": true
+    },
+    {
+      "attempt": "stage6-focused-10",
+      "log": "experiments/stage6-focused-10.log",
+      "scope": "Text collation test needed explicit session refresh after an opaque collation query; fixture corrected without changing classifier or assertions.",
+      "results": "references/stage6-focused-10.json",
+      "counts": {
+        "PASS": 86,
+        "FAIL": 1
+      },
+      "source_unchanged_during_run": true
+    },
+    {
+      "attempt": "stage6-focused-11",
+      "log": "experiments/stage6-focused-11.log",
+      "scope": "Intermediate development evidence; final focused and full correctness checks supersede this source.",
+      "results": "references/stage6-focused-11.json",
+      "counts": {
+        "PASS": 87
+      },
+      "source_unchanged_during_run": true
+    },
+    {
+      "attempt": "stage6-focused-12",
+      "log": "experiments/stage6-focused-12.log",
+      "scope": "Final 88-case focused check on the final implementation source; superseded only by the complete correctness check on the same inputs.",
+      "results": "references/stage6-focused-12.json",
+      "counts": {
+        "PASS": 88
+      },
+      "source_unchanged_during_run": true
+    }
+  ],
+  "interpretation": "Development failures and changed-source attempts remain retained. Only the final complete unchanged-input checks provide current correctness evidence. All smoke timings were gathered without an idle-window confirmation and are not final benchmark evidence."
+}

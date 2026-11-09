@@ -1,0 +1,200 @@
+{
+  "recorded_at": "2026-11-08T20:29:06.424088+00:00",
+  "scope": "Exact obsolete driver-validation RUN caches only. Replacing the old chained Dockerfile with a single fresh verification layer. No images, containers or volumes removed.",
+  "entries": [
+    {
+      "id": "ozkzy92ctfi24lk26ht0pl60b",
+      "ownership_evidence": "ID:\t\tozkzy92ctfi24lk26ht0pl60b\nParent:\t\td4jgibsw9slrarpjlcl8iesr7\nCreated at:\t2026-11-08 13:41:58.857310754 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t544.7MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-cached-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t6 hours ago\nType:\t\tregular",
+      "prune_output": "Total:\t0B\n"
+    },
+    {
+      "id": "ht7ef5djcx043g5ws2ys2u3e3",
+      "ownership_evidence": "ID:\t\tht7ef5djcx043g5ws2ys2u3e3\nParent:\t\tt5bpon0i1p53lipus4qd5mqh8\nCreated at:\t2026-11-08 13:24:51.610346626 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t552.8MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-review-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\n# Reusing an owned build layer must not reuse its previous CA issuance index.\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t7 hours ago\nType:\t\tregular",
+      "prune_output": "Total:\t0B\n"
+    },
+    {
+      "id": "r3fi2qlvpc4ybmf65hbx90kz4",
+      "ownership_evidence": "ID:\t\tr3fi2qlvpc4ybmf65hbx90kz4\nParent:\t\thhkaas9r8pbvnj5n2rnequf58\nCreated at:\t2026-11-08 13:29:50.396817917 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t554.1MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-confirmation-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t7 hours ago\nType:\t\tregular",
+      "prune_output": "Total:\t0B\n"
+    },
+    {
+      "id": "k9o6vml0o8ze2fwrpmpoyuo5g",
+      "ownership_evidence": "ID:\t\tk9o6vml0o8ze2fwrpmpoyuo5g\nParent:\t\t4kkchxa90ejqb34f5xa70mn7x\nCreated at:\t2026-11-08 14:51:31.301666755 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t557.9MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-review-fixes-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t3\nLast used:\t5 hours ago\nType:\t\tregular",
+      "prune_output": "Total:\t0B\n"
+    },
+    {
+      "id": "nxlwtdc46htfibq2r1ue6m474",
+      "ownership_evidence": "ID:\t\tnxlwtdc46htfibq2r1ue6m474\nParent:\t\t93w3kfihe9zt21fea6dazubk9\nCreated at:\t2026-11-08 13:17:28.762493504 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t592.1MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t7 hours ago\nType:\t\tregular",
+      "prune_output": "Total:\t0B\n"
+    },
+    {
+      "id": "vetrdpn2pyhu35fn8pppinrvc",
+      "ownership_evidence": "ID:\t\tvetrdpn2pyhu35fn8pppinrvc\nParent:\t\tn27gb1ner8e1tp0e339681prf\nCreated at:\t2026-11-08 15:10:34.730836714 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t554.5MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nattempt = 'retry-after-owned-cache-cleanup'\nout = pathlib.Path('/tmp/stage5-review-final-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    child = subprocess.Popen(['python3','-u','validation/linux/verify.py'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,\n        env={**os.environ,'PYTHONUNBUFFERED':'1','MB_LINUX_OUTPUT':str(out/'linux')})\n    for line in child.stdout:\n        log.write(line)\n        log.flush()\n        print(line,end='',flush=True)\n    status = child.wait()\n(out/'status.json').write_text(json.dumps({'exit_code':status})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t7 minutes ago\nType:\t\tregular",
+      "prune_output": "Total:\t0B\n"
+    },
+    {
+      "id": "smz11pfr5ya33vpeqlggs1da2",
+      "ownership_evidence": "ID:\t\tsmz11pfr5ya33vpeqlggs1da2\nParent:\t\tt05o91ahdmqfrwa1axszl2y86\nCreated at:\t2026-11-08 20:21:45.216188759 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t582.3MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage6-linux-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    child = subprocess.Popen(['python3','-u','validation/linux/verify.py'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,\n        env={**os.environ,'PYTHONUNBUFFERED':'1','MB_LINUX_OUTPUT':str(out/'linux')})\n    for line in child.stdout:\n        log.write(line); log.flush(); print(line,end='',flush=True)\n    status = child.wait()\n(out/'status.json').write_text(json.dumps({'exit_code':status})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t2 minutes ago\nType:\t\tregular",
+      "prune_output": "Total:\t0B\n"
+    },
+    {
+      "id": "zp60u8vzbuf17bslukfcdejm8",
+      "ownership_evidence": "ID:\t\tzp60u8vzbuf17bslukfcdejm8\nParent:\t\tci0e7j3rc9529cxx0q7eq8ueq\nCreated at:\t2026-11-08 20:25:29.492534668 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t495.1MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage6-final-linux-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    child = subprocess.Popen(['python3','-u','validation/linux/verify.py'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,\n        env={**os.environ,'PYTHONUNBUFFERED':'1','MB_LINUX_OUTPUT':str(out/'linux')})\n    for line in child.stdout:\n        log.write(line); log.flush(); print(line,end='',flush=True)\n    status = child.wait()\n(out/'status.json').write_text(json.dumps({'exit_code':status})+'\\n')\nPYRUN\nUsage count:\t1\nLast used:\t2 minutes ago\nType:\t\tregular",
+      "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nzp60u8vzbuf17bslukfcdejm8*              \ttrue \t\t495.1MB   \t2 minutes ago\nTotal:\t495.1MB\n"
+    }
+  ],
+  "dependency_cleanup": {
+    "root_ids": [
+      "ht7ef5djcx043g5ws2ys2u3e3",
+      "k9o6vml0o8ze2fwrpmpoyuo5g",
+      "nxlwtdc46htfibq2r1ue6m474",
+      "ozkzy92ctfi24lk26ht0pl60b",
+      "r3fi2qlvpc4ybmf65hbx90kz4",
+      "smz11pfr5ya33vpeqlggs1da2",
+      "vetrdpn2pyhu35fn8pppinrvc"
+    ],
+    "ownership": "Only descendants of these obsolete driver RUN caches and evidence COPYs explicitly naming their /tmp/stage5-* or /tmp/stage6-* outputs. All reclaimable and unshared; base images, dependency layers, containers and volumes are excluded.",
+    "entries": [
+      {
+        "id": "961yd7h7ehthwjnveqf3ovngc",
+        "ownership_evidence": "ID:\t\t961yd7h7ehthwjnveqf3ovngc\nCreated at:\t2026-11-08 15:06:13.08854201 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t40.96kB\nDescription:\t[finalreviewevidence 1/1] COPY --from=finalreviewverification /tmp/stage5-review-final-evidence/ /\nUsage count:\t1\nLast used:\t5 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\n961yd7h7ehthwjnveqf3ovngc*              \ttrue \t\t40.96kB   \t5 hours ago\nTotal:\t40.96kB\n"
+      },
+      {
+        "id": "9y4827ddfi7mtmwr5d3rfrp8i",
+        "ownership_evidence": "ID:\t\t9y4827ddfi7mtmwr5d3rfrp8i\nParent:\t\tn27gb1ner8e1tp0e339681prf\nCreated at:\t2026-11-08 15:06:10.886558801 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t5.415MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-review-final-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    child = subprocess.Popen(['python3','-u','validation/linux/verify.py'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,\n        env={**os.environ,'PYTHONUNBUFFERED':'1','MB_LINUX_OUTPUT':str(out/'linux')})\n    for line in child.stdout:\n        log.write(line)\n        log.flush()\n        print(line,end='',flush=True)\n    status = child.wait()\n(out/'status.json').write_text(json.dumps({'exit_code':status})+'\\n')\nPYRUN\nUsage count:\t1\nLast used:\t5 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\n9y4827ddfi7mtmwr5d3rfrp8i*              \ttrue \t\t5.415MB   \t5 hours ago\nTotal:\t5.415MB\n"
+      },
+      {
+        "id": "bcs162aq7o7w9ydied2eq2igt",
+        "ownership_evidence": "ID:\t\tbcs162aq7o7w9ydied2eq2igt\nCreated at:\t2026-11-08 13:19:41.735041844 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t36.86kB\nDescription:\t[finalevidence 1/1] COPY --from=finalverification /tmp/stage5-final-evidence/ /\nUsage count:\t1\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nbcs162aq7o7w9ydied2eq2igt*              \ttrue \t\t36.86kB   \t7 hours ago\nTotal:\t36.86kB\n"
+      },
+      {
+        "id": "cccdxor7eiqmyf1fmnugf4x3k",
+        "ownership_evidence": "ID:\t\tcccdxor7eiqmyf1fmnugf4x3k\nCreated at:\t2026-11-08 14:51:31.33919438 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t3.518MB\nDescription:\t[fixesevidence 1/1] COPY --from=fixesverification /tmp/stage5-review-fixes-evidence/ /\nUsage count:\t1\nLast used:\t6 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\ncccdxor7eiqmyf1fmnugf4x3k*              \ttrue \t\t3.518MB   \t6 hours ago\nTotal:\t3.518MB\n"
+      },
+      {
+        "id": "ci0e7j3rc9529cxx0q7eq8ueq",
+        "ownership_evidence": "ID:\t\tci0e7j3rc9529cxx0q7eq8ueq\nParent:\t\tsmz11pfr5ya33vpeqlggs1da2\nCreated at:\t2026-11-08 20:25:29.471945376 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t26.76MB\nDescription:\t[stage6finalverification 1/2] COPY --from=stage6finalinputs / /workspace/\nUsage count:\t1\nLast used:\t3 minutes ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nci0e7j3rc9529cxx0q7eq8ueq               \ttrue \t\t26.76MB   \t3 minutes ago\nTotal:\t26.76MB\n"
+      },
+      {
+        "id": "f1ea9u2vic37fo8w4f621fd2y",
+        "ownership_evidence": "ID:\t\tf1ea9u2vic37fo8w4f621fd2y\nParent:\t\tk9o6vml0o8ze2fwrpmpoyuo5g\nCreated at:\t2026-11-08 14:59:04.395384798 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t86.65MB\nDescription:\t[optimizedverification 1/2] COPY --from=optimizedinputs / /workspace/\nUsage count:\t1\nLast used:\t5 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nf1ea9u2vic37fo8w4f621fd2y               \ttrue \t\t86.65MB   \t5 hours ago\nTotal:\t86.65MB\n"
+      },
+      {
+        "id": "n6cjk4nzx0tn9vi7klopuxk2n",
+        "ownership_evidence": "ID:\t\tn6cjk4nzx0tn9vi7klopuxk2n\nCreated at:\t2026-11-08 13:17:28.783598254 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t3.211MB\nDescription:\t[evidence 1/1] COPY --from=verification /tmp/stage5-evidence/ /\nUsage count:\t1\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nn6cjk4nzx0tn9vi7klopuxk2n*              \ttrue \t\t3.211MB   \t7 hours ago\nTotal:\t3.211MB\n"
+      },
+      {
+        "id": "nr6d107iy6cv1oma3j7gkn39g",
+        "ownership_evidence": "ID:\t\tnr6d107iy6cv1oma3j7gkn39g\nCreated at:\t2026-11-08 13:29:50.431078917 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t3.24MB\nDescription:\t[confirmationevidence 1/1] COPY --from=confirmationverification /tmp/stage5-confirmation-evidence/ /\nUsage count:\t1\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nnr6d107iy6cv1oma3j7gkn39g*              \ttrue \t\t3.24MB    \t7 hours ago\nTotal:\t3.24MB\n"
+      },
+      {
+        "id": "rq14te56ptwiqxof7l9hnfrem",
+        "ownership_evidence": "ID:\t\trq14te56ptwiqxof7l9hnfrem\nCreated at:\t2026-11-08 20:26:42.106648299 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t57.34kB\nDescription:\t[stage6finalevidence 1/1] COPY --from=stage6finalverification /tmp/stage6-final-linux-evidence/ /\nUsage count:\t1\nLast used:\t3 minutes ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nrq14te56ptwiqxof7l9hnfrem*              \ttrue \t\t57.34kB   \t3 minutes ago\nTotal:\t57.34kB\n"
+      },
+      {
+        "id": "u3jrr60qvh7b8yhwq27gx7e79",
+        "ownership_evidence": "ID:\t\tu3jrr60qvh7b8yhwq27gx7e79\nCreated at:\t2026-11-08 13:41:58.888610921 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t3.236MB\nDescription:\t[cachedevidence 1/1] COPY --from=cachedverification /tmp/stage5-cached-evidence/ /\nUsage count:\t1\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nu3jrr60qvh7b8yhwq27gx7e79*              \ttrue \t\t3.236MB   \t7 hours ago\nTotal:\t3.236MB\n"
+      },
+      {
+        "id": "uk093kfc06iy4jtownpq2i6dj",
+        "ownership_evidence": "ID:\t\tuk093kfc06iy4jtownpq2i6dj\nCreated at:\t2026-11-08 13:24:51.639880334 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t3.236MB\nDescription:\t[reviewevidence 1/1] COPY --from=reviewverification /tmp/stage5-review-evidence/ /\nUsage count:\t1\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nuk093kfc06iy4jtownpq2i6dj*              \ttrue \t\t3.236MB   \t7 hours ago\nTotal:\t3.236MB\n"
+      },
+      {
+        "id": "vum4oypn4hm3l1q1qoakyqjm8",
+        "ownership_evidence": "ID:\t\tvum4oypn4hm3l1q1qoakyqjm8\nCreated at:\t2026-11-08 20:21:45.265166717 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t3.936MB\nDescription:\t[stage6evidence 1/1] COPY --from=stage6verification /tmp/stage6-linux-evidence/ /\nUsage count:\t1\nLast used:\t8 minutes ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nvum4oypn4hm3l1q1qoakyqjm8*              \ttrue \t\t3.936MB   \t8 minutes ago\nTotal:\t3.936MB\n"
+      },
+      {
+        "id": "w5cr09zhvang2rfwyw2kp4flq",
+        "ownership_evidence": "ID:\t\tw5cr09zhvang2rfwyw2kp4flq\nCreated at:\t2026-11-08 15:10:34.770921881 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t3.527MB\nDescription:\t[finalreviewevidence 1/1] COPY --from=finalreviewverification /tmp/stage5-review-final-evidence/ /\nUsage count:\t1\nLast used:\t5 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nw5cr09zhvang2rfwyw2kp4flq*              \ttrue \t\t3.527MB   \t5 hours ago\nTotal:\t3.527MB\n"
+      },
+      {
+        "id": "smz11pfr5ya33vpeqlggs1da2",
+        "ownership_evidence": "ID:\t\tsmz11pfr5ya33vpeqlggs1da2\nParent:\t\tt05o91ahdmqfrwa1axszl2y86\nCreated at:\t2026-11-08 20:21:45.216188759 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t582.3MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage6-linux-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    child = subprocess.Popen(['python3','-u','validation/linux/verify.py'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,\n        env={**os.environ,'PYTHONUNBUFFERED':'1','MB_LINUX_OUTPUT':str(out/'linux')})\n    for line in child.stdout:\n        log.write(line); log.flush(); print(line,end='',flush=True)\n    status = child.wait()\n(out/'status.json').write_text(json.dumps({'exit_code':status})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t3 minutes ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nsmz11pfr5ya33vpeqlggs1da2               \ttrue \t\t582.3MB   \t3 minutes ago\nTotal:\t582.3MB\n"
+      },
+      {
+        "id": "t05o91ahdmqfrwa1axszl2y86",
+        "ownership_evidence": "ID:\t\tt05o91ahdmqfrwa1axszl2y86\nParent:\t\tvetrdpn2pyhu35fn8pppinrvc\nCreated at:\t2026-11-08 20:19:22.341545679 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t91.15MB\nDescription:\t[stage6verification 1/2] COPY --from=stage6inputs / /workspace/\nUsage count:\t1\nLast used:\t8 minutes ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nt05o91ahdmqfrwa1axszl2y86               \ttrue \t\t91.15MB   \t8 minutes ago\nTotal:\t91.15MB\n"
+      },
+      {
+        "id": "vetrdpn2pyhu35fn8pppinrvc",
+        "ownership_evidence": "ID:\t\tvetrdpn2pyhu35fn8pppinrvc\nParent:\t\tn27gb1ner8e1tp0e339681prf\nCreated at:\t2026-11-08 15:10:34.730836714 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t554.5MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nattempt = 'retry-after-owned-cache-cleanup'\nout = pathlib.Path('/tmp/stage5-review-final-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    child = subprocess.Popen(['python3','-u','validation/linux/verify.py'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,\n        env={**os.environ,'PYTHONUNBUFFERED':'1','MB_LINUX_OUTPUT':str(out/'linux')})\n    for line in child.stdout:\n        log.write(line)\n        log.flush()\n        print(line,end='',flush=True)\n    status = child.wait()\n(out/'status.json').write_text(json.dumps({'exit_code':status})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t8 minutes ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nvetrdpn2pyhu35fn8pppinrvc               \ttrue \t\t554.5MB   \t8 minutes ago\nTotal:\t554.5MB\n"
+      },
+      {
+        "id": "n27gb1ner8e1tp0e339681prf",
+        "ownership_evidence": "ID:\t\tn27gb1ner8e1tp0e339681prf\nParent:\t\tk9o6vml0o8ze2fwrpmpoyuo5g\nCreated at:\t2026-11-08 15:06:10.867408217 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t86.83MB\nDescription:\t[finalreviewverification 1/2] COPY --from=finalreviewinputs / /workspace/\nUsage count:\t2\nLast used:\t5 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nn27gb1ner8e1tp0e339681prf               \ttrue \t\t86.83MB   \t5 hours ago\nTotal:\t86.83MB\n"
+      },
+      {
+        "id": "k9o6vml0o8ze2fwrpmpoyuo5g",
+        "ownership_evidence": "ID:\t\tk9o6vml0o8ze2fwrpmpoyuo5g\nParent:\t\t4kkchxa90ejqb34f5xa70mn7x\nCreated at:\t2026-11-08 14:51:31.301666755 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t557.9MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-review-fixes-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t3\nLast used:\t5 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nk9o6vml0o8ze2fwrpmpoyuo5g               \ttrue \t\t557.9MB   \t5 hours ago\nTotal:\t557.9MB\n"
+      },
+      {
+        "id": "4kkchxa90ejqb34f5xa70mn7x",
+        "ownership_evidence": "ID:\t\t4kkchxa90ejqb34f5xa70mn7x\nParent:\t\tozkzy92ctfi24lk26ht0pl60b\nCreated at:\t2026-11-08 14:50:23.315014084 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t86.64MB\nDescription:\t[fixesverification 1/2] COPY --from=fixesinputs / /workspace/\nUsage count:\t1\nLast used:\t6 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\n4kkchxa90ejqb34f5xa70mn7x               \ttrue \t\t86.64MB   \t6 hours ago\nTotal:\t86.64MB\n"
+      },
+      {
+        "id": "ozkzy92ctfi24lk26ht0pl60b",
+        "ownership_evidence": "ID:\t\tozkzy92ctfi24lk26ht0pl60b\nParent:\t\td4jgibsw9slrarpjlcl8iesr7\nCreated at:\t2026-11-08 13:41:58.857310754 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t544.7MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-cached-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t6 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nozkzy92ctfi24lk26ht0pl60b               \ttrue \t\t544.7MB   \t6 hours ago\nTotal:\t544.7MB\n"
+      },
+      {
+        "id": "d4jgibsw9slrarpjlcl8iesr7",
+        "ownership_evidence": "ID:\t\td4jgibsw9slrarpjlcl8iesr7\nParent:\t\tr3fi2qlvpc4ybmf65hbx90kz4\nCreated at:\t2026-11-08 13:41:19.59908625 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t2.646MB\nDescription:\t[cachedverification 1/2] COPY --from=cachedinputs / /workspace/\nUsage count:\t1\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nd4jgibsw9slrarpjlcl8iesr7               \ttrue \t\t2.646MB   \t7 hours ago\nTotal:\t2.646MB\n"
+      },
+      {
+        "id": "r3fi2qlvpc4ybmf65hbx90kz4",
+        "ownership_evidence": "ID:\t\tr3fi2qlvpc4ybmf65hbx90kz4\nParent:\t\thhkaas9r8pbvnj5n2rnequf58\nCreated at:\t2026-11-08 13:29:50.396817917 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t554.1MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-confirmation-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nr3fi2qlvpc4ybmf65hbx90kz4               \ttrue \t\t554.1MB   \t7 hours ago\nTotal:\t554.1MB\n"
+      },
+      {
+        "id": "hhkaas9r8pbvnj5n2rnequf58",
+        "ownership_evidence": "ID:\t\thhkaas9r8pbvnj5n2rnequf58\nParent:\t\tht7ef5djcx043g5ws2ys2u3e3\nCreated at:\t2026-11-08 13:28:50.366367792 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t2.642MB\nDescription:\t[confirmationverification 1/2] COPY --from=confirmationinputs / /workspace/\nUsage count:\t1\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nhhkaas9r8pbvnj5n2rnequf58               \ttrue \t\t2.642MB   \t7 hours ago\nTotal:\t2.642MB\n"
+      },
+      {
+        "id": "ht7ef5djcx043g5ws2ys2u3e3",
+        "ownership_evidence": "ID:\t\tht7ef5djcx043g5ws2ys2u3e3\nParent:\t\tt5bpon0i1p53lipus4qd5mqh8\nCreated at:\t2026-11-08 13:24:51.610346626 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t552.8MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, shutil, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-review-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\n# Reusing an owned build layer must not reuse its previous CA issuance index.\nshutil.rmtree('/tmp/mariadb-haskell-stage2-tls',ignore_errors=True)\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nht7ef5djcx043g5ws2ys2u3e3               \ttrue \t\t552.8MB   \t7 hours ago\nTotal:\t552.8MB\n"
+      },
+      {
+        "id": "t5bpon0i1p53lipus4qd5mqh8",
+        "ownership_evidence": "ID:\t\tt5bpon0i1p53lipus4qd5mqh8\nParent:\t\tzm4dffgjo146yns7ave0sysv8\nCreated at:\t2026-11-08 13:23:48.481684514 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t2.642MB\nDescription:\t[reviewverification 1/2] COPY --from=reviewinputs / /workspace/\nUsage count:\t1\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nt5bpon0i1p53lipus4qd5mqh8               \ttrue \t\t2.642MB   \t7 hours ago\nTotal:\t2.642MB\n"
+      },
+      {
+        "id": "zm4dffgjo146yns7ave0sysv8",
+        "ownership_evidence": "ID:\t\tzm4dffgjo146yns7ave0sysv8\nParent:\t\tvsp5qh81lrfhscsxw6faiomtb\nCreated at:\t2026-11-08 13:19:41.724959844 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t237.6kB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-final-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nzm4dffgjo146yns7ave0sysv8               \ttrue \t\t237.6kB   \t7 hours ago\nTotal:\t237.6kB\n"
+      },
+      {
+        "id": "vsp5qh81lrfhscsxw6faiomtb",
+        "ownership_evidence": "ID:\t\tvsp5qh81lrfhscsxw6faiomtb\nParent:\t\tnxlwtdc46htfibq2r1ue6m474\nCreated at:\t2026-11-08 13:19:41.012833302 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t2.642MB\nDescription:\t[finalverification 1/2] COPY --from=finalinputs / /workspace/\nUsage count:\t1\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nvsp5qh81lrfhscsxw6faiomtb               \ttrue \t\t2.642MB   \t7 hours ago\nTotal:\t2.642MB\n"
+      },
+      {
+        "id": "nxlwtdc46htfibq2r1ue6m474",
+        "ownership_evidence": "ID:\t\tnxlwtdc46htfibq2r1ue6m474\nParent:\t\t93w3kfihe9zt21fea6dazubk9\nCreated at:\t2026-11-08 13:17:28.762493504 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t592.1MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage5-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nwith (out/'validation.log').open('w') as log:\n    result = subprocess.run(['python3','validation/linux/verify.py'],stdout=log,stderr=subprocess.STDOUT,\n        env={**os.environ,'MB_LINUX_OUTPUT':str(out/'linux')})\n(out/'status.json').write_text(json.dumps({'exit_code':result.returncode})+'\\n')\nPYRUN\nUsage count:\t2\nLast used:\t7 hours ago\nType:\t\tregular",
+        "prune_output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nnxlwtdc46htfibq2r1ue6m474               \ttrue \t\t592.1MB   \t7 hours ago\nTotal:\t592.1MB\n"
+      }
+    ]
+  }
+}

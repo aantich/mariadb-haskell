@@ -178,9 +178,17 @@ openCDC conn sid options = mask $ \restore -> do
                     throwIO (CDCInvalidCheckpoint "checkpoint would move acknowledgement backwards")
                 _ -> streamGuard conn generation $ mask_ $ do
                     let position = checkpointPosition token
-                    mysqlWrite conn (putToPacket 0 (putSemiAckResp (binlogNextPosition position) (binlogFile position)))
+                    sendSemiAck conn (binlogNextPosition position) (binlogFile position)
                     writeIORef acknowledged (Just token)
     pure (CDCStream guarded (streamGuard conn generation latest) acknowledge (close conn))
+
+-- Semisync ACKs are independent no-reply exchanges, even when compressed.
+-- Reset only the outgoing frame counter: buffered incoming bytes must survive.
+-- openPackets installs the replication receive policy before reading events.
+sendSemiAck :: MySQLConn -> Word64 -> ByteString -> IO ()
+sendSemiAck conn position file = do
+    connectionCompressionReset conn
+    mysqlWrite conn (putToPacket 0 (putSemiAckResp position file))
 
 -- Both legacy and transaction-aware interfaces use the same checked wire
 -- reader. The low capability value deliberately avoids advertising MariaDB
@@ -239,6 +247,7 @@ openPackets conn sid options = do
             sendCommand conn (COM_BINLOG_DUMP initialPosition flags sid initialFile)
             generation <- markResponseStream conn Replicating
             setExchangeSequence conn 256
+            when needAck (connectionCompressionAllowReplicationResets conn)
             let readEvent = do
                     packet <- readPacketWithLimit wireLimit (mysqlRead conn)
                     if | isOK packet -> do
@@ -269,7 +278,7 @@ openPackets conn sid options = do
             fd <- getFromBinLogPacket getFormatDescription formatPacket
             let autoAck packet = when (needAck && blSemiAck packet && cdcAcknowledgements options == AcknowledgeOnRead) $ do
                     file <- readIORef ref
-                    mysqlWrite conn (putToPacket 0 (putSemiAckResp (blLogPos packet) file))
+                    sendSemiAck conn (blLogPos packet) file
             autoAck formatPacket
             finished <- newIORef False
             packets <- Stream.makeInputStream $ do

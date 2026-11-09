@@ -1,0 +1,785 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-11-08T19:59:37.692186+00:00",
+  "complete_suite": false,
+  "build": {
+    "git_commit": "15162161b6eec4e08003c2a61d887a20edb8468e",
+    "git_branch": "main",
+    "driver_source_files": {
+      "src/Data/Binary/Parser/Numeric.hs": "d11b483f5f0d41481bbef35edad7e6d02539f2004f35f02c38326ef7f9aa999b",
+      "src/Data/Binary/Parser/Word8.hs": "9137cdf8a3dea06323c95ecc6866dd4eca4dc02cf2675b66804e490d75dfda30",
+      "src/Data/Binary/Parser.hs": "ec8b2b63bb165227f721baba51cf265c8483ff0266b7d2d8e6db83e753a72dd8",
+      "src/Data/Connection.hs": "0a6bb6b888d971e02fc0b8e3723dae9dd8da6db78157924de5f485f06f8cfdc5",
+      "src/Data/Int/Int24.hs": "37f75aa6a046ecff79afa163a8fb0c1256461a9846cf481c0b47ce5572968832",
+      "src/Data/TLSSetting.hs": "798b710434551dfcd85f1ee56de957ab7e3ca8282de7b45f843b99b245e5530a",
+      "src/Data/Word/Word24.hs": "d44b3b63e7ae1e01b3db5fe7e02e72e3968b3bd0f7f544e7201282252573e218",
+      "src/Database/MySQL/Base.hs": "870a64fbeeddba63c2490b00333897112c7d3b61648c976025a3c903816de8a5",
+      "src/Database/MySQL/BinLog.hs": "8c5e0a9acf6d81fc5d2f81dbbf56e160c5466510476bc8450cdd016ad1264d8f",
+      "src/Database/MySQL/BinLogProtocol/BinLogEvent.hs": "44a91d9b8fe4bbc207db3519ada9cd1732ab012ec2636030f72f8162dd748bf2",
+      "src/Database/MySQL/BinLogProtocol/BinLogMeta.hs": "2d1ab8a05bb5934a4e31e860630aac6535620c7d04634ff61633b4d17a2c3f33",
+      "src/Database/MySQL/BinLogProtocol/BinLogValue.hs": "555ccfcf80712d8cdc8eeea502792383e9ffa4da33976e06cdcc66169d761c7d",
+      "src/Database/MySQL/BinLogProtocol/CDC.hs": "49177c018cb6b0dbad52dd9e2f3a7e5d807e381add2ea1b3b9a22e2c3b0e7709",
+      "src/Database/MySQL/Connection.hs": "be6f951cab8885e1056fd890dffae8837b214858552f23216345e6f80072771c",
+      "src/Database/MySQL/Field.hs": "e4469124ba21b73d619564c74935db2e1172c42abcf08d293aea1a5a3825d0f5",
+      "src/Database/MySQL/Protocol/Auth.hs": "010ffd32f7b365c71b07a8e4217c9a4b3eddc2af0efca1700a9ed576902dfd4e",
+      "src/Database/MySQL/Protocol/ColumnDef.hs": "15da37239b50b95df43d8bff5354614860fb04859556867170317dd5b630ed24",
+      "src/Database/MySQL/Protocol/Command.hs": "c1641a2cbb400596c8307771dfaa406c38eb593e495298fc362c32a2cb562494",
+      "src/Database/MySQL/Protocol/Compression.hs": "e36e6c420c6a2713d57643af15e4cae273a8bb03932b68d0f2c7561359d701f5",
+      "src/Database/MySQL/Protocol/Escape.hs": "cb75d67f1f1119a477e037675fc971373152d0eea9252675a5fe67427fcf2393",
+      "src/Database/MySQL/Protocol/MySQLValue.hs": "1a462ff4f7bc4a2b808972ef7f685cc721556ed235b8a09d31bc6cdd1819acf8",
+      "src/Database/MySQL/Protocol/Packet.hs": "9ce903e8528055edad4791cd308d402ffcb3299c6fa86df9883a9b5531ef6d15",
+      "src/Database/MySQL/Protocol/Progress.hs": "bb868d4376d29821c20e52fe3e31c7d4cec9eabbd88d7a1717db90e80c89f454",
+      "src/Database/MySQL/Query.hs": "1b0a3dc15abae0a4ffdd7f309cecf1c6731932c85b2df64fda5378f4dedd4838",
+      "src/Database/MySQL/Session.hs": "1cf7ddcf81014c90220bbf67bce392a5f1fcc0ae0c58eba9e7cec034af2cbf8b",
+      "src/Database/MySQL/TLS.hs": "9828c38eeec86a76f12a962f28f8127623d95390e93c5de079fa92c488592261",
+      "src/System/IO/Streams/TCP.hs": "b4c5d511f026ca13d2f9105d13881feb746c32f9caee648b3581da10d5c29d5e",
+      "src/System/IO/Streams/TLS.hs": "72fd94a96fbb7a764c7c439bcc898767146b171de608f187c920eed97e1ac6e0"
+    },
+    "library_cabal_sha256": "7ffd71e78cbf6339a61f27a3e2fafd329632bab716daed2c94021f359cc1d7c2",
+    "workload_files": {
+      "validation/.local/Allocation.hs": "c4631c58103d6dbcde2292dde56d84aa8ca490a8b2d0fd9ee3c60b52f6c7221f",
+      "validation/.local/CommitClose.hs": "704a7637eaf8622c5da2049cc7388349159882326512aa1c38ae81bc4f773101",
+      "validation/connector_c.c": "f3258db4fda91dcc2e151d26e924ad33a85f41bad4f638065d974409a81d5980",
+      "validation/hs/Main.hs": "4168bd1e9bf5f347794f31c82a0baec08e6ff111884acffbcd02067c29a4f5bd",
+      "validation/hs/Validation/Benchmark.hs": "7fc5450494568f81376818494f9d748a45dc7c7ba8376ea9d420c813810187e0",
+      "validation/hs/Validation/CDC.hs": "2f3f625c935ffd02358bb68776a62d3ebd4ae299c6a1b1c0cc1a9531965952e0",
+      "validation/hs/Validation/Common.hs": "07bcf4b72feaa294c133f4f396c87e1fae18b05400f1075534a33b6b3f0e0056",
+      "validation/hs/Validation/FaultTransport.hs": "218b79fdb2e02b2e3711599ff07223ad195c64a79a237d90626bf31f820a9863",
+      "validation/hs/Validation/Functional.hs": "28c7d66dbfb57a71486f520057c77e1f61434c8e0e57b904529b1416c21ac49d",
+      "validation/hs/Validation/Protocol.hs": "dda245b79359a64be740f95aa1ca7e1686288bfa03934b4621ff21c668a98f93",
+      "validation/hs/Validation/Reliability.hs": "125c0cc52f29972bd422c3373b4c41751df9ff3152a1a01eb0cc5577ef81df21",
+      "validation/hs/Validation/Security.hs": "ef1e7b09f8e7806e471e0511fd4b4cf143a478005ca1d5fd19679ce16009f3dd",
+      "validation/hs/Validation/Stage1.hs": "506eb2f46491d1edc11f0e482d359008b4788d108aa4c563d510e97d3b9b4e70",
+      "validation/hs/Validation/Stage2.hs": "a7dc4865351cb1769978fa8d193a385e15cd6712057e70aa17129db9b0702fce",
+      "validation/hs/Validation/Stage3.hs": "92c804804aeafc9bb439671905b42ad04a36abe169a8a779f5314f65863c7f2a",
+      "validation/hs/Validation/Stage3Bench.hs": "8807780753c24076f15883a3a63b95f0f4d4e8dd6ce5788b0d566cc498fb354e",
+      "validation/hs/Validation/Stage4.hs": "8adc7ef8349001831eab423e1426dcc11b17eeaa524b28c2e9974bd3fec6ee09",
+      "validation/hs/Validation/Stage4Bench.hs": "a2cc56ba455ecb5385d1c67566d7e142233eae5aac3c992a156b00afda41209b",
+      "validation/hs/Validation/Stage5.hs": "31bd660069ca024c8b0c189592ff2d1ecdd6e201e1380a6592798bbb59efeb95",
+      "validation/hs/Validation/Stage5Bench.hs": "391ad47a2e282a911f4d0d593f9e96a967f1d3442f901222ff84e2f8d218ccba",
+      "validation/hs/Validation/Stage5Review.hs": "10a1c2118d7d33c6f7721c0f7724a4a49ab48ce54e38cd0ff3514e8d110a3c07",
+      "validation/hs/Validation/Stage6.hs": "66374242978351042067c969f4785729ecdd75ea22dcaa4f1bb6e60a8b439845",
+      "validation/hs/Validation/Supplementary.hs": "c8dbcb86cb945a866aeb4552b7a2d41b26f3fb619651cda97fe394107dbcd594",
+      "validation/run.py": "e756bc0f593b54bc9207fd88d2a53120a4654832650d0a148555a69ebd413346"
+    },
+    "ghc": "9.10.3",
+    "cabal": "3.16.1.0",
+    "reference_driver_commit": "92a94012bc553a672c73d409dad1d17e9db1e53f",
+    "driver_matches_reference": false,
+    "library_configuration_matches_reference": false
+  },
+  "server": {
+    "identity": [
+      "12.3.3-MariaDB-log",
+      "Homebrew",
+      "arm64"
+    ],
+    "variables": {
+      "bind_address": "127.0.0.1",
+      "binlog_checksum": "CRC32",
+      "binlog_format": "ROW",
+      "binlog_row_image": "FULL",
+      "character_set_server": "utf8mb4",
+      "collation_server": "utf8mb4_unicode_ci",
+      "have_ssl": "YES",
+      "innodb_buffer_pool_size": "134217728",
+      "innodb_flush_log_at_trx_commit": "1",
+      "log_bin": "ON",
+      "lower_case_table_names": "2",
+      "max_allowed_packet": "402653184",
+      "max_connections": "151",
+      "port": "3306",
+      "sql_mode": "STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION",
+      "sync_binlog": "0",
+      "time_zone": "+00:00"
+    }
+  },
+  "dependencies": [
+    [
+      "Glob",
+      "0.10.2"
+    ],
+    [
+      "OneTuple",
+      "0.4.3"
+    ],
+    [
+      "Only",
+      "0.1"
+    ],
+    [
+      "QuickCheck",
+      "2.18.0.0"
+    ],
+    [
+      "StateVar",
+      "1.2.2"
+    ],
+    [
+      "aeson",
+      "2.3.2.0"
+    ],
+    [
+      "ansi-terminal",
+      "1.1.5"
+    ],
+    [
+      "ansi-terminal-types",
+      "1.1.3"
+    ],
+    [
+      "appar",
+      "0.1.8"
+    ],
+    [
+      "array",
+      "0.5.8.0"
+    ],
+    [
+      "asn1-encoding",
+      "0.9.6"
+    ],
+    [
+      "asn1-types",
+      "0.3.4"
+    ],
+    [
+      "assoc",
+      "1.1.1"
+    ],
+    [
+      "async",
+      "2.2.6"
+    ],
+    [
+      "attoparsec",
+      "0.14.4"
+    ],
+    [
+      "base",
+      "4.20.2.0"
+    ],
+    [
+      "base-compat",
+      "0.15.0"
+    ],
+    [
+      "base-compat-batteries",
+      "0.15.0"
+    ],
+    [
+      "base-orphans",
+      "0.9.4"
+    ],
+    [
+      "base16",
+      "1.0"
+    ],
+    [
+      "base16-bytestring",
+      "1.0.2.0"
+    ],
+    [
+      "base64",
+      "2.1"
+    ],
+    [
+      "basement",
+      "0.0.16"
+    ],
+    [
+      "bifunctors",
+      "5.6.3"
+    ],
+    [
+      "binary",
+      "0.8.9.3"
+    ],
+    [
+      "binary-orphans",
+      "1.0.6"
+    ],
+    [
+      "bitvec",
+      "1.1.6.0"
+    ],
+    [
+      "blaze-builder",
+      "0.4.4.1"
+    ],
+    [
+      "blaze-textual",
+      "0.2.3.1"
+    ],
+    [
+      "bytestring",
+      "0.12.2.0"
+    ],
+    [
+      "bytestring-lexing",
+      "0.5.0.16"
+    ],
+    [
+      "call-stack",
+      "0.4.0"
+    ],
+    [
+      "case-insensitive",
+      "1.2.2.0"
+    ],
+    [
+      "cassava",
+      "0.5.4.1"
+    ],
+    [
+      "cborg",
+      "0.2.10.0"
+    ],
+    [
+      "cereal",
+      "0.5.8.3"
+    ],
+    [
+      "character-ps",
+      "0.1"
+    ],
+    [
+      "code-page",
+      "0.2.1"
+    ],
+    [
+      "colour",
+      "2.3.7"
+    ],
+    [
+      "comonad",
+      "5.0.10"
+    ],
+    [
+      "containers",
+      "0.7"
+    ],
+    [
+      "contravariant",
+      "1.5.6"
+    ],
+    [
+      "criterion",
+      "1.6.5.0"
+    ],
+    [
+      "criterion-measurement",
+      "0.2.5.0"
+    ],
+    [
+      "crypton",
+      "2.1.12"
+    ],
+    [
+      "crypton-asn1-encoding",
+      "0.10.0"
+    ],
+    [
+      "crypton-asn1-parse",
+      "0.10.0"
+    ],
+    [
+      "crypton-asn1-types",
+      "0.4.1"
+    ],
+    [
+      "crypton-pem",
+      "0.3.0"
+    ],
+    [
+      "crypton-x509",
+      "1.10.1"
+    ],
+    [
+      "crypton-x509-store",
+      "1.10.0"
+    ],
+    [
+      "crypton-x509-system",
+      "1.10.0"
+    ],
+    [
+      "crypton-x509-validation",
+      "1.10.1"
+    ],
+    [
+      "data-default",
+      "0.8.0.2"
+    ],
+    [
+      "data-default-class",
+      "0.2.0.0"
+    ],
+    [
+      "data-fix",
+      "0.3.4"
+    ],
+    [
+      "deepseq",
+      "1.5.0.0"
+    ],
+    [
+      "dense-linear-algebra",
+      "0.1.0.0"
+    ],
+    [
+      "directory",
+      "1.3.8.5"
+    ],
+    [
+      "distributive",
+      "0.6.3"
+    ],
+    [
+      "dlist",
+      "1.0"
+    ],
+    [
+      "ech-config",
+      "0.0.2"
+    ],
+    [
+      "exceptions",
+      "0.10.9"
+    ],
+    [
+      "fail",
+      "4.9.0.0"
+    ],
+    [
+      "filepath",
+      "1.5.4.0"
+    ],
+    [
+      "ghc-bignum",
+      "1.3"
+    ],
+    [
+      "ghc-boot-th",
+      "9.10.3"
+    ],
+    [
+      "ghc-internal",
+      "9.1003.0"
+    ],
+    [
+      "ghc-prim",
+      "0.12.0"
+    ],
+    [
+      "half",
+      "0.3.3"
+    ],
+    [
+      "hashable",
+      "1.5.1.0"
+    ],
+    [
+      "hourglass",
+      "0.2.12"
+    ],
+    [
+      "hpke",
+      "0.4.0"
+    ],
+    [
+      "hsc2hs",
+      "0.68.10"
+    ],
+    [
+      "http-types",
+      "0.12.6"
+    ],
+    [
+      "indexed-traversable",
+      "0.1.5"
+    ],
+    [
+      "indexed-traversable-instances",
+      "0.1.2.1"
+    ],
+    [
+      "integer-conversion",
+      "0.1.1"
+    ],
+    [
+      "integer-gmp",
+      "1.1"
+    ],
+    [
+      "integer-logarithms",
+      "1.0.5"
+    ],
+    [
+      "io-streams",
+      "1.5.2.2"
+    ],
+    [
+      "iproute",
+      "1.8.0"
+    ],
+    [
+      "js-chart",
+      "2.9.4.1"
+    ],
+    [
+      "math-functions",
+      "0.3.4.4"
+    ],
+    [
+      "memory",
+      "0.18.0"
+    ],
+    [
+      "microstache",
+      "1.0.3.1"
+    ],
+    [
+      "monad-loops",
+      "0.4.3"
+    ],
+    [
+      "mtl",
+      "2.3.1"
+    ],
+    [
+      "mwc-random",
+      "0.15.3.0"
+    ],
+    [
+      "network",
+      "3.2.12.0"
+    ],
+    [
+      "network-byte-order",
+      "0.1.9"
+    ],
+    [
+      "network-uri",
+      "2.6.4.2"
+    ],
+    [
+      "old-locale",
+      "1.0.0.7"
+    ],
+    [
+      "old-time",
+      "1.1.1.0"
+    ],
+    [
+      "optparse-applicative",
+      "0.19.0.0"
+    ],
+    [
+      "os-string",
+      "2.0.7"
+    ],
+    [
+      "parallel",
+      "3.3.0.0"
+    ],
+    [
+      "parsec",
+      "3.1.18.0"
+    ],
+    [
+      "pretty",
+      "1.1.3.6"
+    ],
+    [
+      "prettyprinter",
+      "1.7.2"
+    ],
+    [
+      "prettyprinter-ansi-terminal",
+      "1.1.4"
+    ],
+    [
+      "primitive",
+      "0.9.1.0"
+    ],
+    [
+      "process",
+      "1.6.26.1"
+    ],
+    [
+      "quickcheck-instances",
+      "0.4"
+    ],
+    [
+      "ram",
+      "0.22.1"
+    ],
+    [
+      "random",
+      "1.3.1"
+    ],
+    [
+      "rts",
+      "1.0.2"
+    ],
+    [
+      "scanner",
+      "0.3.2"
+    ],
+    [
+      "scientific",
+      "0.3.10.0"
+    ],
+    [
+      "semialign",
+      "1.4"
+    ],
+    [
+      "semigroupoids",
+      "6.0.2"
+    ],
+    [
+      "serialise",
+      "0.2.6.1"
+    ],
+    [
+      "splitmix",
+      "0.1.3.2"
+    ],
+    [
+      "statistics",
+      "0.16.5.0"
+    ],
+    [
+      "stm",
+      "2.5.3.1"
+    ],
+    [
+      "strict",
+      "0.5.1"
+    ],
+    [
+      "tagged",
+      "0.8.11"
+    ],
+    [
+      "tasty",
+      "1.5.5"
+    ],
+    [
+      "tasty-expected-failure",
+      "0.12.3"
+    ],
+    [
+      "tasty-hunit",
+      "0.10.2"
+    ],
+    [
+      "tasty-quickcheck",
+      "0.11.1"
+    ],
+    [
+      "template-haskell",
+      "2.22.0.0"
+    ],
+    [
+      "terminal-size",
+      "0.3.4"
+    ],
+    [
+      "text",
+      "2.1.3"
+    ],
+    [
+      "text-iso8601",
+      "0.2.0.0"
+    ],
+    [
+      "text-short",
+      "0.1.6.1"
+    ],
+    [
+      "th-abstraction",
+      "0.7.2.0"
+    ],
+    [
+      "th-compat",
+      "0.1.7"
+    ],
+    [
+      "these",
+      "1.2.1"
+    ],
+    [
+      "time",
+      "1.12.2"
+    ],
+    [
+      "time-compat",
+      "1.9.9"
+    ],
+    [
+      "time-hourglass",
+      "0.3.0"
+    ],
+    [
+      "tls",
+      "2.4.14"
+    ],
+    [
+      "transformers",
+      "0.6.1.1"
+    ],
+    [
+      "transformers-compat",
+      "0.8"
+    ],
+    [
+      "unbounded-delays",
+      "0.1.1.1"
+    ],
+    [
+      "unix",
+      "2.8.7.0"
+    ],
+    [
+      "unix-time",
+      "0.5.1"
+    ],
+    [
+      "unordered-containers",
+      "0.2.21"
+    ],
+    [
+      "uuid-types",
+      "1.0.6.1"
+    ],
+    [
+      "vector",
+      "0.13.2.0"
+    ],
+    [
+      "vector-algorithms",
+      "0.9.1.0"
+    ],
+    [
+      "vector-binary-instances",
+      "0.2.5.2"
+    ],
+    [
+      "vector-stream",
+      "0.1.0.1"
+    ],
+    [
+      "vector-th-unbox",
+      "0.2.2"
+    ],
+    [
+      "witherable",
+      "0.5"
+    ],
+    [
+      "word-compat",
+      "0.0.6"
+    ],
+    [
+      "zlib",
+      "0.7.1.1"
+    ],
+    [
+      "zlib-bindings",
+      "0.1.1.5"
+    ]
+  ],
+  "dependency_plan_sha256": "aa3c4cb37dc45c89c9a329c3b0524170e67baa086c5943e03cf0c3a28070692a",
+  "machine": {
+    "system": "Darwin",
+    "release": "25.4.0",
+    "machine": "arm64",
+    "macos": "26.4",
+    "cpu_count": 16,
+    "cpu_model": "Apple M4 Max"
+  },
+  "correctness": [
+    {
+      "id": "stage6.long-data-live",
+      "area": "stage6",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02490770909935236,
+      "detail": "PASS\tstage6.long-data-live\n"
+    },
+    {
+      "id": "stage6.cursor-live",
+      "area": "stage6",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.024924458004534245,
+      "detail": "PASS\tstage6.cursor-live\n"
+    },
+    {
+      "id": "stage6.progress-live",
+      "area": "stage6",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.07152299955487251,
+      "detail": "PASS\tstage6.progress-live\n"
+    },
+    {
+      "id": "stage6.compression-live",
+      "area": "stage6",
+      "status": "FAIL",
+      "returncode": 1,
+      "seconds": 0.02476683259010315,
+      "detail": "ProtocolError \"unexpected packet sequence\"\nHasCallStack backtrace:\n  collectBacktraces, called at libraries/ghc-internal/src/GHC/Internal/Exception.hs:169:13 in ghc-internal:GHC.Internal.Exception\n  toExceptionWithBacktrace, called at libraries/ghc-internal/src/GHC/Internal/IO.hs:260:11 in ghc-internal:GHC.Internal.IO\n  throwIO, called at libraries/ghc-internal/src/GHC/Internal/Control/Exception/Base.hs:195:43 in ghc-internal:GHC.Internal.Control.Exception.Base\n\n\n"
+    },
+    {
+      "id": "stage6.long-data-query-empty-and-binary",
+      "area": "stage6",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.025048458017408848,
+      "detail": "PASS\tstage6.long-data-query-empty-and-binary\n"
+    },
+    {
+      "id": "stage6.cursor-close-pending-batch",
+      "area": "stage6",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.022843999788165092,
+      "detail": "PASS\tstage6.cursor-close-pending-batch\n"
+    },
+    {
+      "id": "stage6.compression-tls",
+      "area": "stage6",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.07506529055535793,
+      "detail": "PASS\tstage6.compression-tls\n"
+    },
+    {
+      "id": "stage6.compression-socket",
+      "area": "stage6",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 0.02506224997341633,
+      "detail": "PASS\tstage6.compression-socket\n"
+    }
+  ],
+  "benchmarks": {},
+  "repetitions": 7,
+  "haskell_benchmark_rts": [
+    "-N4",
+    "-T"
+  ],
+  "process_timezone": "UTC",
+  "fixture_controls": {
+    "native": "PASS",
+    "ed25519": "PASS",
+    "parsec": "PASS",
+    "sha2": "PASS",
+    "mutual_tls": "PASS"
+  },
+  "source_unchanged_during_run": true
+}

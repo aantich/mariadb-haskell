@@ -92,6 +92,8 @@ library
   other-modules:      Database.MySQL.Query
                       Database.MySQL.Session
                       Database.MySQL.BinLogProtocol.CDC
+                      Database.MySQL.Protocol.Progress
+                      Database.MySQL.Protocol.Compression
   build-depends:
     asn1-encoding >=0.9 && <0.10,
     asn1-types >=0.3 && <0.4,
@@ -302,6 +304,10 @@ executable mariadb-validation
     Validation.Stage5
     Validation.Stage5Review
     Validation.Stage5Bench
+    Validation.Stage6
+    Validation.Stage6Bench
+    Validation.Stage6Review
+    Validation.WireProxy
     Validation.FaultTransport
   build-depends:
     binary, bytestring, containers, filepath, io-streams, mysql-haskell, network, scientific, text, time, tls, vector, zlib, process, directory

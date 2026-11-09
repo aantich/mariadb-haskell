@@ -12,6 +12,7 @@ import System.Timeout
 import Validation.Common
 import qualified Validation.Stage3 as Stage3
 import qualified Validation.Stage4 as Stage4
+import qualified Validation.Stage6 as Stage6
 
 cases :: [Case]
 cases =
@@ -148,10 +149,10 @@ cases =
     , Case "capability.extended-metadata" "capabilities" $ Stage3.extendedFeature
     , Case "capability.session-tracking" "capabilities" $ Stage4.trackingFeature
     , Case "capability.reset-connection" "capabilities" $ Stage4.resetFeature
-    , Case "capability.progress-reporting" "capabilities" $ throwIO (Unsupported "no negotiated MariaDB progress callback")
-    , Case "capability.cursor-fetch" "capabilities" $ throwIO (Unsupported "no COM_STMT_FETCH/cursor API")
-    , Case "capability.long-data" "capabilities" $ throwIO (Unsupported "no COM_STMT_SEND_LONG_DATA API")
-    , Case "capability.compression" "capabilities" $ throwIO (Unsupported "no compressed packet transport")
+    , Case "capability.progress-reporting" "capabilities" Stage6.progressFeature
+    , Case "capability.cursor-fetch" "capabilities" Stage6.cursorFeature
+    , Case "capability.long-data" "capabilities" Stage6.longDataFeature
+    , Case "capability.compression" "capabilities" Stage6.compressionFeature
     ]
   where
     cancellation c = do

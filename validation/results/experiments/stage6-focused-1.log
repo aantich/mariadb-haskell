@@ -1,0 +1,61 @@
+Server verified before build: 12.3.3-MariaDB-log
+Resolving dependencies...
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (lib) (configuration changed)
+ - mysql-haskell-1.3.3 (test:test) (configuration changed)
+ - mysql-haskell-1.3.3 (exe:mariadb-validation) (configuration changed)
+ - mysql-haskell-1.3.3 (test:integration) (configuration changed)
+Configuring library for mysql-haskell-1.3.3...
+Preprocessing library for mysql-haskell-1.3.3...
+Building library for mysql-haskell-1.3.3...
+<no location info>: warning: [GHC-42258] [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id dt-dflt-clss-0.2.0.0-aac0c9c2)
+      - monad-loops-0.4.3 (exposed by flag -package-id mnd-lps-0.4.3-ff24b47c)
+
+Configuring test suite 'test' for mysql-haskell-1.3.3...
+Configuring executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Configuring test suite 'integration' for mysql-haskell-1.3.3...
+Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Preprocessing test suite 'integration' for mysql-haskell-1.3.3...
+Preprocessing test suite 'test' for mysql-haskell-1.3.3...
+Building test suite 'test' for mysql-haskell-1.3.3...
+Building test suite 'integration' for mysql-haskell-1.3.3...
+[ 1 of 17] Compiling BinLog           ( test/BinLog.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLog.o ) [Database.MySQL.Base changed]
+[10 of 14] Compiling Sha1Scramble     ( test/Sha1Scramble.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Sha1Scramble.o ) [Database.MySQL.Connection changed]
+[ 2 of 17] Compiling BinLogNew        ( test/BinLogNew.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLogNew.o ) [Database.MySQL.Base changed]
+[ 3 of 17] Compiling BinaryRow        ( test/BinaryRow.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRow.o ) [Database.MySQL.Base changed]
+[11 of 14] Compiling Sha256Scramble   ( test/Sha256Scramble.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Sha256Scramble.o ) [Database.MySQL.Connection changed]
+[ 4 of 17] Compiling BinaryRowNew     ( test/BinaryRowNew.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRowNew.o ) [Database.MySQL.Base changed]
+[ 5 of 17] Compiling CachingSha2      ( test/CachingSha2.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/CachingSha2.o ) [Database.MySQL.Base changed]
+[ 6 of 17] Compiling ExecuteMany      ( test/ExecuteMany.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/ExecuteMany.o ) [Database.MySQL.Base changed]
+[15 of 15] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/test/opt/build/test/test [Objects changed]
+[ 7 of 17] Compiling MultipleResults  ( test/MultipleResults.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MultipleResults.o ) [Database.MySQL.Base changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+[ 8 of 17] Compiling QueryWithoutResultSet ( test/QueryWithoutResultSet.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/QueryWithoutResultSet.o ) [Database.MySQL.Base changed]
+[ 9 of 17] Compiling RoundtripBit     ( test/RoundtripBit.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripBit.o ) [Database.MySQL.Base changed]
+[10 of 17] Compiling RoundtripYear    ( test/RoundtripYear.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripYear.o ) [Database.MySQL.Base changed]
+[11 of 17] Compiling SelectOne        ( test/SelectOne.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/SelectOne.o ) [Database.MySQL.Base changed]
+[12 of 17] Compiling TLSConnection    ( test/TLSConnection.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TLSConnection.o ) [Database.MySQL.Base changed]
+[13 of 17] Compiling TextRow          ( test/TextRow.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRow.o ) [Database.MySQL.Base changed]
+[14 of 17] Compiling TextRowNew       ( test/TextRowNew.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRowNew.o ) [Database.MySQL.Base changed]
+[15 of 17] Compiling MysqlTests       ( test/MysqlTests.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MysqlTests.o ) [Database.MySQL.Base changed]
+[16 of 17] Compiling UnixSocket       ( test/UnixSocket.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/UnixSocket.o ) [Database.MySQL.Base changed]
+[17 of 17] Compiling Main             ( test/Integration.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/Main.o ) [Database.MySQL.Base changed]
+[18 of 18] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration [Objects changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+Installing library in /Users/aantich/.cabal/lib/aarch64-osx-ghc-9.10.3-fe9c/mysql-haskell-1.3.3-inplace
+MariaDB preflight passed: 12.3.3-MariaDB-log
+PASS stage6.long-data-live
+PASS stage6.cursor-live
+PASS stage6.progress-live
+FAIL stage6.compression-live
+PASS stage6.long-data-query-empty-and-binary
+PASS stage6.cursor-close-pending-batch
+PASS stage6.compression-tls
+PASS stage6.compression-socket
+Results: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/results/runs/stage6-focused-1/SUMMARY.md
+Partial/short development run: live full-suite results were not replaced.

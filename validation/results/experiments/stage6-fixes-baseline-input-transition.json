@@ -1,0 +1,10 @@
+{
+  "before_sha256": "b18fc6689a3583d64b07e4d3b70b81be4991a858efedb1b37550ab66d8e6d053",
+  "after_sha256": "dbc3c49dc9042610a46bb0c70651e7541a8d3d26fbe6641a0c367c3b192aff0e",
+  "all_173_preexisting_hashes_unchanged": true,
+  "new_files": {
+    "validation/baselines/macos-arm64-wire-features/SHA256SUMS": "ee91bb5cdd4b524a65f161a6ebda9e43261683dd3cf7f7b47b23337e466fd23f",
+    "validation/baselines/macos-arm64-wire-features/SUMMARY.md": "8c4b8bad37f61e57ec86d5df5a0e81673c5ca0c60e1eb0ead5546d6967697950",
+    "validation/baselines/macos-arm64-wire-features/results.json": "625e716c520b0fb52b391e63628bd4005bc6aedc47b392be187793734e2818a7"
+  }
+}

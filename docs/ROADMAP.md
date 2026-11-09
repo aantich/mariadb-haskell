@@ -34,9 +34,11 @@ Stage 2 `e12462a`, on `codex/stage3-native-statements`.
    Literal and real-server tests cover rotation, transaction boundaries,
    corruption and recovery. See the Stage 5 continuation checkpoint below for
    supported contracts and explicit limitations.
-5. **Workload-specific features — future stage.** Cursor fetch, long-data upload,
-   compression, progress callbacks and PAM/GSSAPI fixtures, ordered by actual
-   workloads and measured benefit. These are separate API/environment gaps.
+5. **Workload-specific features — phase 1 implemented, reviewed and measured.**
+   Long-data upload, cursor fetch, progress callbacks and optional compression
+   are the current Stage 6 scope. PAM/GSSAPI need client implementations and
+   reproducible authentication fixtures in a later phase. See
+   [Stage 6 contracts and acceptance plan](STAGE6_IMPLEMENTATION.md).
 
 ## Timeout contract
 
@@ -208,3 +210,44 @@ investigations are absent in this capture. The
 and [review publication record](STAGE5_CODE_REVIEW.md#committed-review-fix-publication--8-november-2026)
 retain the details. No immutable baseline or accepted performance reference
 advances. Later APIs require separate approval.
+
+## Stage 6 continuation checkpoint — 8 November 2026
+
+Phase 1 implements streamed binary/text prepared parameters, server cursors,
+MariaDB progress callbacks and opt-in zlib compression directly on main.
+Changes remain uncommitted for review. Exact-source Mac and Linux checks record
+**786 PASS / 1 known FAIL / 0 UNSUPPORTED / 2 unavailable**, preserving all 694
+published passes and passing all 88 new checks. All 153 policy tests and public
+Base/BinLog Haddock checks pass. The [implementation checkpoint](STAGE6_IMPLEMENTATION.md#validation-checkpoint--8-november-2026)
+and [confirmation manifest](../validation/results/stage6-confirmation.json)
+retain source reconstruction, unsuccessful attempts and current evidence.
+
+- [x] Implement and review all four approved APIs and their cancellation,
+      ownership, metadata, charset, framing and resource contracts.
+- [x] Run full correctness on Mac and Linux and smoke all thirteen new
+      benchmark paths. Verify bounded live heap through a 64 MiB upload.
+- [x] Fix the [9 November review findings](STAGE6_CODE_REVIEW.md): repeated
+      cancellation can skip cursor cleanup, compressed semisync ACKs fail, and
+      the aliased-source heap test accepts whole-source buffering. The earlier
+      live-heap observation does not establish detection of buffering leaks.
+- [x] Record host conditions, freeze the independent first wire-feature
+      reference and run all 60 profiles with seven repetitions. Preserve earlier
+      references and retain investigation signals.
+- [x] Refresh the live report through the full wrapper, verify provenance and
+      update this checkpoint. Leave changes uncommitted for review.
+
+**Review-fix completion, 9 November:** Anton requested fixing all findings and
+running the full documented workflow. Mac and exact-source Linux record
+**793 PASS / 1 known FAIL / 0 UNSUPPORTED / 2 unavailable**. All 95 Stage 6 cases,
+all 786 initial Stage 6 passes and all 694 published passes succeed. All 155
+policy tests pass. Two full Mac captures each include 60 profiles with seven
+repetitions and exit 0; run 2 supplies the live report. The freshness guard
+passes for the fingerprinted uncommitted inputs. Its six ordinary timing/reference,
+two reuse and three wire-feature signals remain open; native/CDC timing and all
+allocation investigation lists are empty. No >20% same-workload alarm occurs.
+The first TCP-reset +5.7% signal persists at +11.7% in run 2; same-source timing
+variation, including an unchanged C control, is retained rather than hidden.
+See the [final checkpoint](STAGE6_IMPLEMENTATION.md#final-review-fix-validation--9-november-2026)
+and [confirmation manifest](../validation/results/stage6-confirmation.json).
+No reference advances. Changes remain uncommitted on main. PAM/GSSAPI, advanced
+CDC lifecycles and a different timeout contract remain separate phases.

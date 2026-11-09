@@ -60,6 +60,17 @@ reproductions and a migration note for the `CDCGtidList` payload. The fixes are
 committed on main; the [publication evidence](validation/results/stage5-review-publication.json)
 records the fresh full run on those committed inputs.
 
+[Stage 6](docs/STAGE6_IMPLEMENTATION.md) adds streamed binary/text parameters,
+read-only cursor fetching, optional progress callbacks and optional zlib
+transport compression. The reviewed, uncommitted implementation records
+**793 PASS / 1 known timeout-contract FAIL / 0 UNSUPPORTED / 2 unavailable** on
+macOS and Linux, including all 95 Stage 6 checks. Two full Mac captures measure
+all 60 profiles with seven repetitions; the live report shows the second run.
+Timing investigations remain visible and earlier references are unchanged.
+See the [final validation checkpoint](docs/STAGE6_IMPLEMENTATION.md#final-review-fix-validation--9-november-2026)
+and [resolved follow-up review](docs/STAGE6_CODE_REVIEW.md) for ownership,
+compression/ACK sequencing, memory controls and measured costs.
+
 ## A first query
 
 ```haskell

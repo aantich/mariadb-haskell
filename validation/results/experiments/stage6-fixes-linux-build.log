@@ -1,0 +1,1120 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Stage6FixesEvidence.Dockerfile
+#1 transferring dockerfile: 2.16kB 0.1s
+#1 transferring dockerfile: 2.16kB 0.1s done
+#1 DONE 0.1s
+
+#2 [context stage6fixesinputs] load .dockerignore
+#2 transferring stage6fixesinputs: 140B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#4 DONE 0.8s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 140B done
+#5 DONE 0.0s
+
+#6 [tooling 1/1] FROM docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32
+#6 resolve docker.io/library/haskell:9.10.3-slim-bookworm@sha256:683f74f48dcc5a40081628d12ebe8f3bb379bf3fefa46d74e785b5fbb9f21b32 0.0s done
+#6 DONE 0.0s
+
+#7 [verification  1/11] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#7 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 0.0s done
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 transferring context: 182.65kB 0.1s done
+#8 DONE 0.1s
+
+#9 [context stage6fixesinputs] load from client
+#9 transferring stage6fixesinputs: 21.23MB 0.2s done
+#9 DONE 0.2s
+
+#10 [verification  4/11] WORKDIR /workspace
+#10 CACHED
+
+#11 [verification  7/11] RUN cabal build all --only-dependencies --enable-tests -O2
+#11 CACHED
+
+#12 [verification  8/11] COPY . .
+#12 CACHED
+
+#13 [verification  3/11] COPY --from=tooling /usr/local/bin/cabal /usr/local/bin/cabal
+#13 CACHED
+
+#14 [verification  6/11] RUN cabal user-config init && sed -i 's|url: http://hackage.haskell.org/|url: https://hackage.haskell.org/|' /root/.cabal/config && cabal update
+#14 CACHED
+
+#15 [verification  2/11] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     ghc cabal-install build-essential libgmp-dev zlib1g-dev libffi-dev pkg-config     libmariadb-dev openssl python3 git ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#15 CACHED
+
+#16 [verification  5/11] COPY mysql-haskell.cabal ./
+#16 CACHED
+
+#17 [verification  9/11] COPY validation/linux/mysql-haskell.stage5.cabal.txt ./mysql-haskell.cabal
+#17 CACHED
+
+#18 [verification 10/11] COPY --from=stage6fixesinputs / /workspace/
+#18 DONE 0.2s
+
+#19 [verification 11/11] RUN python3 - <<'PYRUN'
+#19 4.197 Server verified before build: 12.3.3-MariaDB-ubu2404-log
+#19 4.450 Configured dedicated validation accounts on 12.3.3-MariaDB-ubu2404-log
+#19 4.450 Connection settings: /workspace/validation/.local/linux-environment.json (mode 0600; excluded from Git)
+#19 4.450 Authentication fixtures: ed25519, parsec, caching_sha2_password
+#19 4.522 Server verified before build: 12.3.3-MariaDB
+#19 4.522 Live results updated: /workspace/validation/RESULTS.md
+#19 4.523 .Server verified before build: 12.3.3-MariaDB
+#19 4.523 Live results updated: /workspace/validation/RESULTS.md
+#19 4.525 .Server verified before build: 12.3.3-MariaDB
+#19 4.525 Live results updated: /workspace/validation/RESULTS.md
+#19 4.526 ..Server verified before build: 12.3.3-MariaDB
+#19 4.526 Live results updated: /workspace/validation/RESULTS.md
+#19 4.527 ..Server verified before build: 12.3.3-MariaDB
+#19 4.528 Live results updated: /workspace/validation/RESULTS.md
+#19 4.529 .Server verified before build: 12.3.3-MariaDB
+#19 4.529 Live results updated: /workspace/validation/RESULTS.md
+#19 4.529 .Server verified before build: 12.3.3-MariaDB
+#19 4.529 Live results updated: /workspace/validation/RESULTS.md
+#19 4.530 .Server verified before build: 12.3.3-MariaDB
+#19 4.530 Live results updated: /workspace/validation/RESULTS.md
+#19 4.531 .Server verified before build: 12.3.3-MariaDB
+#19 4.533 Live results updated: /workspace/validation/RESULTS.md
+#19 4.534 .Server verified before build: 12.3.3-MariaDB
+#19 4.536 Live results updated: /workspace/validation/RESULTS.md
+#19 4.539 .Server verified before build: 12.3.3-MariaDB
+#19 4.541 Live results updated: /workspace/validation/RESULTS.md
+#19 4.542 .Server verified before build: 12.3.3-MariaDB
+#19 4.544 Live results updated: /workspace/validation/RESULTS.md
+#19 4.545 .Server verified before build: 12.3.3-MariaDB
+#19 4.547 Live results updated: /workspace/validation/RESULTS.md
+#19 4.548 .Server verified before build: 12.3.3-MariaDB
+#19 4.550 Live results updated: /workspace/validation/RESULTS.md
+#19 4.551 .Server verified before build: 12.3.3-MariaDB
+#19 4.553 Live results updated: /workspace/validation/RESULTS.md
+#19 4.556 .Server verified before build: 12.3.3-MariaDB
+#19 4.557 Live results updated: /workspace/validation/RESULTS.md
+#19 4.559 .Server verified before build: 12.3.3-MariaDB
+#19 4.560 Live results updated: /workspace/validation/RESULTS.md
+#19 4.561 .Server verified before build: 12.3.3-MariaDB
+#19 4.563 Live results updated: /workspace/validation/RESULTS.md
+#19 4.816 ........................................................................................................................Server verified before build: 12.3.3-MariaDB
+#19 4.818 Live results updated: /workspace/validation/RESULTS.md
+#19 4.819 .Server verified before build: 12.3.3-MariaDB
+#19 4.822 Live results updated: /workspace/validation/RESULTS.md
+#19 4.823 .Server verified before build: 12.3.3-MariaDB
+#19 4.826 Live results updated: /workspace/validation/RESULTS.md
+#19 4.827 .Server verified before build: 12.3.3-MariaDB
+#19 4.829 Live results updated: /workspace/validation/RESULTS.md
+#19 4.831 ........Server verified before build: 12.3.3-MariaDB
+#19 4.831 Live results updated: /workspace/validation/RESULTS.md
+#19 4.833 .Server verified before build: 12.3.3-MariaDB
+#19 4.834 Live results updated: /workspace/validation/RESULTS.md
+#19 4.836 .Server verified before build: 12.3.3-MariaDB
+#19 4.838 Live results updated: /workspace/validation/RESULTS.md
+#19 4.841 .Server verified before build: 12.3.3-MariaDB
+#19 4.842 Live results updated: /workspace/validation/RESULTS.md
+#19 4.843 .Server verified before build: 12.3.3-MariaDB
+#19 4.845 Live results updated: /workspace/validation/RESULTS.md
+#19 4.846 .
+#19 4.846 ----------------------------------------------------------------------
+#19 4.846 Ran 155 tests in 0.325s
+#19 4.846 
+#19 4.846 OK
+#19 5.641 Resolving dependencies...
+#19 6.586 Build profile: -w ghc-9.4.7 -O2
+#19 6.586 In order, the following will be built (use -v for more details):
+#19 6.586  - mysql-haskell-1.3.3 (lib) (first run)
+#19 6.586  - mysql-haskell-1.3.3 (test:test) (first run)
+#19 6.586  - mysql-haskell-1.3.3 (exe:mariadb-validation) (first run)
+#19 6.586  - mysql-haskell-1.3.3 (test:integration) (first run)
+#19 6.619 Configuring library for mysql-haskell-1.3.3...
+#19 7.067 Preprocessing library for mysql-haskell-1.3.3...
+#19 7.074 Building library for mysql-haskell-1.3.3...
+#19 7.205 
+#19 7.205 <no location info>: warning: [-Wunused-packages]
+#19 7.205     The following packages were specified via -package or -package-id flags,
+#19 7.205     but were not needed for compilation:
+#19 7.205       - data-default-class-0.2.0.0 (exposed by flag -package-id data-default-class-0.2.0.0-38ba4eaa6c2f97e322f0e5bd35f5c4f1f63fed09c9db0a3008e005e9ef9cf6b4)
+#19 7.205       - monad-loops-0.4.3 (exposed by flag -package-id monad-loops-0.4.3-6141bef5a371bac7903f35712b12ea8ec9041eea496eb1f476db6411a0db7649)
+#19 7.206 [ 1 of 29] Compiling Data.Binary.Parser.Word8 ( src/Data/Binary/Parser/Word8.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Binary/Parser/Word8.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Binary/Parser/Word8.dyn_o )
+#19 7.596 [ 2 of 29] Compiling Data.Binary.Parser.Numeric ( src/Data/Binary/Parser/Numeric.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Binary/Parser/Numeric.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Binary/Parser/Numeric.dyn_o )
+#19 10.01 [ 3 of 29] Compiling Data.Binary.Parser ( src/Data/Binary/Parser.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Binary/Parser.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Binary/Parser.dyn_o )
+#19 10.40 [ 4 of 29] Compiling Data.Connection  ( src/Data/Connection.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Connection.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Connection.dyn_o )
+#19 10.43 [ 5 of 29] Compiling Data.Word.Word24 ( src/Data/Word/Word24.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Word/Word24.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Word/Word24.dyn_o )
+#19 10.76 [ 6 of 29] Compiling Data.Int.Int24   ( src/Data/Int/Int24.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Int/Int24.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/Int/Int24.dyn_o )
+#19 11.09 [ 7 of 29] Compiling Database.MySQL.Protocol.Compression ( src/Database/MySQL/Protocol/Compression.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Compression.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Compression.dyn_o )
+#19 11.36 [ 8 of 29] Compiling Database.MySQL.Protocol.Escape ( src/Database/MySQL/Protocol/Escape.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Escape.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Escape.dyn_o )
+#19 11.44 [ 9 of 29] Compiling Database.MySQL.Protocol.Packet ( src/Database/MySQL/Protocol/Packet.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Packet.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Packet.dyn_o )
+#19 14.56 [10 of 29] Compiling Database.MySQL.Protocol.ColumnDef ( src/Database/MySQL/Protocol/ColumnDef.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/ColumnDef.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/ColumnDef.dyn_o )
+#19 20.27 [11 of 29] Compiling Database.MySQL.Protocol.MySQLValue ( src/Database/MySQL/Protocol/MySQLValue.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/MySQLValue.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/MySQLValue.dyn_o )
+#19 31.92 [12 of 29] Compiling Database.MySQL.Protocol.Command ( src/Database/MySQL/Protocol/Command.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Command.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Command.dyn_o )
+#19 33.18 [13 of 29] Compiling Database.MySQL.Field ( src/Database/MySQL/Field.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Field.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Field.dyn_o )
+#19 33.44 [14 of 29] Compiling Database.MySQL.BinLogProtocol.BinLogMeta ( src/Database/MySQL/BinLogProtocol/BinLogMeta.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLogProtocol/BinLogMeta.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLogProtocol/BinLogMeta.dyn_o )
+#19 33.45 
+#19 33.45 src/Database/MySQL/BinLogProtocol/BinLogMeta.hs:130:13: warning: [-Wname-shadowing]
+#19 33.45     This binding for ‘label’ shadows the existing binding
+#19 33.45       imported from ‘Data.Binary.Get’ at src/Database/MySQL/BinLogProtocol/BinLogMeta.hs:32:1-32
+#19 33.45       (and originally defined in ‘Data.Binary.Get.Internal’)
+#19 33.45     |
+#19 33.45 130 | checkedByte label valid = do
+#19 33.45     |             ^^^^^
+#19 33.68 [15 of 29] Compiling Database.MySQL.Protocol.Auth ( src/Database/MySQL/Protocol/Auth.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Auth.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Auth.dyn_o )
+#19 34.76 [16 of 29] Compiling Database.MySQL.BinLogProtocol.BinLogValue ( src/Database/MySQL/BinLogProtocol/BinLogValue.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLogProtocol/BinLogValue.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLogProtocol/BinLogValue.dyn_o )
+#19 36.15 [17 of 29] Compiling Database.MySQL.Protocol.Progress ( src/Database/MySQL/Protocol/Progress.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Progress.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Progress.dyn_o )
+#19 36.38 [18 of 29] Compiling Database.MySQL.Query ( src/Database/MySQL/Query.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Query.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Query.dyn_o )
+#19 37.64 [19 of 29] Compiling Database.MySQL.BinLogProtocol.BinLogEvent ( src/Database/MySQL/BinLogProtocol/BinLogEvent.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLogProtocol/BinLogEvent.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLogProtocol/BinLogEvent.dyn_o )
+#19 40.47 [20 of 29] Compiling Database.MySQL.BinLogProtocol.CDC ( src/Database/MySQL/BinLogProtocol/CDC.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLogProtocol/CDC.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLogProtocol/CDC.dyn_o )
+#19 42.82 [21 of 29] Compiling Database.MySQL.Session ( src/Database/MySQL/Session.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Session.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Session.dyn_o )
+#19 43.30 [22 of 29] Compiling Paths_mysql_haskell ( dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/autogen/Paths_mysql_haskell.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Paths_mysql_haskell.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Paths_mysql_haskell.dyn_o )
+#19 43.36 [23 of 29] Compiling Data.TLSSetting  ( src/Data/TLSSetting.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/TLSSetting.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Data/TLSSetting.dyn_o )
+#19 43.51 [24 of 29] Compiling System.IO.Streams.TCP ( src/System/IO/Streams/TCP.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/System/IO/Streams/TCP.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/System/IO/Streams/TCP.dyn_o )
+#19 43.67 [25 of 29] Compiling Database.MySQL.Connection ( src/Database/MySQL/Connection.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Connection.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Connection.dyn_o )
+#19 52.60 [26 of 29] Compiling Database.MySQL.Base ( src/Database/MySQL/Base.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.dyn_o )
+#19 56.34 [27 of 29] Compiling Database.MySQL.BinLog ( src/Database/MySQL/BinLog.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLog.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLog.dyn_o )
+#19 57.72 [28 of 29] Compiling System.IO.Streams.TLS ( src/System/IO/Streams/TLS.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/System/IO/Streams/TLS.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/System/IO/Streams/TLS.dyn_o )
+#19 57.79 [29 of 29] Compiling Database.MySQL.TLS ( src/Database/MySQL/TLS.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/TLS.o, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/opt/build/Database/MySQL/TLS.dyn_o )
+#19 58.51 Configuring test suite 'test' for mysql-haskell-1.3.3...
+#19 58.52 Configuring executable 'mariadb-validation' for mysql-haskell-1.3.3...
+#19 58.52 Configuring test suite 'integration' for mysql-haskell-1.3.3...
+#19 58.96 Preprocessing test suite 'integration' for mysql-haskell-1.3.3...
+#19 58.96 Preprocessing test suite 'test' for mysql-haskell-1.3.3...
+#19 58.96 Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+#19 58.96 Building test suite 'integration' for mysql-haskell-1.3.3...
+#19 58.97 Building test suite 'test' for mysql-haskell-1.3.3...
+#19 58.97 Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+#19 59.01 [ 1 of 17] Compiling BinLog           ( test/BinLog.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLog.o )
+#19 59.03 [ 1 of 23] Compiling Validation.Common ( validation/hs/Validation/Common.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Common.o )
+#19 59.05 [ 1 of 14] Compiling Aeson            ( test/Aeson.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Aeson.o )
+#19 59.27 [ 2 of 17] Compiling BinLogNew        ( test/BinLogNew.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLogNew.o )
+#19 59.32 [ 3 of 17] Compiling BinaryRow        ( test/BinaryRow.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRow.o )
+#19 59.54 [ 2 of 23] Compiling Validation.Benchmark ( validation/hs/Validation/Benchmark.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Benchmark.o )
+#19 59.60 [ 4 of 17] Compiling BinaryRowNew     ( test/BinaryRowNew.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRowNew.o )
+#19 59.68 [ 5 of 17] Compiling CachingSha2      ( test/CachingSha2.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/CachingSha2.o )
+#19 59.71 [ 6 of 17] Compiling ExecuteMany      ( test/ExecuteMany.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/ExecuteMany.o )
+#19 59.75 [ 7 of 17] Compiling MultipleResults  ( test/MultipleResults.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MultipleResults.o )
+#19 60.18 [ 8 of 17] Compiling QueryWithoutResultSet ( test/QueryWithoutResultSet.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/QueryWithoutResultSet.o )
+#19 60.41 [ 9 of 17] Compiling RoundtripBit     ( test/RoundtripBit.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripBit.o )
+#19 60.45 [10 of 17] Compiling RoundtripYear    ( test/RoundtripYear.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripYear.o )
+#19 60.49 [11 of 17] Compiling SelectOne        ( test/SelectOne.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/SelectOne.o )
+#19 60.52 [12 of 17] Compiling TLSConnection    ( test/TLSConnection.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TLSConnection.o )
+#19 60.62 [13 of 17] Compiling TextRow          ( test/TextRow.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRow.o )
+#19 60.81 [14 of 17] Compiling TextRowNew       ( test/TextRowNew.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRowNew.o )
+#19 60.92 [15 of 17] Compiling MysqlTests       ( test/MysqlTests.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MysqlTests.o )
+#19 60.99 [16 of 17] Compiling UnixSocket       ( test/UnixSocket.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/UnixSocket.o )
+#19 61.05 [17 of 17] Compiling Main             ( test/Integration.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/Main.o )
+#19 61.07 [ 3 of 23] Compiling Validation.FaultTransport ( validation/hs/Validation/FaultTransport.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/FaultTransport.o )
+#19 61.22 [18 of 18] Linking dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration
+#19 61.48 [ 2 of 14] Compiling AesonBP          ( test/AesonBP.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/AesonBP.o )
+#19 61.96 [ 4 of 23] Compiling Validation.Functional ( validation/hs/Validation/Functional.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Functional.o )
+#19 63.12 [ 3 of 14] Compiling BoundsCheck      ( test/BoundsCheck.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/BoundsCheck.o )
+#19 63.29 [ 4 of 14] Compiling FieldRoundtrip   ( test/FieldRoundtrip.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/FieldRoundtrip.o )
+#19 63.60 [ 5 of 14] Compiling JSON             ( test/JSON.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/JSON.o )
+#19 63.64 [ 6 of 14] Compiling Orphans          ( test/Orphans.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Orphans.o )
+#19 63.66 [ 7 of 14] Compiling QC.Common        ( test/QC/Common.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/QC/Common.o )
+#19 63.76 [ 8 of 14] Compiling QC.Combinator    ( test/QC/Combinator.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/QC/Combinator.o )
+#19 63.92 [ 9 of 14] Compiling QC.ByteString    ( test/QC/ByteString.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/QC/ByteString.o )
+#19 64.06 [ 5 of 23] Compiling Validation.Protocol ( validation/hs/Validation/Protocol.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Protocol.o )
+#19 64.45 [10 of 14] Compiling Sha1Scramble     ( test/Sha1Scramble.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Sha1Scramble.o )
+#19 64.52 [11 of 14] Compiling Sha256Scramble   ( test/Sha256Scramble.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Sha256Scramble.o )
+#19 64.57 [12 of 14] Compiling TCPStreams       ( test/TCPStreams.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/TCPStreams.o )
+#19 64.77 [13 of 14] Compiling Word24           ( test/Word24.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Word24.o )
+#19 65.35 [14 of 14] Compiling Main             ( test/Main.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Main.o )
+#19 65.59 [15 of 15] Linking dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/t/test/opt/build/test/test
+#19 66.89 [ 6 of 23] Compiling Validation.Security ( validation/hs/Validation/Security.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Security.o )
+#19 67.03 [ 7 of 23] Compiling Validation.Stage1 ( validation/hs/Validation/Stage1.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage1.o )
+#19 74.12 [ 8 of 23] Compiling Validation.Stage2 ( validation/hs/Validation/Stage2.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage2.o )
+#19 74.15 
+#19 74.15 validation/hs/Validation/Stage2.hs:219:20: warning: [-Wtype-defaults]
+#19 74.15     • Defaulting the type variable ‘a0’ to type ‘String’ in the following constraints
+#19 74.15         (Data.String.IsString a0)
+#19 74.15           arising from the literal ‘"tcp"’
+#19 74.15           at validation/hs/Validation/Stage2.hs:219:20-24
+#19 74.15         (Eq a0)
+#19 74.15           arising from the literal ‘"tcp"’
+#19 74.15           at validation/hs/Validation/Stage2.hs:228:25-29
+#19 74.15     • In the expression: "tcp"
+#19 74.15       In the first argument of ‘forM_’, namely ‘["tcp", "tls", "socket"]’
+#19 74.15       In the first argument of ‘($)’, namely
+#19 74.15         ‘forM_ ["tcp", "tls", "socket"]’
+#19 74.15     |
+#19 74.15 219 |             forM_ ["tcp","tls","socket"] $ \transport -> do
+#19 74.15     |                    ^^^^^
+#19 75.03 [ 9 of 23] Compiling Validation.Stage3 ( validation/hs/Validation/Stage3.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3.o )
+#19 83.54 [10 of 23] Compiling Validation.Stage3Bench ( validation/hs/Validation/Stage3Bench.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3Bench.o )
+#19 83.72 [11 of 23] Compiling Validation.Stage4 ( validation/hs/Validation/Stage4.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4.o )
+#19 87.89 [12 of 23] Compiling Validation.Stage4Bench ( validation/hs/Validation/Stage4Bench.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4Bench.o )
+#19 88.03 [13 of 23] Compiling Validation.Stage5 ( validation/hs/Validation/Stage5.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5.o )
+#19 92.02 [14 of 23] Compiling Validation.CDC   ( validation/hs/Validation/CDC.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/CDC.o )
+#19 92.41 [15 of 23] Compiling Validation.Stage5Bench ( validation/hs/Validation/Stage5Bench.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5Bench.o )
+#19 93.13 [16 of 23] Compiling Validation.Stage5Review ( validation/hs/Validation/Stage5Review.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5Review.o )
+#19 93.14 
+#19 93.14 validation/hs/Validation/Stage5Review.hs:123:13: warning: [-Wname-shadowing]
+#19 93.14     This binding for ‘query’ shadows the existing binding
+#19 93.14       imported from ‘Database.MySQL.Base’ at validation/hs/Validation/Stage5Review.hs:15:1-26
+#19 93.14     |
+#19 93.14 123 |             query=packet BINLOG_QUERY_EVENT $ do
+#19 93.14     |             ^^^^^
+#19 94.42 [17 of 23] Compiling Validation.Stage6Bench ( validation/hs/Validation/Stage6Bench.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6Bench.o )
+#19 94.68 [18 of 23] Compiling Validation.Stage6Review ( validation/hs/Validation/Stage6Review.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6Review.o )
+#19 96.17 [19 of 23] Compiling Validation.Supplementary ( validation/hs/Validation/Supplementary.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Supplementary.o )
+#19 96.37 [20 of 23] Compiling Validation.WireProxy ( validation/hs/Validation/WireProxy.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/WireProxy.o )
+#19 96.52 [21 of 23] Compiling Validation.Stage6 ( validation/hs/Validation/Stage6.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6.o )
+#19 105.1 [22 of 23] Compiling Validation.Reliability ( validation/hs/Validation/Reliability.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Reliability.o )
+#19 105.4 [23 of 23] Compiling Main             ( validation/hs/Main.hs, dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Main.o )
+#19 105.7 [24 of 24] Linking dist-newstyle/build/aarch64-linux/ghc-9.4.7/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation
+#19 106.6 Installing library in /root/.cabal/lib/aarch64-linux-ghc-9.4.7/mysql-haskell-1.3.3-inplace
+#19 106.7 MariaDB preflight passed: 12.3.3-MariaDB-ubu2404-log
+#19 106.8 PASS protocol.length-0
+#19 106.8 PASS protocol.length-1
+#19 106.8 PASS protocol.length-250
+#19 106.9 PASS protocol.length-251
+#19 106.9 PASS protocol.length-255
+#19 106.9 PASS protocol.length-256
+#19 106.9 PASS protocol.length-65535
+#19 106.9 PASS protocol.length-65536
+#19 106.9 PASS protocol.length-16777215
+#19 106.9 PASS protocol.length-16777216
+#19 106.9 PASS protocol.length-2147483647
+#19 107.0 PASS protocol.packet-size-0
+#19 107.0 PASS protocol.packet-size-1
+#19 107.0 PASS protocol.packet-size-255
+#19 107.0 PASS protocol.packet-size-256
+#19 107.0 PASS protocol.packet-size-65535
+#19 107.0 PASS protocol.fragment-split-1
+#19 107.0 PASS protocol.fragment-split-2
+#19 107.1 PASS protocol.fragment-split-3
+#19 107.1 PASS protocol.fragment-split-4
+#19 107.1 PASS protocol.fragment-split-5
+#19 107.1 PASS protocol.fragment-split-6
+#19 107.1 PASS protocol.fragment-split-7
+#19 107.1 PASS protocol.fragment-split-8
+#19 107.1 PASS protocol.fragment-split-9
+#19 107.1 PASS protocol.fragment-split-10
+#19 107.2 PASS protocol.fragment-split-11
+#19 107.2 PASS protocol.fragment-split-12
+#19 107.2 PASS protocol.fragment-split-13
+#19 107.2 PASS protocol.fragment-split-14
+#19 107.2 PASS protocol.fragment-split-15
+#19 107.2 PASS protocol.fragment-split-16
+#19 107.2 PASS protocol.fragment-split-17
+#19 107.3 PASS protocol.fragment-split-18
+#19 107.3 PASS protocol.fragment-split-19
+#19 107.3 PASS protocol.fragment-split-20
+#19 107.3 PASS protocol.coalesced-packets
+#19 107.3 PASS protocol.truncated-header
+#19 107.3 PASS protocol.truncated-body
+#19 107.3 PASS protocol.continuation-sequence-rejected
+#19 107.4 PASS protocol.continuation-sequence-wrap
+#19 107.4 PASS protocol.large-row-is-not-eof
+#19 107.4 PASS protocol.unsigned-last-insert-id
+#19 107.4 PASS protocol.column-definition-roundtrip
+#19 107.4 PASS protocol.binary-plugin-challenge
+#19 107.4 PASS protocol.unknown-plugin-rejected
+#19 107.4 PASS protocol.native-extension-handshake
+#19 107.5 PASS protocol.prepared-out-capability
+#19 107.5 PASS protocol.empty-packet-predicate
+#19 107.5 PASS protocol.text-field-trailing-data
+#19 107.5 PASS protocol.text-field-integer-overflow
+#19 107.5 PASS protocol.reset-does-not-consume-pending-row
+#19 107.5 PASS protocol.null-bitmap-0
+#19 107.5 PASS protocol.null-bitmap-1
+#19 107.5 PASS protocol.null-bitmap-2
+#19 107.6 PASS protocol.null-bitmap-7
+#19 107.6 PASS protocol.null-bitmap-8
+#19 107.6 PASS protocol.null-bitmap-9
+#19 107.6 PASS protocol.null-bitmap-15
+#19 107.6 PASS protocol.null-bitmap-16
+#19 107.6 PASS protocol.null-bitmap-17
+#19 107.6 PASS protocol.null-bitmap-63
+#19 107.7 PASS protocol.null-bitmap-64
+#19 107.7 PASS protocol.null-bitmap-65
+#19 107.7 PASS connection.tcp-native
+#19 107.7 PASS connection.unix-socket
+#19 107.8 PASS connection.tls-verified
+#19 107.8 PASS connection.tls-wrong-hostname
+#19 107.8 PASS connection.wrong-password
+#19 107.8 PASS connection.unknown-user
+#19 107.8 PASS connection.missing-database
+#19 107.8 PASS connection.default-full-unicode
+#19 107.8 PASS auth.ed25519.tcp
+#19 107.9 PASS auth.ed25519.tls
+#19 107.9 PASS auth.ed25519.socket
+#19 107.9 PASS auth.parsec.tcp
+#19 108.0 PASS auth.parsec.tls
+#19 108.0 PASS auth.parsec.socket
+#19 108.0 PASS auth.sha2.tcp
+#19 108.0 PASS auth.sha2.tls
+#19 108.1 PASS auth.sha2.socket
+#19 108.1 PASS types.text.int8-min
+#19 108.1 PASS types.text.int8-max
+#19 108.1 PASS types.text.uint8-max
+#19 108.1 PASS types.text.int16-min
+#19 108.1 PASS types.text.int16-max
+#19 108.1 PASS types.text.uint16-max
+#19 108.2 PASS types.text.int24-min
+#19 108.2 PASS types.text.int24-max
+#19 108.2 PASS types.text.uint24-max
+#19 108.2 PASS types.text.int32-min
+#19 108.2 PASS types.text.int32-max
+#19 108.2 PASS types.text.uint32-max
+#19 108.2 PASS types.text.int64-min
+#19 108.2 PASS types.text.int64-max
+#19 108.3 PASS types.text.uint64-max
+#19 108.3 PASS types.text.decimal-65-30
+#19 108.3 PASS types.text.decimal-65-38
+#19 108.3 PASS types.text.decimal-zero
+#19 108.3 PASS types.text.float-exact
+#19 108.3 PASS types.text.double-exact
+#19 108.3 PASS types.text.bit-1
+#19 108.4 PASS types.text.bit-8
+#19 108.4 PASS types.text.bit-16
+#19 108.4 PASS types.text.bit-64
+#19 108.4 PASS types.text.year-zero
+#19 108.4 PASS types.text.year-min
+#19 108.4 PASS types.text.year-max
+#19 108.4 PASS types.text.date-min
+#19 108.4 PASS types.text.date-leap
+#19 108.5 PASS types.text.date-max
+#19 108.5 PASS types.text.datetime-fraction
+#19 108.5 PASS types.text.datetime-max
+#19 108.5 PASS types.text.timestamp-fraction
+#19 108.5 PASS types.text.timestamp-after-2038
+#19 108.5 PASS types.text.time-zero
+#19 108.5 PASS types.text.time-positive-limit
+#19 108.6 PASS types.text.time-negative-limit
+#19 108.6 PASS types.text.text-empty
+#19 108.6 PASS types.text.text-unicode
+#19 108.6 PASS types.text.text-emoji
+#19 108.6 PASS types.text.text-combining
+#19 108.6 PASS types.text.text-controls
+#19 108.6 PASS types.text.bytes-all-256
+#19 108.7 PASS types.text.bytes-empty
+#19 108.7 PASS types.text.null
+#19 108.7 PASS types.text.enum
+#19 108.7 PASS types.text.set
+#19 108.7 PASS types.binary.int8-min
+#19 108.7 PASS types.binary.int8-max
+#19 108.7 PASS types.binary.uint8-max
+#19 108.7 PASS types.binary.int16-min
+#19 108.8 PASS types.binary.int16-max
+#19 108.8 PASS types.binary.uint16-max
+#19 108.8 PASS types.binary.int24-min
+#19 108.8 PASS types.binary.int24-max
+#19 108.8 PASS types.binary.uint24-max
+#19 108.8 PASS types.binary.int32-min
+#19 108.8 PASS types.binary.int32-max
+#19 108.9 PASS types.binary.uint32-max
+#19 108.9 PASS types.binary.int64-min
+#19 108.9 PASS types.binary.int64-max
+#19 108.9 PASS types.binary.uint64-max
+#19 108.9 PASS types.binary.decimal-65-30
+#19 108.9 PASS types.binary.decimal-65-38
+#19 108.9 PASS types.binary.decimal-zero
+#19 109.0 PASS types.binary.float-exact
+#19 109.0 PASS types.binary.double-exact
+#19 109.0 PASS types.binary.bit-1
+#19 109.0 PASS types.binary.bit-8
+#19 109.0 PASS types.binary.bit-16
+#19 109.0 PASS types.binary.bit-64
+#19 109.0 PASS types.binary.year-zero
+#19 109.1 PASS types.binary.year-min
+#19 109.1 PASS types.binary.year-max
+#19 109.1 PASS types.binary.date-min
+#19 109.1 PASS types.binary.date-leap
+#19 109.1 PASS types.binary.date-max
+#19 109.1 PASS types.binary.datetime-fraction
+#19 109.1 PASS types.binary.datetime-max
+#19 109.1 PASS types.binary.timestamp-fraction
+#19 109.2 PASS types.binary.timestamp-after-2038
+#19 109.2 PASS types.binary.time-zero
+#19 109.2 PASS types.binary.time-positive-limit
+#19 109.2 PASS types.binary.time-negative-limit
+#19 109.2 PASS types.binary.text-empty
+#19 109.2 PASS types.binary.text-unicode
+#19 109.2 PASS types.binary.text-emoji
+#19 109.3 PASS types.binary.text-combining
+#19 109.3 PASS types.binary.text-controls
+#19 109.3 PASS types.binary.bytes-all-256
+#19 109.3 PASS types.binary.bytes-empty
+#19 109.3 PASS types.binary.null
+#19 109.3 PASS types.binary.enum
+#19 109.3 PASS types.binary.set
+#19 109.4 PASS sql.cte
+#19 109.4 PASS sql.recursive-cte
+#19 109.4 PASS sql.window
+#19 109.4 PASS sql.json-functions
+#19 109.4 PASS sql.sequence-table
+#19 109.4 PASS sql.sequence-object
+#19 109.4 PASS sql.generated-column
+#19 109.5 PASS sql.check-constraint
+#19 109.5 PASS sql.foreign-key
+#19 109.5 PASS sql.insert-returning
+#19 109.5 PASS sql.prepared-returning
+#19 109.5 PASS sql.procedure-multiple-results
+#19 109.5 PASS sql.procedure-prepared-out
+#19 109.5 PASS sql.oracle-mode
+#19 109.6 PASS sql.system-versioning
+#19 109.6 PASS sql.json-native-column
+#19 109.6 PASS sql.uuid-native-column
+#19 109.6 PASS sql.inet-native-columns
+#19 109.6 PASS sql.vector-native-column
+#19 109.6 PASS sql.geometry
+#19 109.6 PASS sql.zero-date-preservation
+#19 109.7 PASS sql.unsigned-generated-id
+#19 109.7 PASS parameters.literal-question-mark
+#19 109.7 PASS parameters.comment-question-mark
+#19 109.7 PASS parameters.no-backslash-text
+#19 109.7 PASS parameters.no-backslash-binary
+#19 109.7 PASS results.vector-api
+#19 109.7 PASS results.prepared-vector-api
+#19 109.8 PASS results.empty
+#19 109.8 PASS results.no-rowset
+#19 109.8 PASS results.multi-statement
+#19 109.8 PASS results.discard-and-reuse
+#19 109.8 PASS errors.syntax-and-reuse
+#19 109.8 PASS errors.missing-table-and-reuse
+#19 109.8 PASS errors.duplicate-and-reuse
+#19 109.8 PASS statements.reset-consumed
+#19 109.9 PASS statements.parameter-type-change
+#19 109.9 PASS statements.ddl-reprepare
+#19 109.9 PASS statements.prepare-metadata
+#19 109.9 PASS statements.wrong-parameter-count
+#19 109.9 PASS statements.closed-id-rejected
+#19 109.9 PASS session.timestamp-timezone
+#19 110.0 PASS session.use-schema
+#19 110.0 PASS session.warning-count
+#19 110.0 PASS parameters.many-values
+#19 110.0 PASS parameters.empty-many
+#19 110.0 PASS parameters.sql-injection-value
+#19 110.0 PASS batch.empty
+#19 110.0 PASS batch.ordered-errors
+#19 110.1 PASS types.binary.null-columns-1
+#19 110.1 PASS types.binary.null-columns-2
+#19 110.1 PASS types.binary.null-columns-7
+#19 110.1 PASS types.binary.null-columns-8
+#19 110.1 PASS types.binary.null-columns-9
+#19 110.1 PASS types.binary.null-columns-15
+#19 110.1 PASS types.binary.null-columns-16
+#19 110.2 PASS types.binary.null-columns-17
+#19 110.2 PASS types.binary.null-columns-63
+#19 110.2 PASS types.binary.null-columns-64
+#19 110.2 PASS types.binary.null-columns-65
+#19 110.2 PASS packets.live-blob-0
+#19 110.2 PASS packets.live-blob-1
+#19 110.2 PASS packets.live-blob-16383
+#19 110.3 PASS packets.live-blob-16384
+#19 110.3 PASS packets.live-blob-16385
+#19 110.3 PASS packets.live-blob-1048576
+#19 110.4 PASS packets.live-blob-16777214
+#19 110.5 PASS packets.live-blob-16777215
+#19 110.6 PASS packets.live-blob-16777216
+#19 110.7 PASS packets.live-blob-16777217
+#19 110.9 PASS packets.live-blob-33554430
+#19 110.9 PASS packets.prepared-outbound-blob-16384
+#19 110.9 PASS packets.prepared-outbound-blob-16777214
+#19 110.9 PASS packets.prepared-outbound-blob-16777215
+#19 111.0 PASS packets.prepared-outbound-blob-16777216
+#19 111.0 PASS packets.prepared-outbound-blob-16777217
+#19 111.1 PASS packets.prepared-outbound-blob-33554430
+#19 111.2 PASS packets.text-outbound-blob-16777214
+#19 111.3 PASS packets.text-outbound-blob-16777215
+#19 111.4 PASS packets.text-outbound-blob-16777216
+#19 111.6 PASS packets.text-outbound-blob-16777217
+#19 111.6 PASS transaction.commit
+#19 111.6 PASS transaction.rollback
+#19 111.6 PASS transaction.savepoint
+#19 111.6 PASS transaction.partial-result-exception
+#19 111.6 PASS transaction.nested-preserves-outer
+#19 111.7 PASS transaction.read-committed-no-dirty-read
+#19 112.7 PASS transaction.lock-timeout-and-reuse
+#19 112.8 PASS transaction.deadlock-and-reuse
+#19 112.8 PASS transaction.ddl-implicit-commit
+#19 112.8 PASS reliability.reset-unread-result
+#19 112.8 FAIL reliability.timeout-before-metadata
+#19 112.9 PASS reliability.server-kill-query
+#19 112.9 PASS reliability.peer-disconnect
+#19 112.9 PASS reliability.unread-result-guard
+#19 113.1 PASS reliability.tls-cancellation-propagates
+#19 113.2 PASS reliability.tcp-cancellation-propagates
+#19 113.2 PASS connection.tls-untrusted-ca
+#19 113.2 PASS connection.localhost-address-fallback
+#19 113.2 PASS types.non-utf8-results
+#19 113.3 PASS capability.binary-bulk
+#19 113.3 PASS capability.metadata-cache
+#19 113.3 PASS capability.extended-metadata
+#19 113.3 PASS capability.session-tracking
+#19 113.3 PASS capability.reset-connection
+#19 113.4 PASS capability.progress-reporting
+#19 113.4 PASS capability.cursor-fetch
+#19 113.4 PASS capability.long-data
+#19 113.4 PASS capability.compression
+#19 113.4 PASS auth.mutual-tls-helper-client
+#19 113.5 PASS auth.mutual-tls-explicit-certificate-hook
+#19 113.5 PASS auth.mutual-tls-client-required
+#19 113.5 PASS auth.mutual-tls-expired-client
+#19 113.6 PASS auth.unix-socket-plugin
+#19 113.6 PASS auth.unix-socket-rejects-tcp
+#19 113.6 PASS connection.mozilla-ca-store-installed
+#19 113.6 ENVIRONMENT_UNAVAILABLE auth.pam-environment
+#19 113.6 ENVIRONMENT_UNAVAILABLE auth.gssapi-environment
+#19 113.6 PASS cdc.single-table-map
+#19 113.7 PASS cdc.multiple-table-maps
+#19 113.7 PASS cdc.repeated-row-events
+#19 113.7 PASS cdc.table-id-mismatch
+#19 113.7 PASS cdc.crc32-corruption-rejected
+#19 113.8 PASS cdc.live-row-insert
+#19 113.8 PASS cdc.gtid-resume
+#19 113.8 PASS cdc.durable-ack-control
+#19 113.8 PASS cdc.native-event-160
+#19 113.8 PASS cdc.native-event-161
+#19 113.8 PASS cdc.native-event-162
+#19 113.9 PASS cdc.native-event-163
+#19 113.9 PASS cdc.native-event-164
+#19 113.9 PASS cdc.native-event-165
+#19 113.9 PASS cdc.native-event-166
+#19 113.9 PASS cdc.native-event-167
+#19 113.9 PASS cdc.native-event-168
+#19 113.9 PASS cdc.native-event-169
+#19 114.0 PASS cdc.native-event-170
+#19 114.0 PASS cdc.native-event-171
+#19 114.0 PASS stage1.session.executable-comment-tracker-raw
+#19 114.0 PASS stage1.session.executable-comment-tracker-prepared
+#19 114.0 PASS stage1.session.executable-comment-tracker-bound
+#19 114.0 PASS stage1.parameters.comment-digit-prefixes
+#19 114.0 PASS stage1.parameters.inactive-comment-context-retained
+#19 114.1 PASS stage1.parameters.server-prepared-lexer-parity
+#19 114.1 PASS stage1.parameters.batch-trailing-statement-delimiter
+#19 114.1 PASS stage1.parameters.reversed-comments-rejected
+#19 114.1 PASS stage1.session.snapshot-value-bound
+#19 114.2 PASS stage1.session.snapshot-invalid-facts
+#19 114.2 PASS stage1.session.snapshot-more-results-rejected
+#19 114.2 PASS stage1.values.binary-time-microseconds-bounds
+#19 114.2 PASS stage1.session.malformed-snapshot-retires
+#19 114.2 PASS stage1.ownership.completed-command-does-not-finish-successor
+#19 114.2 PASS stage1.ownership.closed-cannot-become-streaming
+#19 114.2 PASS stage1.parameters.batch-trailing-line-comment
+#19 114.3 PASS stage1.cleanup.transport-cancellation-propagates
+#19 114.3 PASS stage1.replication.setup-error-retires
+#19 114.3 PASS stage1.transaction.concurrent-close-commit-unknown
+#19 114.3 PASS stage1.transaction.closed-after-known-commit-error
+#19 114.4 PASS stage1.proxy.lost-commit-acknowledgement
+#19 114.8 PASS stage1.proxy.fragmented-handshake-and-results
+#19 114.8 PASS stage1.proxy.disconnect-before-metadata
+#19 115.1 PASS stage1.proxy.actual-command-counts
+#19 115.2 PASS stage1.session.tracker-selection-preserved
+#19 115.2 PASS stage1.session.unknown-tracking-kind-skipped
+#19 115.2 PASS stage1.cleanup.absolute-deadline-preserves-primary
+#19 115.2 PASS stage1.fault.wrong-first-sequence
+#19 115.2 PASS stage1.fragments.physical-exchange-sequence-wrap
+#19 115.3 PASS stage1.fault.eof-metadata-validates
+#19 115.3 PASS stage1.fault.old-stream-cannot-read-new-command
+#19 115.3 PASS stage1.fault.unread-close-sends-nothing
+#19 115.3 PASS stage1.fault.server-error-reusable
+#19 115.3 PASS stage1.fault.partial-write-retires
+#19 115.3 PASS stage1.fault.pre-send-limit-is-clean
+#19 115.3 PASS stage1.fault.metadata-budget
+#19 115.4 PASS stage1.fault.column-limit
+#19 115.4 PASS stage1.fault.ok-terminator-binary-zero-row
+#19 115.4 PASS stage1.fault.concurrent-command
+#19 115.4 PASS stage1.transaction.thread-exclusion
+#19 115.4 PASS stage1.transaction.caught-nested-rejection
+#19 115.4 PASS stage1.transaction.manual-begin-rejected
+#19 115.4 PASS stage1.transaction.returned-unread-rolls-back
+#19 115.5 PASS stage1.timeout.connection-retired
+#19 115.5 PASS stage1.session.row-count-no-hidden-probe
+#19 115.5 PASS stage1.session.unknown-context-explicit-refresh
+#19 115.5 PASS stage1.session.tracker-replacement-is-unknown
+#19 115.5 PASS stage1.session.raw-multiple-invalidates
+#19 115.6 PASS stage1.session.raw-routine-fast-path-excluded
+#19 115.6 PASS stage1.session.prepared-tracker-replacement-is-unknown
+#19 115.6 PASS stage1.session.mode-changes-both-directions
+#19 115.6 PASS stage1.session.latin1-parameter
+#19 115.6 PASS stage1.session.latin1-prepared-parameter
+#19 115.6 PASS stage1.cleanup.second-cancellation-propagates
+#19 115.6 PASS stage1.values.invalid-parameter-before-send
+#19 115.7 PASS stage1.session.legacy-eof-integration
+#19 115.7 PASS stage1.fault.row-trailing-bytes
+#19 115.7 PASS stage1.parameters.quoted-semicolon-batch
+#19 115.7 PASS stage1.parameters.opaque-routine-batch-rejected
+#19 115.7 PASS stage1.parameters.quoted-routine-batch-rejected
+#19 115.7 PASS stage1.session.unencodable-clean
+#19 115.7 PASS stage1.parameters.batch-ambiguous-rejected-before-send
+#19 115.8 PASS stage1.parameters.injection-remains-data
+#19 115.8 PASS stage1.parameters.executable-comment-active
+#19 115.8 PASS stage1.parameters.executable-comment-inactive
+#19 115.8 PASS stage1.values.invalid-utf8-rejected
+#19 115.8 PASS stage1.values.invalid-utf8-rejected-before-yield
+#19 115.8 PASS stage1.fault.trailing-row-unfed-chunk
+#19 115.8 PASS stage1.fault.logical-limit-before-continuation-body
+#19 115.9 PASS stage1.fault.missing-tracking-payload
+#19 115.9 PASS stage1.fault.session-envelope-budget
+#19 115.9 PASS stage1.parameters.oracle-mode-quotes
+#19 115.9 PASS stage1.parameters.ansi-identifier-backslash
+#19 115.9 PASS stage1.values.unmapped-charset-exact-bytes
+#19 115.9 PASS stage1.values.raw-dates-text-prepared
+#19 115.9 PASS stage1.fragments.limit-4
+#19 116.0 PASS stage1.fragments.limit-5
+#19 116.0 PASS stage1.fragments.limit-6
+#19 116.0 PASS stage1.values.uint64-9223372036854775807
+#19 116.0 PASS stage1.values.uint64-9223372036854775808
+#19 116.0 PASS stage1.values.uint64-18446744073709551615
+#19 116.0 PASS stage1.parameters.quote-1
+#19 116.1 PASS stage1.parameters.quote-2
+#19 116.1 PASS stage1.parameters.quote-3
+#19 116.1 PASS stage1.parameters.quote-4
+#19 116.1 PASS stage1.parameters.quote-5
+#19 116.1 PASS stage1.parameters.quote-6
+#19 116.1 PASS stage1.parameters.quote-7
+#19 116.1 PASS stage2.capabilities.greeting-upper-word
+#19 116.2 PASS stage2.capabilities.auth-upper-word-offset
+#19 116.2 PASS stage2.capabilities.ssl-upper-word-offset
+#19 116.2 PASS stage2.capabilities.server-intersection
+#19 116.2 PASS stage2.auth.ed25519-independent-golden
+#19 116.2 PASS stage2.auth.binary-trailing-zero-switch
+#19 116.2 PASS stage2.auth.optional-switch-terminator
+#19 116.2 PASS stage2.auth.unknown-switch-before-write
+#19 116.3 PASS stage2.auth.short-challenges-rejected
+#19 116.3 PASS stage2.auth.malformed-switch-rejected
+#19 116.3 PASS stage2.auth.switch-loop-bounded
+#19 116.3 PASS stage2.auth.parsec-excess-work-before-derivation
+#19 116.3 PASS stage2.auth.parsec-invalid-parameters
+#19 116.3 PASS stage2.tls.sni-and-verified-hostname
+#19 116.3 PASS stage2.auth.sha2-malformed-continuations
+#19 116.4 PASS stage2.auth.rsa-invalid-nonce
+#19 116.4 PASS stage2.auth.rsa-invalid-key-before-write
+#19 116.4 PASS stage2.auth.rsa-invalid-key-structure
+#19 116.5 PASS stage2.auth.sha2-uncached-full-authentication
+#19 116.5 PASS stage2.connection.greeting-deadline-closes-peer
+#19 116.5 PASS stage2.connection.greeting-cancellation-closes-peer
+#19 116.6 PASS stage2.auth.wrong-password.mariadb_ed25519.tcp
+#19 116.6 PASS stage2.auth.wrong-password.mariadb_ed25519.tls
+#19 116.6 PASS stage2.auth.wrong-password.mariadb_ed25519.socket
+#19 116.6 PASS stage2.auth.wrong-password.mariadb_parsec.tcp
+#19 116.7 PASS stage2.auth.wrong-password.mariadb_parsec.tls
+#19 116.7 PASS stage2.auth.wrong-password.mariadb_parsec.socket
+#19 116.7 PASS stage2.auth.wrong-password.mariadb_sha2.tcp
+#19 116.8 PASS stage2.auth.wrong-password.mariadb_sha2.tls
+#19 116.8 PASS stage2.auth.wrong-password.mariadb_sha2.socket
+#19 116.8 PASS stage3.prepared.out-and-multiple-results
+#19 116.8 PASS stage3.prepared.raw-multiple-results
+#19 116.8 PASS stage3.prepared.single-result-drains-extras
+#19 116.8 PASS stage3.prepared.local-arity
+#19 116.8 PASS stage3.prepared.close-idempotent
+#19 116.9 PASS stage3.prepared.raw-id-reuse
+#19 116.9 PASS stage3.prepared.registry-bound
+#19 116.9 PASS stage3.prepared.pending-close-rejected
+#19 116.9 PASS stage3.prepared.bracket-preserves-primary
+#19 116.9 PASS stage3.prepared.reset-retains-cache
+#19 116.9 PASS stage3.prepared.connection-close-invalidates
+#19 117.0 PASS stage3.timeout.safe-retirement-default
+#19 117.0 PASS stage3.cache.omitted-first-execution
+#19 117.0 PASS stage3.cache.missing-entry-retires
+#19 117.0 PASS stage3.cache.invalid-marker
+#19 117.0 PASS stage3.cache.count-mismatch
+#19 117.1 PASS stage3.cache.ddl-reprepare
+#19 117.1 PASS stage3.cache.parameter-type-refresh
+#19 117.1 PASS stage3.cache.explicit-opt-out
+#19 117.1 PASS stage3.cache.legacy-eof
+#19 117.1 PASS stage3.cache.aggregate-budget
+#19 117.1 PASS stage3.metadata.unknown-attribute
+#19 117.1 PASS stage3.metadata.truncated-attribute
+#19 117.2 PASS stage3.bulk.independent-wire-vector
+#19 117.2 PASS stage3.bulk.per-unit-results
+#19 117.2 PASS stage3.bulk.null-default-ignore
+#19 117.2 PASS stage3.bulk.update-ignore
+#19 117.2 PASS stage3.bulk.transaction-rollback-no-replay
+#19 117.2 PASS stage3.bulk.mixed-types-rejected
+#19 117.2 PASS stage3.bulk.empty-and-arity-rejected
+#19 117.3 PASS stage3.bulk.row-limit
+#19 117.3 PASS stage3.bulk.max-bound-limits
+#19 117.3 PASS stage3.bulk.message-limit
+#19 117.3 PASS stage3.bulk.charset-and-unencodable
+#19 117.3 PASS stage3.bulk.sql-looking-values
+#19 117.3 PASS stage3.bulk.zero-parameter-rejected
+#19 117.3 PASS stage3.bulk.scalar-null-parity
+#19 117.4 PASS stage3.bulk.all-null-and-default-column
+#19 117.4 PASS stage3.bulk.unit-result-unsigned-id
+#19 117.4 PASS stage3.bulk.physical-boundary
+#19 117.4 PASS stage3.bulk.non-finite-rejected
+#19 117.5 PASS stage3.bulk.one-wire-command
+#19 117.5 PASS stage3.bulk.capability-rejection-before-send
+#19 117.6 PASS stage3.prepared.cleanup-deadline
+#19 117.6 PASS stage3.prepared.buffered-cleanup-deadline
+#19 117.6 PASS stage3.prepared.buffered-cleanup-cancellation
+#19 117.7 PASS stage3.transaction.buffered-cleanup-deadline
+#19 117.7 PASS stage3.cache.incremental-accounting
+#19 117.7 PASS stage3.cache.close-releases-budget
+#19 117.7 PASS stage3.cache.close-race-does-not-resurrect
+#19 117.7 PASS stage3.cache.server-confirms-omission
+#19 117.8 PASS stage3.cache.metadata-owns-buffer
+#19 117.8 PASS stage3.prepared.bracket-drains-on-success
+#19 117.8 PASS stage3.prepared.cleanup-new-cancellation
+#19 117.8 PASS stage3.metadata.attribute-count-bound
+#19 117.8 PASS stage3.bulk.minimum-size-before-cell-traversal
+#19 117.8 PASS stage4.tracking.initial-state
+#19 117.8 PASS stage4.tracking.all-kinds-and-wire-order
+#19 117.9 PASS stage4.tracking.repeated-variable-last-wins
+#19 117.9 PASS stage4.tracking.snapshot-does-no-io
+#19 117.9 PASS stage4.tracking.owns-receive-bytes
+#19 117.9 PASS stage4.tracking.malformed-known-kinds
+#19 117.9 PASS stage4.tracking.item-count-bound
+#19 117.9 PASS stage4.tracking.length-overflow-rejected
+#19 117.9 PASS stage4.tracking.accumulated-budget
+#19 118.0 PASS stage4.tracking.replacement-releases-budget
+#19 118.0 PASS stage4.tracking.explicit-facts-retained-envelope-budget
+#19 118.0 PASS stage4.tracking.explicit-facts-do-not-forge-events
+#19 118.0 PASS stage4.tracking.subscription-invalidates-values
+#19 118.0 PASS stage4.tracking.schema-and-transaction-controls
+#19 118.0 PASS stage4.tracking.collation-direct-live
+#19 118.1 PASS stage4.tracking.collation-set-names-live
+#19 118.1 PASS stage4.tracking.collation-delta-order
+#19 118.1 PASS stage4.tracking.collation-invalidation-releases-budget
+#19 118.1 PASS stage4.tracking.collation-explicit-selection
+#19 118.1 PASS stage4.tracking.transaction-characteristics-downgrade
+#19 118.1 PASS stage4.tracking.transaction-characteristics-downgrade-live
+#19 118.1 PASS stage4.tracking.live-schema
+#19 118.2 PASS stage4.tracking.live-transaction-details
+#19 118.2 PASS stage4.tracking.multiple-results-retain-real-envelope
+#19 118.2 PASS stage4.tracking.disabled-transaction-flags
+#19 118.2 PASS stage4.tracking.error-invalidates
+#19 118.2 PASS stage4.tracking.disabled-honest-unknowns
+#19 118.2 PASS stage4.reset.same-session-and-cleanup
+#19 118.2 PASS stage4.reset.rolls-back-open-transaction
+#19 118.3 PASS stage4.reset.restores-constructor-database
+#19 118.3 PASS stage4.reset.restores-charset-and-rendering
+#19 118.3 PASS stage4.reset.custom-initializer
+#19 118.3 PASS stage4.reset.role-none-before-initializer
+#19 118.3 PASS stage4.reset.role-default-before-database
+#19 118.3 PASS stage4.reset.role-initializer-and-refresh
+#19 118.3 PASS stage4.reset.role-without-tracking
+#19 118.4 PASS stage4.reset.role-latin1-client
+#19 118.4 PASS stage4.reset.role-lossy-result-charset
+#19 118.4 PASS stage4.reset.role-binary-result-charset
+#19 118.4 PASS stage4.reset.role-tls-and-socket
+#19 118.5 PASS stage4.reset.tls
+#19 118.5 PASS stage4.reset.socket
+#19 118.5 PASS stage4.reset.tracking-disabled
+#19 118.5 PASS stage4.reset.raw-command-uses-guarded-restoration
+#19 118.6 PASS stage4.reset.no-database-unchanged-is-safe
+#19 118.6 PASS stage4.reset.autocommit-and-isolation-defaults
+#19 118.6 PASS stage4.reset.after-transaction-tracking
+#19 118.6 PASS stage4.reset.releases-advisory-locks
+#19 118.6 PASS stage4.reset.empty-database-after-use-rejected
+#19 118.6 PASS stage4.reset.stale-handle-and-id-reuse
+#19 118.7 PASS stage4.reset.registry-bounded-over-reuse
+#19 118.7 PASS stage4.reset.pending-stream-rejected-before-send
+#19 118.7 PASS stage4.reset.transaction-helper-rejected
+#19 118.7 PASS stage4.reset.initializer-error-retires
+#19 118.7 PASS stage4.reset.initializer-stream-retires
+#19 118.8 PASS stage4.reset.initializer-transaction-retires
+#19 118.8 PASS stage4.reset.malformed-reply-retires
+#19 118.8 PASS stage4.reset.server-error-retires
+#19 118.8 PASS stage4.reset.restore-error-retires
+#19 118.8 PASS stage4.reset.wire-byte-and-no-redundant-setup
+#19 118.8 PASS stage4.reset.role-restoration-error-retires
+#19 118.8 PASS stage4.reset.role-snapshot-value-bound
+#19 118.9 PASS stage4.reset.role-restoration-deadline
+#19 118.9 PASS stage4.reset.known-unsupported-version-no-send
+#19 118.9 PASS stage4.reset.no-database-unsafe-restore-rejected
+#19 118.9 PASS stage4.reset.closed-and-broken-never-revived
+#19 119.0 PASS stage4.reset.buffered-initializer-deadline
+#19 119.0 PASS stage4.reset.wire-and-restoration-deadlines
+#19 119.0 PASS stage4.reset.wire-cancellation
+#19 119.0 PASS stage4.reset.close-race-stays-terminal
+#19 119.1 PASS stage4.reset.initializer-cancellation-and-exclusive-lease
+#19 119.1 PASS stage5.initial-format-budget
+#19 119.1 PASS stage5.initial-filename-budget
+#19 119.1 PASS stage5.event-id-roundtrip
+#19 119.1 PASS stage5.crc32-known-vector
+#19 119.1 PASS stage5.crc32-valid
+#19 119.2 PASS stage5.crc32-every-truncation
+#19 119.2 PASS stage5.wire-trailing-byte
+#19 119.2 PASS stage5.wire-small-event-size
+#19 119.2 PASS stage5.unknown-critical-rejected
+#19 119.2 PASS stage5.unknown-ignorable-preserved
+#19 119.2 PASS stage5.table-map-replacement
+#19 119.2 PASS stage5.table-map-count-limit
+#19 119.3 PASS stage5.table-map-byte-limit
+#19 119.3 PASS stage5.table-map-replacement-budget
+#19 119.3 PASS stage5.statement-end-invalidates-maps
+#19 119.3 PASS stage5.query-invalidates-maps
+#19 119.3 PASS stage5.rotate-invalidates-maps
+#19 119.3 PASS stage5.row-post-header-length-rejected
+#19 119.4 PASS stage5.row-empty-images-rejected
+#19 119.4 PASS stage5.row-column-count-mismatch
+#19 119.4 PASS stage5.row-extra-header-underflow
+#19 119.4 PASS stage5.row-zero-progress
+#19 119.4 PASS stage5.row-null-unused-bits-allowed
+#19 119.4 PASS stage5.table-map-optional-metadata
+#19 119.5 PASS stage5.table-map-invalid-optional-length
+#19 119.5 PASS stage5.file-checkpoint-resumes-by-file
+#19 119.5 PASS stage5.row-padding-bits-rejected
+#19 119.5 PASS stage5.sparse-update-images
+#19 119.5 PASS stage5.checkpoint-only-after-commit
+#19 119.5 PASS stage5.checkpoint-rollback-boundary
+#19 119.5 PASS stage5.checkpoint-standalone-ddl
+#19 119.6 PASS stage5.checkpoint-standalone-rows
+#19 119.6 PASS stage5.checkpoint-cross-domain
+#19 119.6 PASS stage5.checkpoint-incomplete-eof
+#19 119.6 PASS stage5.checkpoint-nested-gtid
+#19 119.6 PASS stage5.checkpoint-nonadvancing-gtid
+#19 119.6 PASS stage5.checkpoint-xa-rejected
+#19 119.7 PASS stage5.checkpoint-stream-identity
+#19 119.7 PASS stage5.gtid-parser-valid
+#19 119.7 PASS stage5.gtid-parser-invalid
+#19 119.7 PASS stage5.backpressure-no-read-ahead
+#19 119.7 PASS stage5.compressed-write
+#19 119.7 PASS stage5.compressed-expansion-limit
+#19 119.7 PASS stage5.compressed-truncated
+#19 119.8 PASS stage5.compressed-length-mismatch
+#19 119.8 PASS stage5.fragmented-row
+#19 119.8 PASS stage5.fragment-out-of-order
+#19 119.8 PASS stage5.fragment-missing
+#19 119.8 PASS stage5.fragment-interleaved
+#19 119.8 PASS stage5.fragment-expansion-budget
+#19 119.9 PASS stage5.compressed-query
+#19 119.9 PASS stage5.set-little-endian
+#19 119.9 PASS stage5.enum-little-endian
+#19 119.9 PASS stage5.metadata-invalid-precision
+#19 119.9 PASS stage5.metadata-invalid-fsp
+#19 119.9 PASS stage5.crc32-off-format-still-checked
+#19 120.0 PASS stage5.live-transaction-resume
+#19 120.0 PASS stage5.manual-ack-wire-order
+#19 120.0 PASS stage5.manual-ack-foreign-token
+#19 120.0 PASS stage5.manual-ack-backwards
+#19 120.0 PASS stage5.manual-ack-write-cancellation
+#19 120.1 PASS stage5.decoded-error-retires
+#19 120.1 PASS stage5.decoded-error-cannot-be-skipped
+#19 120.1 PASS stage5.foreign-thread-read-rejected
+#19 121.7 PASS stage5.live-semisync-ack
+#19 124.0 PASS stage5.live-rotation-schema-sparse
+#19 128.0 PASS stage5.live-server-restart-resume
+#19 128.0 PASS stage5.file-position-overflow-rejected
+#19 128.0 PASS stage5.live-query-excluded-during-cdc
+#19 128.2 PASS stage5.live-read-cancellation-retires
+#19 128.2 PASS stage5.compressed-row-variant-166
+#19 128.3 PASS stage5.compressed-row-variant-167
+#19 128.3 PASS stage5.compressed-row-variant-168
+#19 128.3 PASS stage5.compressed-row-variant-169
+#19 128.3 PASS stage5.compressed-row-variant-170
+#19 128.3 PASS stage5.compressed-row-variant-171
+#19 128.3 PASS stage5.bitmap-width-1
+#19 128.4 PASS stage5.bitmap-width-7
+#19 128.4 PASS stage5.bitmap-width-8
+#19 128.4 PASS stage5.bitmap-width-9
+#19 128.4 PASS stage5.bitmap-width-15
+#19 128.4 PASS stage5.bitmap-width-16
+#19 128.4 PASS stage5.bitmap-width-17
+#19 128.5 PASS stage5.review-timestamp-fsp-0
+#19 128.5 PASS stage5.review-datetime-fsp-0
+#19 128.5 PASS stage5.review-time-positive-fsp-0
+#19 128.5 PASS stage5.review-time-negative-fsp-0
+#19 128.5 PASS stage5.review-time-negative-whole-fsp-0
+#19 128.5 PASS stage5.review-timestamp-fsp-1
+#19 128.6 PASS stage5.review-datetime-fsp-1
+#19 128.6 PASS stage5.review-time-positive-fsp-1
+#19 128.6 PASS stage5.review-time-negative-fsp-1
+#19 128.6 PASS stage5.review-time-negative-whole-fsp-1
+#19 128.6 PASS stage5.review-timestamp-fsp-2
+#19 128.6 PASS stage5.review-datetime-fsp-2
+#19 128.7 PASS stage5.review-time-positive-fsp-2
+#19 128.7 PASS stage5.review-time-negative-fsp-2
+#19 128.7 PASS stage5.review-time-negative-whole-fsp-2
+#19 128.7 PASS stage5.review-timestamp-fsp-3
+#19 128.7 PASS stage5.review-datetime-fsp-3
+#19 128.7 PASS stage5.review-time-positive-fsp-3
+#19 128.8 PASS stage5.review-time-negative-fsp-3
+#19 128.8 PASS stage5.review-time-negative-whole-fsp-3
+#19 128.8 PASS stage5.review-timestamp-fsp-4
+#19 128.8 PASS stage5.review-datetime-fsp-4
+#19 128.8 PASS stage5.review-time-positive-fsp-4
+#19 128.8 PASS stage5.review-time-negative-fsp-4
+#19 128.8 PASS stage5.review-time-negative-whole-fsp-4
+#19 128.9 PASS stage5.review-timestamp-fsp-5
+#19 128.9 PASS stage5.review-datetime-fsp-5
+#19 128.9 PASS stage5.review-time-positive-fsp-5
+#19 128.9 PASS stage5.review-time-negative-fsp-5
+#19 128.9 PASS stage5.review-time-negative-whole-fsp-5
+#19 128.9 PASS stage5.review-timestamp-fsp-6
+#19 129.0 PASS stage5.review-datetime-fsp-6
+#19 129.0 PASS stage5.review-time-positive-fsp-6
+#19 129.0 PASS stage5.review-time-negative-fsp-6
+#19 129.0 PASS stage5.review-time-negative-whole-fsp-6
+#19 129.0 PASS stage5.review-gtid-list-multiple-origins
+#19 129.0 PASS stage5.review-gtid-list-flags-preserved
+#19 129.0 PASS stage5.review-gtid-list-duplicate-pair-rejected
+#19 129.1 PASS stage5.review-gtid-list-entry-budget
+#19 129.1 PASS stage5.review-gtid-short-header
+#19 129.1 PASS stage5.review-gtid-truncated-engine-extension
+#19 129.1 PASS stage5.review-gtid-truncated-thread-extension
+#19 129.1 PASS stage5.review-gtid-known-extensions
+#19 129.1 PASS stage5.review-gtid-two-phase-alter-rejected
+#19 129.2 PASS stage5.review-gtid-unknown-extension-rejected
+#19 129.2 PASS stage5.review-invalid-temporal-fraction-rejected
+#19 129.2 PASS stage5.review-time-negative-fraction-only
+#19 129.2 PASS stage5.review-large-query-control-prefix
+#19 129.2 PASS stage5.review-sparse-write-value-budget
+#19 129.2 PASS stage5.review-sparse-delete-value-budget
+#19 129.2 PASS stage5.review-sparse-update-value-budget
+#19 129.3 PASS stage5.review-row-count-budget-preserved
+#19 129.3 PASS stage5.review-decoded-value-budget-preserved
+#19 129.3 PASS stage5.review-event-limit-max-bound
+#19 129.3 PASS stage5.review-wire-limit-stops-continuations
+#19 130.9 PASS stage5.review-live-temporal-values
+#19 132.5 PASS stage5.review-live-origin-change-rotation
+#19 133.9 PASS stage5.review-live-two-phase-alter-rejected
+#19 133.9 PASS stage6.long-data-live
+#19 134.0 PASS stage6.cursor-live
+#19 134.0 PASS stage6.progress-live
+#19 134.0 PASS stage6.compression-live
+#19 134.0 PASS stage6.long-data-query-empty-and-binary
+#19 134.0 PASS stage6.cursor-close-pending-batch
+#19 134.1 PASS stage6.compression-tls
+#19 134.1 PASS stage6.compression-socket
+#19 134.1 PASS stage6.long-data-wire-omission
+#19 134.1 PASS stage6.long-data-arity-does-not-read-source
+#19 134.2 PASS stage6.long-data-budget
+#19 134.2 PASS stage6.long-data-source-failure
+#19 134.2 PASS stage6.long-data-cancellation
+#19 134.2 PASS stage6.long-data-exclusive-source
+#19 134.2 PASS stage6.long-data-large-chunk-split
+#19 134.3 PASS stage6.long-data-following-normal-execution
+#19 134.3 PASS stage6.long-data-text-client-charset
+#19 134.3 PASS stage6.long-data-rollback
+#19 134.3 PASS stage6.cursor-wire-and-final-empty-fetch
+#19 134.3 PASS stage6.cursor-invalid-count-is-local
+#19 134.3 PASS stage6.cursor-unfinished-batch-is-local
+#19 134.3 PASS stage6.cursor-more-rows-than-requested
+#19 134.4 PASS stage6.cursor-invalid-end-status
+#19 134.4 PASS stage6.cursor-close-without-fetch
+#19 134.4 PASS stage6.cursor-foreign-thread
+#19 134.4 PASS stage6.cursor-normal-query-blocked
+#19 134.4 PASS stage6.cursor-cleanup-transaction-rollback
+#19 134.4 PASS stage6.cursor-empty-live
+#19 134.5 PASS stage6.cursor-metadata-cache-reexecution
+#19 134.5 PASS stage6.progress-literal-envelope
+#19 134.5 PASS stage6.progress-callback-failure-retires
+#19 134.5 PASS stage6.progress-callback-reentry-rejected
+#19 134.5 PASS stage6.progress-discard-without-handler
+#19 134.5 PASS stage6.progress-not-negotiated
+#19 134.6 PASS stage6.progress-malformed-count
+#19 134.6 PASS stage6.progress-malformed-stage
+#19 134.6 PASS stage6.progress-malformed-percent
+#19 134.6 PASS stage6.progress-malformed-truncated
+#19 134.6 PASS stage6.progress-malformed-trailer
+#19 134.6 PASS stage6.compression-byte-split-1
+#19 134.7 PASS stage6.compression-byte-split-2
+#19 134.7 PASS stage6.compression-byte-split-3
+#19 134.7 PASS stage6.compression-byte-split-4
+#19 134.7 PASS stage6.compression-byte-split-5
+#19 134.7 PASS stage6.compression-byte-split-6
+#19 134.7 PASS stage6.compression-byte-split-7
+#19 134.8 PASS stage6.compression-byte-split-8
+#19 134.8 PASS stage6.compression-byte-split-9
+#19 134.8 PASS stage6.compression-byte-split-10
+#19 134.8 PASS stage6.compression-byte-split-11
+#19 134.8 PASS stage6.compression-byte-split-12
+#19 134.8 PASS stage6.compression-byte-split-13
+#19 134.8 PASS stage6.compression-byte-split-14
+#19 134.9 PASS stage6.compression-byte-split-15
+#19 134.9 PASS stage6.compression-byte-split-16
+#19 134.9 PASS stage6.compression-byte-split-17
+#19 134.9 PASS stage6.compression-zlib-envelope
+#19 134.9 PASS stage6.compression-small-write-raw-frame
+#19 135.1 PASS stage6.compression-large-roundtrip
+#19 135.1 PASS stage6.all-features-together
+#19 135.1 PASS stage6.compression-invalid-sequence
+#19 135.1 PASS stage6.compression-invalid-zlib
+#19 135.1 PASS stage6.compression-invalid-length
+#19 135.2 PASS stage6.compression-invalid-expansion
+#19 135.2 PASS stage6.compression-invalid-trailing
+#19 135.2 PASS stage6.compression-invalid-empty
+#19 135.2 PASS stage6.compression-invalid-short-header
+#19 135.2 PASS stage6.compression-invalid-short-body
+#19 135.3 PASS stage6.cursor-stream-buffered-source-cancellation
+#19 135.3 PASS stage6.long-data-text-collation-parity
+#19 135.3 PASS stage6.cursor-non-row-more-results-drained
+#19 135.3 PASS stage6.cursor-reset-extra-results-rejected
+#19 135.3 PASS stage6.long-data-tiny-chunks-coalesced-with-bounded-segments
+#19 135.3 PASS stage6.cursor-streamed-parameters
+#19 135.4 PASS stage6.compression-real-wire-byte-savings
+#19 135.4 PASS stage6.cursor-close-after-terminal-connection
+#19 135.4 PASS stage6.long-data-server-error-remains-synchronized
+#19 135.4 PASS stage6.long-data-closed-handle-no-source-read
+#19 135.5 PASS stage6.long-data-multiple-results
+#19 135.5 PASS stage6.cursor-progress-reentry-is-local
+#19 135.5 PASS stage6.progress-callback-cancellation
+#19 135.5 PASS stage6.compression-bounds-before-body
+#19 135.5 PASS stage6.cursor-metadata-parity-False-False
+#19 135.6 PASS stage6.cursor-metadata-parity-False-True
+#19 135.6 PASS stage6.cursor-metadata-parity-True-False
+#19 135.6 PASS stage6.cursor-metadata-parity-True-True
+#19 135.6 PASS stage6.cursor-fetch-deadline-retires
+#19 135.7 PASS stage6.cursor-close-deadline-retires
+#19 135.7 PASS stage6.review-cursor-repeated-cancellation-scalar
+#19 135.7 PASS stage6.review-cursor-repeated-cancellation-streamed
+#19 137.0 PASS stage6.review-compressed-cdc-manual
+#19 138.5 PASS stage6.review-compressed-cdc-on-read
+#19 139.7 PASS stage6.review-compressed-cdc-resume
+#19 139.8 PASS stage6.review-compressed-ack-preserves-buffered-reply
+#19 139.9 PASS stage6.review-heap-buffering-negative-control
+#19 140.0 PASS inherited.unit
+#19 143.4 PASS inherited.integration
+#19 143.5 Results: /tmp/stage6-fixes-linux-evidence/linux/suite/SUMMARY.md
+#19 145.0 STAGE3	bulk.native	1000	2681333	2364024	1619792	454293	629500
+#19 145.0 STAGE3	bulk.units	1000	2630959	3526888	1575418	352542	629500
+#19 145.3 STAGE3	bulk.prepared	1000	85470333	20534048	37658574	691041	629500
+#19 145.3 STAGE3	bulk.text-batch	1000	10484208	5511224	7372748	404461	629500
+#19 145.3 STAGE3	prepared.narrow.cached	1	99417	21976	455038	299124	7
+#19 145.3 STAGE3	prepared.narrow.uncached	1	104709	27040	619041	475042	7
+#19 145.3 STAGE3	prepared.wide.cached	1	119916	40064	476499	311124	3847
+#19 145.4 STAGE3	prepared.wide.uncached	1	125708	176880	448832	287501	3847
+#19 145.4 STAGE4	reuse.tcp.reset	1	684459	239368	738753	298128	1
+#19 145.4 STAGE4	reuse.tcp.reconnect	1	1054875	285008	1080624	265289	1
+#19 145.4 STAGE4	reuse.tls.reset	1	988958	503776	1387251	701377	1
+#19 145.6 STAGE4	reuse.tls.reconnect	1	38799542	2311736	2658752	289750	1
+#19 145.6 STAGE4	reuse.socket.reset	1	816459	239368	765416	274250	1
+#19 145.6 STAGE4	reuse.socket.reconnect	1	916250	285688	886334	276374	1
+#19 145.6 STAGE4	session.snapshot	1	500	1088	415583	342043	1
+#19 145.6 STAGE5	cdc.decode.single-table	1000	456708	3673024	725751	176749	500500
+#19 145.6 STAGE5	cdc.decode.interleaved	1000	524792	3907480	820166	188957	500500
+#19 145.7 STAGE5	cdc.decode.compressed	1000	2523792	43868232	3321086	940876	500500
+#19 145.7 STAGE5	cdc.decode.sparse-update	1000	979958	4431000	1302041	276669	500500
+#19 145.7 STAGE5	cdc.framing.crc32	1000	1985333	17958960	2468997	437872	1000
+#19 145.8 STAGE5	cdc.live.rows	1000	5268208	18964904	5347970	541375	1000
+#19 146.1 STAGE5	cdc.live.checkpoints	1000	6393083	29223408	6612247	627624	1000
+#19 146.1 STAGE5_HEAP	1000	69320
+#19 146.1 STAGE5_HEAP	1000	82080
+#19 146.1 STAGE5_HEAP	1000	82984
+#19 146.1 STAGE5	cdc.retention	1000	1994334	8779656	2432792	621417	500500
+#19 146.2 STAGE6	upload.buffered	1048576	6957791	1294240	1141835	404460	1048576
+#19 146.2 STAGE6	upload.streamed	1048576	6910584	1502064	1015833	329749	1048576
+#19 146.2 STAGE6_HEAP	1	110368
+#19 146.2 STAGE6_HEAP	1	126448
+#19 146.2 STAGE6_HEAP	1	130672
+#19 146.2 STAGE6	upload.retention	1	1120166	192320	1273628	769505	1
+#19 146.2 STAGE6	cursor.stream	10000	4268125	16870608	4295421	408708	51285000
+#19 146.3 STAGE6	cursor.batch32	10000	33606417	24148024	15802284	643750	51285000
+#19 146.4 STAGE6	cursor.batch512	10000	10559792	17864232	4106372	459041	51285000
+#19 146.4 STAGE6	cursor.batch4096	10000	9110083	17341512	3527793	417955	51285000
+#19 146.4 STAGE6	transport.narrow.plain	1000	619125	1513912	920915	318082	532500
+#19 146.5 STAGE6	transport.narrow.zlib	1000	837875	1577144	914875	241835	532500
+#19 146.5 STAGE6	transport.wide.plain	1000	6033792	6064992	3340538	319002	2548500
+#19 146.5 STAGE6	transport.wide.zlib	1000	11265250	9016576	8616620	513416	2548500
+#19 146.5 STAGE6	progress.disabled	1	105000	31176	438957	299292	937
+#19 146.5 STAGE6	progress.enabled	1	103625	31472	422832	254249	937
+#19 146.5 Linux correctness profile passed; frozen timings were not compared.
+#19 DONE 146.7s
+
+#20 [stage6fixesevidence 1/1] COPY --from=verification /tmp/stage6-fixes-linux-evidence/ /
+#20 DONE 0.0s
+
+#21 exporting to client directory
+#21 copying files 744.14kB 0.1s done
+#21 DONE 0.1s

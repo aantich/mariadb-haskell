@@ -1,0 +1,63 @@
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (lib) (file validation/RESULTS.md changed)
+ - mysql-haskell-1.3.3 (exe:mariadb-validation) (dependency rebuilt)
+Preprocessing library for mysql-haskell-1.3.3...
+Building library for mysql-haskell-1.3.3...
+<no location info>: warning: [GHC-42258] [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id dt-dflt-clss-0.2.0.0-aac0c9c2)
+      - monad-loops-0.4.3 (exposed by flag -package-id mnd-lps-0.4.3-ff24b47c)
+
+[11 of 27] Compiling Database.MySQL.Protocol.Command ( src/Database/MySQL/Protocol/Command.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Command.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Protocol/Command.dyn_o ) [Source file changed]
+[23 of 27] Compiling Database.MySQL.Connection ( src/Database/MySQL/Connection.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Connection.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Connection.dyn_o ) [Source file changed]
+[24 of 27] Compiling Database.MySQL.Base ( src/Database/MySQL/Base.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.dyn_o ) [Source file changed]
+[25 of 27] Compiling Database.MySQL.BinLog ( src/Database/MySQL/BinLog.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLog.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/BinLog.dyn_o ) [Database.MySQL.Base changed]
+[27 of 27] Compiling Database.MySQL.TLS ( src/Database/MySQL/TLS.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/TLS.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/TLS.dyn_o ) [Database.MySQL.Connection changed]
+Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+[ 1 of 19] Compiling Validation.Common ( validation/hs/Validation/Common.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Common.o ) [Database.MySQL.Base changed]
+[ 2 of 19] Compiling Validation.Benchmark ( validation/hs/Validation/Benchmark.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Benchmark.o ) [Database.MySQL.Base changed]
+[ 3 of 19] Compiling Validation.FaultTransport ( validation/hs/Validation/FaultTransport.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/FaultTransport.o ) [Database.MySQL.Base changed]
+[ 4 of 19] Compiling Validation.Functional ( validation/hs/Validation/Functional.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Functional.o ) [Database.MySQL.Base changed]
+[ 5 of 19] Compiling Validation.Protocol ( validation/hs/Validation/Protocol.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Protocol.o ) [Database.MySQL.Base changed]
+[ 6 of 19] Compiling Validation.Security ( validation/hs/Validation/Security.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Security.o ) [Database.MySQL.Base changed]
+[ 7 of 19] Compiling Validation.Stage1 ( validation/hs/Validation/Stage1.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage1.o ) [Database.MySQL.Base changed]
+[ 8 of 19] Compiling Validation.Stage2 ( validation/hs/Validation/Stage2.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage2.o ) [Database.MySQL.Base changed]
+validation/hs/Validation/Stage2.hs:219:20: warning: [GHC-18042] [-Wtype-defaults]
+    • Defaulting the type variable ‘a0’ to type ‘String’ in the following constraints
+        (ghc-internal-9.1003.0:GHC.Internal.Data.String.IsString a0)
+          arising from the literal ‘"tcp"’
+          at validation/hs/Validation/Stage2.hs:219:20-24
+        (Eq a0)
+          arising from the literal ‘"tcp"’
+          at validation/hs/Validation/Stage2.hs:228:25-29
+    • In the expression: "tcp"
+      In the first argument of ‘forM_’, namely ‘["tcp", "tls", "socket"]’
+      In the first argument of ‘($)’, namely
+        ‘forM_ ["tcp", "tls", "socket"]’
+    |
+219 |             forM_ ["tcp","tls","socket"] $ \transport -> do
+    |                    ^^^^^
+
+[ 9 of 19] Compiling Validation.Stage3 ( validation/hs/Validation/Stage3.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3.o ) [Database.MySQL.Base changed]
+[10 of 19] Compiling Validation.Stage3Bench ( validation/hs/Validation/Stage3Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3Bench.o ) [Database.MySQL.Base changed]
+[11 of 19] Compiling Validation.Stage4 ( validation/hs/Validation/Stage4.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4.o ) [Database.MySQL.Base changed]
+[12 of 19] Compiling Validation.Reliability ( validation/hs/Validation/Reliability.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Reliability.o ) [Database.MySQL.Base changed]
+[13 of 19] Compiling Validation.Stage4Bench ( validation/hs/Validation/Stage4Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4Bench.o ) [Database.MySQL.Base changed]
+[14 of 19] Compiling Validation.Stage5 ( validation/hs/Validation/Stage5.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5.o ) [Database.MySQL.Base changed]
+[15 of 19] Compiling Validation.CDC   ( validation/hs/Validation/CDC.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/CDC.o ) [Database.MySQL.Base changed]
+[16 of 19] Compiling Validation.Stage5Bench ( validation/hs/Validation/Stage5Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5Bench.o ) [Database.MySQL.Base changed]
+[17 of 19] Compiling Validation.Stage5Review ( validation/hs/Validation/Stage5Review.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5Review.o ) [Database.MySQL.Base changed]
+validation/hs/Validation/Stage5Review.hs:123:13: warning: [GHC-63397] [-Wname-shadowing]
+    This binding for ‘query’ shadows the existing binding
+      imported from ‘Database.MySQL.Base’ at validation/hs/Validation/Stage5Review.hs:15:1-26
+    |
+123 |             query=packet BINLOG_QUERY_EVENT $ do
+    |             ^^^^^
+
+[18 of 19] Compiling Validation.Supplementary ( validation/hs/Validation/Supplementary.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Supplementary.o ) [Database.MySQL.Base changed]
+[19 of 19] Compiling Main             ( validation/hs/Main.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Main.o ) [Validation.CDC changed]
+[20 of 20] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation [Objects changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup

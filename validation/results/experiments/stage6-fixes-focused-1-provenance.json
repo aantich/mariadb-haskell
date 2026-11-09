@@ -1,0 +1,6 @@
+{
+  "input_sha256": "50ad99fbd424e8a2ac5ef06419e1a1d689f2585b53cfb8beab688a203eea14e2",
+  "only_difference_from_final_prebaseline_inputs": "validation/hs/Validation/Stage6Review.hs",
+  "retained_exact_test_source": "stage6-fixes-focused-1-test.hs.txt",
+  "observed": "94 PASS / 1 FAIL. The new on-read test called openCDC, which intentionally rejects automatic acknowledgements. The correction exercises the legacy dumpBinLog API and retains its assertions for three acknowledged commits and zero fallback."
+}

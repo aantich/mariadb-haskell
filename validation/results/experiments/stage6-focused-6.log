@@ -1,0 +1,230 @@
+Server verified before build: 12.3.3-MariaDB-log
+Resolving dependencies...
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (lib) (configuration changed)
+ - mysql-haskell-1.3.3 (test:test) (configuration changed)
+ - mysql-haskell-1.3.3 (exe:mariadb-validation) (configuration changed)
+ - mysql-haskell-1.3.3 (test:integration) (configuration changed)
+Configuring library for mysql-haskell-1.3.3...
+Preprocessing library for mysql-haskell-1.3.3...
+Building library for mysql-haskell-1.3.3...
+<no location info>: warning: [GHC-42258] [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id dt-dflt-clss-0.2.0.0-aac0c9c2)
+      - monad-loops-0.4.3 (exposed by flag -package-id mnd-lps-0.4.3-ff24b47c)
+
+[26 of 29] Compiling Database.MySQL.Base ( src/Database/MySQL/Base.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.dyn_o ) [Source file changed]
+Configuring test suite 'test' for mysql-haskell-1.3.3...
+Configuring executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Configuring test suite 'integration' for mysql-haskell-1.3.3...
+Preprocessing test suite 'test' for mysql-haskell-1.3.3...
+Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Building test suite 'test' for mysql-haskell-1.3.3...
+Preprocessing test suite 'integration' for mysql-haskell-1.3.3...
+Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Building test suite 'integration' for mysql-haskell-1.3.3...
+[ 1 of 17] Compiling BinLog           ( test/BinLog.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLog.o ) [Database.MySQL.Base changed]
+[ 1 of 22] Compiling Validation.Common ( validation/hs/Validation/Common.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Common.o ) [Database.MySQL.Base changed]
+[ 2 of 17] Compiling BinLogNew        ( test/BinLogNew.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLogNew.o ) [Database.MySQL.Base changed]
+[ 3 of 17] Compiling BinaryRow        ( test/BinaryRow.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRow.o ) [Database.MySQL.Base changed]
+[ 2 of 22] Compiling Validation.Benchmark ( validation/hs/Validation/Benchmark.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Benchmark.o ) [Database.MySQL.Base changed]
+[15 of 15] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/test/opt/build/test/test [Library changed]
+[ 4 of 17] Compiling BinaryRowNew     ( test/BinaryRowNew.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRowNew.o ) [Database.MySQL.Base changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+[ 5 of 17] Compiling CachingSha2      ( test/CachingSha2.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/CachingSha2.o ) [Database.MySQL.Base changed]
+[ 6 of 17] Compiling ExecuteMany      ( test/ExecuteMany.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/ExecuteMany.o ) [Database.MySQL.Base changed]
+[ 7 of 17] Compiling MultipleResults  ( test/MultipleResults.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MultipleResults.o ) [Database.MySQL.Base changed]
+[ 8 of 17] Compiling QueryWithoutResultSet ( test/QueryWithoutResultSet.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/QueryWithoutResultSet.o ) [Database.MySQL.Base changed]
+[ 9 of 17] Compiling RoundtripBit     ( test/RoundtripBit.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripBit.o ) [Database.MySQL.Base changed]
+[ 3 of 22] Compiling Validation.FaultTransport ( validation/hs/Validation/FaultTransport.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/FaultTransport.o ) [Database.MySQL.Base changed]
+[10 of 17] Compiling RoundtripYear    ( test/RoundtripYear.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripYear.o ) [Database.MySQL.Base changed]
+[11 of 17] Compiling SelectOne        ( test/SelectOne.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/SelectOne.o ) [Database.MySQL.Base changed]
+[12 of 17] Compiling TLSConnection    ( test/TLSConnection.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TLSConnection.o ) [Database.MySQL.Base changed]
+[13 of 17] Compiling TextRow          ( test/TextRow.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRow.o ) [Database.MySQL.Base changed]
+[14 of 17] Compiling TextRowNew       ( test/TextRowNew.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRowNew.o ) [Database.MySQL.Base changed]
+[15 of 17] Compiling MysqlTests       ( test/MysqlTests.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MysqlTests.o ) [Database.MySQL.Base changed]
+[16 of 17] Compiling UnixSocket       ( test/UnixSocket.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/UnixSocket.o ) [Database.MySQL.Base changed]
+[ 4 of 22] Compiling Validation.Functional ( validation/hs/Validation/Functional.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Functional.o ) [Database.MySQL.Base changed]
+[17 of 17] Compiling Main             ( test/Integration.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/Main.o ) [Database.MySQL.Base changed]
+[18 of 18] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration [Objects changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+[ 5 of 22] Compiling Validation.Protocol ( validation/hs/Validation/Protocol.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Protocol.o ) [Database.MySQL.Base changed]
+[ 6 of 22] Compiling Validation.Security ( validation/hs/Validation/Security.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Security.o ) [Database.MySQL.Base changed]
+[ 7 of 22] Compiling Validation.Stage1 ( validation/hs/Validation/Stage1.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage1.o ) [Database.MySQL.Base changed]
+[ 8 of 22] Compiling Validation.Stage2 ( validation/hs/Validation/Stage2.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage2.o ) [Database.MySQL.Base changed]
+validation/hs/Validation/Stage2.hs:219:20: warning: [GHC-18042] [-Wtype-defaults]
+    • Defaulting the type variable ‘a0’ to type ‘String’ in the following constraints
+        (ghc-internal-9.1003.0:GHC.Internal.Data.String.IsString a0)
+          arising from the literal ‘"tcp"’
+          at validation/hs/Validation/Stage2.hs:219:20-24
+        (Eq a0)
+          arising from the literal ‘"tcp"’
+          at validation/hs/Validation/Stage2.hs:228:25-29
+    • In the expression: "tcp"
+      In the first argument of ‘forM_’, namely ‘["tcp", "tls", "socket"]’
+      In the first argument of ‘($)’, namely
+        ‘forM_ ["tcp", "tls", "socket"]’
+    |
+219 |             forM_ ["tcp","tls","socket"] $ \transport -> do
+    |                    ^^^^^
+
+[ 9 of 22] Compiling Validation.Stage3 ( validation/hs/Validation/Stage3.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3.o ) [Database.MySQL.Base changed]
+[10 of 22] Compiling Validation.Stage3Bench ( validation/hs/Validation/Stage3Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3Bench.o ) [Database.MySQL.Base changed]
+[11 of 22] Compiling Validation.Stage4 ( validation/hs/Validation/Stage4.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4.o ) [Database.MySQL.Base changed]
+[12 of 22] Compiling Validation.Stage4Bench ( validation/hs/Validation/Stage4Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4Bench.o ) [Database.MySQL.Base changed]
+[13 of 22] Compiling Validation.Stage5 ( validation/hs/Validation/Stage5.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5.o ) [Database.MySQL.Base changed]
+[14 of 22] Compiling Validation.CDC   ( validation/hs/Validation/CDC.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/CDC.o ) [Database.MySQL.Base changed]
+[15 of 22] Compiling Validation.Stage5Bench ( validation/hs/Validation/Stage5Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5Bench.o ) [Database.MySQL.Base changed]
+[16 of 22] Compiling Validation.Stage5Review ( validation/hs/Validation/Stage5Review.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5Review.o ) [Database.MySQL.Base changed]
+validation/hs/Validation/Stage5Review.hs:123:13: warning: [GHC-63397] [-Wname-shadowing]
+    This binding for ‘query’ shadows the existing binding
+      imported from ‘Database.MySQL.Base’ at validation/hs/Validation/Stage5Review.hs:15:1-26
+    |
+123 |             query=packet BINLOG_QUERY_EVENT $ do
+    |             ^^^^^
+
+[17 of 22] Compiling Validation.Stage6Bench ( validation/hs/Validation/Stage6Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6Bench.o ) [Source file changed]
+[18 of 22] Compiling Validation.Supplementary ( validation/hs/Validation/Supplementary.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Supplementary.o ) [Database.MySQL.Base changed]
+[19 of 22] Compiling Validation.WireProxy ( validation/hs/Validation/WireProxy.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/WireProxy.o )
+[20 of 22] Compiling Validation.Stage6 ( validation/hs/Validation/Stage6.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6.o ) [Source file changed]
+validation/hs/Validation/Stage6.hs:431:9: warning: [GHC-81995] [-Wunused-do-bind]
+    A do-notation statement discarded a result of type ‘OK’
+    Suggested fix:
+      Suppress this warning by saying ‘_ <- resetConnection conn’
+    |
+431 |         resetConnection conn
+    |         ^^^^^^^^^^^^^^^^^^^^
+
+validation/hs/Validation/Stage6.hs:523:9: warning: [GHC-63397] [-Wname-shadowing]
+    This binding for ‘reads’ shadows the existing binding
+      imported from ‘Prelude’ at validation/hs/Validation/Stage6.hs:4:8-24
+      (and originally defined in ‘ghc-internal-9.1003.0:GHC.Internal.Text.Read’)
+    |
+523 |         reads <- newIORef (0::Int)
+    |         ^^^^^
+
+validation/hs/Validation/Stage6.hs:559:28: warning: [GHC-18042] [-Wtype-defaults]
+    • Defaulting the type variable ‘a0’ to type ‘Integer’ in the following constraints
+        (Num a0)
+          arising from the literal ‘0’
+          at validation/hs/Validation/Stage6.hs:559:28
+        (Eq a0)
+          arising from a use of ‘equal’
+          at validation/hs/Validation/Stage6.hs:570:9-13
+        (Show a0)
+          arising from a use of ‘equal’
+          at validation/hs/Validation/Stage6.hs:570:9-13
+    • In the first argument of ‘newIORef’, namely ‘0’
+      In a stmt of a 'do' block: closed <- newIORef 0
+      In the second argument of ‘($)’, namely
+        ‘do inputPackets <- newIORef
+                              (preparePackets 0 1
+                                 ++ [putToPacket 1 (putWord8 1), encodeToPacket 2 field, ....])
+            blocked <- newEmptyMVar
+            input <- S.makeInputStream
+                       $ do packet <- atomicModifyIORef' inputPackets (\ xs -> ...)
+                            maybe (takeMVar blocked) (pure . Just) packet
+            closed <- newIORef 0
+            ....’
+    |
+559 |         closed <- newIORef 0
+    |                            ^
+
+[21 of 22] Compiling Validation.Reliability ( validation/hs/Validation/Reliability.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Reliability.o ) [Database.MySQL.Base changed]
+[22 of 22] Compiling Main             ( validation/hs/Main.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Main.o ) [Validation.Reliability changed]
+[23 of 23] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation [Objects changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+Installing library in /Users/aantich/.cabal/lib/aarch64-osx-ghc-9.10.3-fe9c/mysql-haskell-1.3.3-inplace
+MariaDB preflight passed: 12.3.3-MariaDB-log
+PASS stage6.long-data-live
+PASS stage6.cursor-live
+PASS stage6.progress-live
+PASS stage6.compression-live
+PASS stage6.long-data-query-empty-and-binary
+PASS stage6.cursor-close-pending-batch
+PASS stage6.compression-tls
+PASS stage6.compression-socket
+PASS stage6.long-data-wire-omission
+PASS stage6.long-data-arity-does-not-read-source
+PASS stage6.long-data-budget
+PASS stage6.long-data-source-failure
+PASS stage6.long-data-cancellation
+PASS stage6.long-data-exclusive-source
+PASS stage6.long-data-large-chunk-split
+PASS stage6.long-data-following-normal-execution
+PASS stage6.long-data-text-client-charset
+PASS stage6.long-data-rollback
+PASS stage6.cursor-wire-and-final-empty-fetch
+PASS stage6.cursor-invalid-count-is-local
+PASS stage6.cursor-unfinished-batch-is-local
+PASS stage6.cursor-more-rows-than-requested
+PASS stage6.cursor-invalid-end-status
+PASS stage6.cursor-close-without-fetch
+PASS stage6.cursor-foreign-thread
+PASS stage6.cursor-normal-query-blocked
+PASS stage6.cursor-cleanup-transaction-rollback
+PASS stage6.cursor-empty-live
+PASS stage6.cursor-metadata-cache-reexecution
+PASS stage6.progress-literal-envelope
+PASS stage6.progress-callback-failure-retires
+PASS stage6.progress-callback-reentry-rejected
+PASS stage6.progress-discard-without-handler
+PASS stage6.progress-not-negotiated
+PASS stage6.progress-malformed-count
+PASS stage6.progress-malformed-stage
+PASS stage6.progress-malformed-percent
+PASS stage6.progress-malformed-truncated
+PASS stage6.progress-malformed-trailer
+PASS stage6.compression-byte-split-1
+PASS stage6.compression-byte-split-2
+PASS stage6.compression-byte-split-3
+PASS stage6.compression-byte-split-4
+PASS stage6.compression-byte-split-5
+PASS stage6.compression-byte-split-6
+PASS stage6.compression-byte-split-7
+PASS stage6.compression-byte-split-8
+PASS stage6.compression-byte-split-9
+PASS stage6.compression-byte-split-10
+PASS stage6.compression-byte-split-11
+PASS stage6.compression-byte-split-12
+PASS stage6.compression-byte-split-13
+PASS stage6.compression-byte-split-14
+PASS stage6.compression-byte-split-15
+PASS stage6.compression-byte-split-16
+PASS stage6.compression-byte-split-17
+PASS stage6.compression-zlib-envelope
+PASS stage6.compression-small-write-raw-frame
+PASS stage6.compression-large-roundtrip
+PASS stage6.all-features-together
+PASS stage6.compression-invalid-sequence
+PASS stage6.compression-invalid-zlib
+PASS stage6.compression-invalid-length
+PASS stage6.compression-invalid-expansion
+PASS stage6.compression-invalid-trailing
+PASS stage6.compression-invalid-empty
+PASS stage6.compression-invalid-short-header
+PASS stage6.compression-invalid-short-body
+PASS stage6.compression-real-wire-byte-savings
+PASS stage6.cursor-close-after-terminal-connection
+PASS stage6.long-data-server-error-remains-synchronized
+PASS stage6.long-data-closed-handle-no-source-read
+PASS stage6.long-data-multiple-results
+PASS stage6.cursor-progress-reentry-is-local
+PASS stage6.progress-callback-cancellation
+PASS stage6.compression-bounds-before-body
+PASS stage6.cursor-metadata-parity-False-False
+PASS stage6.cursor-metadata-parity-False-True
+PASS stage6.cursor-metadata-parity-True-False
+PASS stage6.cursor-metadata-parity-True-True
+PASS stage6.cursor-fetch-deadline-retires
+PASS stage6.cursor-close-deadline-retires
+Traceback (most recent call last):
+  File "/Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/run.py", line 352, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/run.py", line 330, in main
+    raise RuntimeError("driver source changed during baseline run")
+RuntimeError: driver source changed during baseline run
+Partial/short development run: live full-suite results were not replaced.

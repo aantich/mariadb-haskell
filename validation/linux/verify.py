@@ -122,7 +122,7 @@ def main():
         lost = [case['id'] for case in previous['correctness']
                 if case['status']=='PASS' and current.get(case['id'])!='PASS']
         added_failures = [case['id'] for case in data['correctness']
-                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.', 'stage5.')) and case['status']!='PASS']
+                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.', 'stage5.', 'stage6.')) and case['status']!='PASS']
         sys.path.insert(0, str(ROOT/'validation'))
         import stage1_gates
         native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS + stage1_gates.SESSION_TARGETS + stage1_gates.CDC_TARGETS if current.get(ident) != 'PASS']
@@ -144,6 +144,9 @@ def main():
         for profile in ['cdc.decode.single-table', 'cdc.decode.interleaved', 'cdc.decode.compressed',
                         'cdc.decode.sparse-update', 'cdc.framing.crc32', 'cdc.live.rows', 'cdc.live.checkpoints', 'cdc.retention']:
             command([binary, 'stage5-bench', profile, '1000', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
+        import stage6_benchmarks
+        for profile in stage6_benchmarks.PROFILES:
+            command([binary, 'stage6-bench', profile, '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
         print('Linux correctness profile passed; frozen timings were not compared.', flush=True)
     finally:
         process.terminate()

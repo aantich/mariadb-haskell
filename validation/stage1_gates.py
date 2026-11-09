@@ -141,6 +141,12 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
             if new.get(ident, {}).get('status') != 'PASS':
                 failures.append('required CDC target not passing: '+ident)
 
+    if require_targets and any(ident.startswith('stage6.') for ident in new):
+        for ident in ('capability.long-data', 'capability.cursor-fetch',
+                      'capability.progress-reporting', 'capability.compression'):
+            if new.get(ident, {}).get('status') != 'PASS':
+                failures.append('required wire feature not passing: ' + ident)
+
     for ident, benchmark in candidate.get("benchmarks", {}).items():
         prior_status = original.get("benchmarks", {}).get(ident, {}).get("status")
         if benchmark["status"] not in statuses:

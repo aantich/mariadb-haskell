@@ -1,0 +1,35 @@
+{
+  "recorded_at": "2026-11-09T10:05:25.355632+00:00",
+  "load_average": [
+    2.7109375,
+    3.41162109375,
+    4.970703125
+  ],
+  "processes_above_5_percent": [
+    {
+      "cpu_percent": 23.7,
+      "process": "WindowServer"
+    },
+    {
+      "cpu_percent": 23.7,
+      "process": "Codex (Renderer)"
+    },
+    {
+      "cpu_percent": 12.2,
+      "process": "Codex (Service)"
+    },
+    {
+      "cpu_percent": 7.2,
+      "process": "coreaudiod"
+    },
+    {
+      "cpu_percent": 6.6,
+      "process": "Python"
+    },
+    {
+      "cpu_percent": 6.1,
+      "process": "codex"
+    }
+  ],
+  "notes": "User requested all tests/benchmarks on 9 November. All owned compile/Linux jobs are finished before this capture; no explicit idle-window claim is made. Process command-line arguments and credentials are not collected."
+}

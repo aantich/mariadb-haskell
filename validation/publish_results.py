@@ -45,7 +45,10 @@ def is_input(path):
                         "validation/baselines/macos-arm64-session-reuse/SHA256SUMS",
                         "validation/baselines/macos-arm64-cdc/results.json",
                         "validation/baselines/macos-arm64-cdc/SUMMARY.md",
-                        "validation/baselines/macos-arm64-cdc/SHA256SUMS"}
+                        "validation/baselines/macos-arm64-cdc/SHA256SUMS",
+                        "validation/baselines/macos-arm64-wire-features/results.json",
+                        "validation/baselines/macos-arm64-wire-features/SUMMARY.md",
+                        "validation/baselines/macos-arm64-wire-features/SHA256SUMS"}
             or path.startswith(".github/workflows/"))
 
 
@@ -319,6 +322,20 @@ def render(document, baseline):
         last = [sample['retained_heap'][-1][1] for sample in retained]
         lines += ["", f"Streaming retained heap at 1,000,000 rows: **{min(last):,}–{max(last):,} bytes** after major GC across the measured processes. All warmup/measured checkpoints are retained in [current.json](results/current.json). This is live heap, not a process high-water mark.", "",
             f"CDC comparison: **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. [First CDC capture](baselines/macos-arm64-cdc/results.json).", ""]
+    wire = attempt.get('wire_features')
+    if wire and wire.get('complete') and wire.get('inputs', {}).get('sha256') == attempt['inputs']['sha256']:
+        lines += ["### Streamed parameters and optional wire features", "",
+            "Same-build alternatives use identical values and checksums. Lower time/allocation is better; change is `(current / baseline - 1) × 100`. Upload units are bytes, cursor/transport units are rows, and progress units are complete SELECT queries. Preparation/connection setup are excluded. Progress measures the negotiated idle-callback path; real progress delivery is tested separately.", "",
+            "| Comparison | Baseline ns/unit | Current ns/unit | Change vs baseline | Allocation change |",
+            "| --- | ---: | ---: | ---: | ---: |"]
+        for name, pair in wire['comparisons'].items():
+            old = wire['profiles'][pair['baseline']]['median_elapsed_ns_per_unit']
+            new = wire['profiles'][pair['current']]['median_elapsed_ns_per_unit']
+            changes = pair['change_percent']
+            lines.append(f"| `{name}` | {old:,.2f} | {new:,.2f} | {changes['elapsed_ns']:+.1f}% | {changes['allocated_bytes']:+.1f}% |")
+        comparison = wire['baseline_comparison']
+        lines += ["", "Server cursors materialize results and add fetch round trips. Compression is optional and trades CPU/allocations for fewer network bytes; local timing is not a WAN result. These features need not outperform ordinary streaming on this Mac.", "",
+            f"[First wire-feature capture](baselines/macos-arm64-wire-features/results.json): **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. All seven-repetition samples are retained in [current.json](results/current.json).", ""]
     engines = sorted({ident.partition("/")[0] for ident in data["benchmarks"]}, key=lambda engine: (engine != "haskell", engine))
     for engine in engines:
         title = {"haskell": "Haskell driver", "connector-c": "MariaDB Connector/C control"}.get(engine, engine)
@@ -399,6 +416,9 @@ def verify(document, snapshot, *, allow_working_tree=False):
     if any(case['id'].startswith('stage5.') for case in data['correctness']):
         from stage5_benchmarks import verify_evidence as verify_cdc
         verify_cdc(attempt.get('cdc', {}), attempt['inputs'])
+    if any(case['id'].startswith('stage6.') for case in data['correctness']):
+        from stage6_benchmarks import verify_evidence as verify_wire
+        verify_wire(attempt.get('wire_features', {}), attempt['inputs'])
     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
         raise ValueError("recorder and report disagree about the tested commit")
 

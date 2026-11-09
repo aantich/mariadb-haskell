@@ -151,3 +151,36 @@ preserved row/value limits, `maxBound` event budgets and early continuation
 rejection, and large queries with control-keyword prefixes. Disposable real servers reproduce temporal values, origin changes
 across rotation and two-phase ALTER. The correctness ratchet protects all 636
 published Stage 5 passes; the benchmark workloads and first captures are unchanged.
+
+## Stage 6: streamed parameters, cursors, progress and compression
+
+The four remaining API inventory rows now execute real feature checks. Added
+coverage includes one-shot upload arity/ownership, empty non-NULL values,
+byte/text charset parity, bounded chunks and cumulative budgets, source failure,
+cancellation, later ordinary execution and complete procedure/OUT results.
+Cursor checks cover incremental batches, final empty fetches, close/reset,
+ownership, legacy/cached metadata, NULL/Unicode/DECIMAL parity and transaction
+cleanup. Progress checks cover the literal MariaDB envelope, malformed fields,
+callback reentry/failure/cancellation and real ALTER callbacks. Compression
+checks cover raw/zlib frames, byte splits, sequence/length/expansion/trailer
+errors, pre-body bounds, TCP/TLS/socket setup, 16 MiB logical continuations and
+combined feature use. Transparent byte counters verify actual wire savings.
+All 694 previously published passes are protected independently.
+
+Thirteen new seven-repetition profiles measure uploads, cursor batch sizes,
+narrow/wide compressed transfers and progress negotiation costs. Their separate
+first reference preserves all earlier baselines. Linux smoke runs exercise every
+new benchmark path without comparing its timings to Mac measurements. PAM/GSSAPI
+and the retained timeout-contract conflict remain explicit.
+
+Review-fix correctness on 9 November records **793 PASS / 1 known FAIL /
+0 UNSUPPORTED / 2 unavailable** on both Mac and Linux. All 95 Stage 6 cases and
+155 policy tests pass. Seven new regressions cover repeated cancellation of both
+cursor brackets, compressed semisync manual/legacy on-read ACKs over three
+transactions, reconnect/resume, preservation of incoming buffers across ACKs,
+and rejection of whole-source buffering by the actual retained-heap guard.
+The producer allocates fresh storage per chunk and the guard checks every
+checkpoint. Two full captures measure all 60 profiles seven times; the second
+supplies the live report. The independent first wire-feature reference and
+all earlier references remain immutable. Timing investigations remain explicit.
+See the [current confirmation manifest](results/stage6-confirmation.json).

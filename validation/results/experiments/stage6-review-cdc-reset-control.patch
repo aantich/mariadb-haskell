@@ -1,0 +1,19 @@
+--- a/validation/hs/Validation/Stage5.hs
++++ b/validation/hs/Validation/Stage5.hs
+@@ -445,7 +445,7 @@
+             binary <- getExecutablePath
+             callProcess "python3" ["validation/cdc_fixture.py",binary,"case","stage5.live-semisync-ack"]
+         Just path -> do
+-            let open = connectUnixSocket path defaultConnectInfo {ciUser="root",ciPassword="",ciDatabase="cdc_validation"}
++            let open = connectUnixSocketWithOptions defaultConnectionOptions {enableCompression=True} path defaultConnectInfo {ciUser="root",ciPassword="",ciDatabase="cdc_validation"}
+             withConnect open $ \source -> do
+                 tracker <- getLastBinLogTracker source >>= maybe (fail "no fixture binlog") pure
+                 stream <- openCDC source 610128 (defaultCDCOptions (FromBinLog tracker)) {cdcAcknowledgements=AcknowledgeManually}
+@@ -461,6 +461,7 @@
+                             Nothing -> pure ()
+                             Just (Left err) -> throwIO err
+                             Just (Right ()) -> fail "writer completed before explicit acknowledgement"
++                        C.connectionCompressionReset source
+                         cdcAcknowledge stream token
+                         result <- timeout 2000000 (takeMVar done) >>= maybe (fail "writer did not resume after ACK") pure
+                         either throwIO pure result
