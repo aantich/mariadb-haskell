@@ -1,14 +1,21 @@
 # Releasing mariadb-haskell
 
-Release preparation, 9 November 2026. Package **mariadb-haskell 0.1.0.0**;
+Released 9 November 2026. Package **mariadb-haskell 0.1.0.0**;
 maintainer **Anton Antich <anton.antich@gmail.com>**. Public imports remain
-`Database.MySQL.*`. No public Hackage release has been uploaded.
+`Database.MySQL.*`.
+
+**Published:** [Hackage package](https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0)
+· [API documentation](https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0/docs/Database-MySQL-Base.html).
+Anton reviewed the candidate and explicitly approved publication on 9 November
+2026. The public source download matches the reviewed archive's SHA-256, and
+the public API and source pages resolve. The receipt below records the exact
+artifacts, approval and verification.
 
 **Readiness: Alpha.** Automated tests and benchmarks do not replace real-world
 application validation, which is still outstanding. The Cabal stability field,
 description, README, user guide and main API documentation identify this status.
 
-**Publication gate:** upload a candidate and its documentation for Anton to review
+**Publication policy:** upload a candidate and its documentation for Anton to review
 as rendered on Hackage. Do not publish to the main Hackage index until Anton has
 reviewed that preview and explicitly approved publication. Candidate upload and
 documentation inspection do not grant permission to publish the release.
@@ -101,12 +108,12 @@ Results-only and ordinary documentation updates do not require an endless rerun.
 
 Preview: [Hackage candidate](https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0/candidate)
 · [Rendered application API](https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0/candidate/docs/Database-MySQL-Base.html).
-These are candidate previews, not a public-index release. Anton's documentation
-review and explicit publication approval are still required.
+These are the retained previews. Anton completed the documentation review and
+approved publication on 9 November 2026; the public release is linked above.
 
 
-The public package lookup returned HTTP 404 during preparation; this is not a
-name reservation. Anton's locally configured token was verified by a read-only Hackage request
+The public package lookup returned HTTP 404 during preparation and HTTP 200
+after publication. Anton's locally configured token was verified by a read-only Hackage request
 as account **aantich**, and uploader-group membership is confirmed. The
 configuration is owner-only and its Hackage repository uses HTTPS.
 Do not put passwords/tokens in source, logs or this chat.
@@ -138,6 +145,21 @@ local artifact verification. Public publication is the final deliberate action;
 [Hackage's upload policy](https://hackage.haskell.org/upload) explains why candidate
 review matters. See the [Cabal command reference](https://cabal.readthedocs.io/en/stable/cabal-commands.html)
 for authentication/upload options.
+
+After approval, publish the same checked archives and verify the public download
+and rendered documentation:
+
+```sh
+cabal upload --publish /path/to/mariadb-haskell-0.1.0.0.tar.gz
+cabal upload --documentation --publish /path/to/mariadb-haskell-0.1.0.0-docs.tar.gz
+```
+
+For this release, the source-upload response ended with an HTTP/2 transport
+error, but Hackage had accepted the package. The public download's checksum
+confirmed successful publication, so the immutable source upload was not retried.
+The documentation upload succeeded using HTTP/1.1. Hackage adds a small display
+style to served Haddock HTML; removing that injected style reproduces the
+reviewed API page exactly.
 
 ## Supported scope
 
@@ -195,4 +217,8 @@ inspection found legacy dot separators in Cabal's description and two slash-heav
 Haddock phrases; these documentation-only corrections are committed separately.
 The final source/docs archive identities and remote CI state are recorded in the
 release receipt. Automated coverage has not established real-world application
-readiness. **Public release awaits Anton's documentation review and explicit approval.**
+readiness. **Anton approved publication, and 0.1.0.0 is published as Alpha.**
+At publication, Linux compiler builds (GHC 9.4/9.6/9.8/9.10/9.12), both crypton
+series, source-archive verification and Nix passed. Additional macOS CI jobs
+were queued or running; native Mac validation above is complete. The receipt
+retains both the earlier CI snapshot and the publication-time snapshot.

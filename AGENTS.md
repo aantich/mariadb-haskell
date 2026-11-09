@@ -206,3 +206,9 @@ User instruction, 9 November 2026: label package readiness Alpha because real-wo
 application testing is outstanding. Upload only a Hackage candidate/documentation
 preview for Anton's review. Do not publish the package to Hackage's main index
 until Anton reviews the rendered documentation and explicitly approves release.
+
+Superseding user approval, 9 November 2026: after reviewing the rendered Hackage
+candidate, Anton requested publication ("ok lets publish!"). Publish the reviewed
+0.1.0.0 artifacts and documentation, retain the Alpha status and verification
+receipt, and record the release on main. This approval applies to 0.1.0.0;
+future Hackage releases still require their own publication authorization.

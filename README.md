@@ -39,9 +39,12 @@ of Haskell domain types for every SQL type.
 
 The package is `mariadb-haskell`, starting with version `0.1.0.0`.
 Public modules retain `Database.MySQL.*` names, which do not imply MySQL support.
-See [release status](https://github.com/aantich/mariadb-haskell/blob/main/docs/RELEASING.md)
-for candidate/publication status. Build the checkout as follows; after publication,
-add `mariadb-haskell >=0.1 && <0.2` to your application's Cabal dependencies.
+Version **0.1.0.0 Alpha** is available on
+[Hackage](https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0), with
+[API documentation](https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0/docs/Database-MySQL-Base.html).
+Add `mariadb-haskell >=0.1 && <0.2` to your application's Cabal dependencies.
+See the [release record](https://github.com/aantich/mariadb-haskell/blob/main/docs/RELEASING.md)
+for verification and remaining limitations. Build the checkout as follows:
 
 On Linux install a C toolchain, zlib development files and MIT Kerberos
 (`libkrb5-dev` on Debian/Ubuntu), even when not using GSSAPI. macOS uses the

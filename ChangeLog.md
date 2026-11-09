@@ -1,10 +1,10 @@
 # Revision history
 
-## mariadb-haskell 0.1.0.0 — alpha candidate preparation
+## mariadb-haskell 0.1.0.0 — Alpha, 9 November 2026
 
 Alpha: extensive automated validation, without real-world application validation.
-Public Hackage publication awaits Anton's review of the candidate documentation
-and explicit approval.
+Published on [Hackage](https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0)
+after Anton reviewed the rendered candidate documentation and approved publication.
 
 MariaDB-only fork of [mysql-haskell](https://github.com/winterland1989/mysql-haskell),
 maintained by Anton Antich. This starts an independent release series; the
@@ -34,7 +34,7 @@ module names remain, with no MySQL server support target.
 
 See the [migration guide](https://github.com/aantich/mariadb-haskell/blob/main/docs/MIGRATION.md)
 for behavior changes, and [release readiness](https://github.com/aantich/mariadb-haskell/blob/main/docs/RELEASING.md)
-for final validation evidence and Hackage candidate/publication status.
+for final validation evidence and the Hackage publication record.
 
 ## Upstream mysql-haskell history
 

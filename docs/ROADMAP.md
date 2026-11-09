@@ -315,3 +315,10 @@ Prepare a Hackage candidate and rendered documentation for Anton to review.
 **Do not publish to the Hackage main index until Anton reviews the preview and
 explicitly approves publication.** The existing timing investigations remain
 open; no reference or threshold is advanced by release preparation.
+
+**Completed, 9 November 2026:** Anton reviewed the rendered candidate and
+approved publication. Version **0.1.0.0 Alpha** and its API documentation are
+[published on Hackage](https://hackage.haskell.org/package/mariadb-haskell-0.1.0.0).
+The [release record](RELEASING.md) retains artifact verification and the CI
+snapshot. Real-world application validation and the deferred timing
+investigations remain future work.
