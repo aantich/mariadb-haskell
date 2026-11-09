@@ -71,18 +71,19 @@ class ReleaseSources(unittest.TestCase):
 
     def test_private_traversal_and_special_archive_entries_are_rejected(self):
         checker = tool('check_release')
-        for name, kind in [('package/../escape', tarfile.DIRTYPE),
-                           ('package/.local', tarfile.DIRTYPE),
-                           ('package/cabal.project', tarfile.REGTYPE),
-                           ('package/cabal.project.local', tarfile.REGTYPE),
-                           ('package/link', tarfile.SYMTYPE)]:
+        for name, kind, reason in [
+                ('package/../escape', tarfile.DIRTYPE, 'unexpected source archive path'),
+                ('package/.local', tarfile.DIRTYPE, 'developer/private file leaked'),
+                ('package/cabal.project', tarfile.REGTYPE, 'developer/private file leaked'),
+                ('package/cabal.project.local', tarfile.REGTYPE, 'developer/private file leaked'),
+                ('package/link', tarfile.SYMTYPE, 'unexpected special file')]:
             with self.subTest(name=name), tempfile.TemporaryDirectory() as folder:
                 archive = Path(folder) / 'package.tar.gz'
                 with tarfile.open(archive, 'w:gz') as output:
                     entry = tarfile.TarInfo(name)
                     entry.type = kind
                     output.addfile(entry)
-                with self.assertRaises(ValueError):
+                with self.assertRaisesRegex(ValueError, reason):
                     checker.unpack(archive, Path(folder) / 'unpacked', 'package')
 
 
