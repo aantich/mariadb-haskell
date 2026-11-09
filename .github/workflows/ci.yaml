@@ -14,6 +14,14 @@ jobs:
       matrix:
         ghc: ['9.4.7', '9.6', '9.8', '9.10', '9.12']
         os: [ubuntu-latest, macos-latest]
+        # GHC 9.4's bindist selects Gold, absent from the Ubuntu 26.04
+        # runner. Keep this compiler on the Ubuntu 24.04 native toolchain.
+        exclude:
+          - ghc: '9.4.7'
+            os: ubuntu-latest
+        include:
+          - ghc: '9.4.7'
+            os: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: haskell-actions/setup@v2
