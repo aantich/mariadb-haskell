@@ -1,0 +1,14 @@
+{
+  "archive_sha256": "577422e709cd6c21b959fb67210d1f730a0e34d384ad25d1dcd2676d6188049c",
+  "source_payload_verified": {
+    "cbits/gssapi.c": "55b5b1d32790950d61394f9f38093197c29d983ace2ea2630abefd0f244da30a",
+    "src/Database/MySQL/Authentication.hs": "2982e5dd7da4a861176993ccffe529c1c5c9cae56f4b6fe7e2b0cb7a9e7c572d",
+    "src/Database/MySQL/Authentication/GSSAPI.hs": "5ad3a1900a1bdc0df318f26c0da593a8e550f5666aa4c69103f157db720c5779",
+    "src/Database/MySQL/Connection.hs": "7bdf870393f7276c114bf9a75cc7a7cb805c759ffe523a7f23710214b26430d8",
+    "src/Database/MySQL/TLS.hs": "74f7cb8f6b648d376acbbecd8e779538f21da90b1abcfb58e6aa0df549e19d0e",
+    "validation/hs/Validation/Stage7.hs": "0c971b100d1bb321c9a21dfd9ffceff6a82c8abee4b1a51acc9e9e0bf61ca981",
+    "validation/auth_fixture.py": "a54d37e8cb92a0ef606f0acec635f03d6d9b022648a9fedfc08de2cc245b61b3",
+    "validation/check.py": "a85ee687722b87d9fa1df1ff4322657fd7e6d182d7329ac3fae66843b026bd86",
+    "validation/test_stage7.py": "0b09fc70fa60e9f1738573c7e04307995af41aeceb2b9022751fc2a8de73c012"
+  }
+}

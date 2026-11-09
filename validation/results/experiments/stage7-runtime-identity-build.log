@@ -1,0 +1,45 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 729B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#2 DONE 0.8s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 52B done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 63B done
+#4 DONE 0.0s
+
+#5 [1/5] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#5 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 done
+#5 DONE 0.0s
+
+#6 [4/5] RUN gcc -Wall -Wextra -Werror -fPIC -shared /opt/driver-auth/pam_fixture.c     -lpam -o /opt/driver-auth/pam_fixture.so
+#6 CACHED
+
+#7 [2/5] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     krb5-kdc krb5-admin-server krb5-user libpam0g-dev gcc libc6-dev python3 openssl     mariadb-plugin-gssapi-server     && rm -rf /var/lib/apt/lists/*
+#7 CACHED
+
+#8 [3/5] COPY pam_fixture.c /opt/driver-auth/pam_fixture.c
+#8 CACHED
+
+#9 [5/5] COPY serve.py /opt/driver-auth/serve.py
+#9 CACHED
+
+#10 exporting to image
+#10 exporting layers done
+#10 exporting manifest sha256:6382c59b954e8b4e99719b503eddc82b746f332dcd0e1ae607c72489dabf325e done
+#10 exporting config sha256:a08768478b7bd2038b3d88478e64d24b5977d9968f5479163adf9479a43238b1 done
+#10 exporting attestation manifest sha256:422302eb14754bc4bbb7c945ea4dfd15afcc5bb5c5368e47c68fba1da9e70bfd done
+#10 exporting manifest list sha256:119e65d876c33d0b34686438471b3490a88e647cb018a56bcdee7b98d976bc93 done
+#10 naming to docker.io/library/mariadb-haskell-stage7-auth:latest done
+#10 unpacking to docker.io/library/mariadb-haskell-stage7-auth:latest done
+#10 DONE 0.1s
+
+#11 resolving provenance for metadata file
+#11 DONE 0.0s

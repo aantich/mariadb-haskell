@@ -30,6 +30,8 @@ class FeatureSpec:
     baseline_directory: Path
     workload_paths: tuple
     heap_profiles: dict = field(default_factory=dict)
+    environment_profile: tuple = ()
+    environment_profile_aliases: dict = field(default_factory=dict)
 
 
 def sample(spec, output, ident):
@@ -78,6 +80,10 @@ def verify_measurements(spec, data, inputs):
     if (not data.get('complete') or data.get('repetitions', 0) < 7
             or data.get('inputs', {}).get('sha256') != inputs['sha256']):
         raise ValueError(f'{spec.label} benchmark evidence is incomplete or stale')
+    profile = data.get('environment_profile', {})
+    if spec.environment_profile and (set(profile) != set(spec.environment_profile)
+            or not all(isinstance(value, str) and value for value in profile.values())):
+        raise ValueError(f'{spec.label} environment profile is missing or incomplete')
     if data['inputs'].get('files') != inputs.get('files'):
         raise ValueError(f'{spec.label} input file evidence disagrees with current inputs')
     if inputs.get('commit') is not None and (data['inputs'].get('commit') != inputs['commit']
@@ -149,7 +155,13 @@ def baseline_comparison(spec, data):
     # json round-trips tuples as lists. Compare dependency identities in a
     # canonical form, both before saving a run and during later publication.
     same_dependencies = sorted(map(tuple, data['dependencies'])) == sorted(map(tuple, baseline['dependencies']))
+    def environment_identity(document):
+        # Alias only explicitly verified historical identifiers. Recorded
+        # measurements/metadata stay unchanged; unknown identities never match.
+        return {key: spec.environment_profile_aliases.get(key, {}).get(value, value)
+                for key, value in document.get('environment_profile', {}).items()}
     same = (same_dependencies
+            and environment_identity(data) == environment_identity(baseline)
             and all(data[key] == baseline[key] for key in ('server', 'machine', 'haskell_benchmark_rts'))
             and all(data['build'][key] == baseline['build'][key] for key in ('ghc', 'cabal'))
             and all(data['inputs']['files'][key] == baseline['inputs']['files'][key] for key in spec.workload_paths))
@@ -220,6 +232,8 @@ def main(spec):
                         'machine': platform.machine(), 'processor': platform.processor(), 'cpu_count': os.cpu_count()},
             'policy': 'two in-process warmups; shuffled independent processes; same-build alternatives; all samples retained',
             'profiles': {ident: {'samples': []} for ident in spec.profiles}, 'complete': False}
+    if spec.environment_profile:
+        data['environment_profile'] = {key: env[key] for key in spec.environment_profile}
     destination = args.output / 'results.json'
     try:
         for repetition in range(args.repetitions):

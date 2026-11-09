@@ -1,6 +1,6 @@
 # mariadb-haskell
 
-A pure Haskell database driver focused **exclusively on MariaDB**.
+A streaming Haskell database driver focused **exclusively on MariaDB**.
 
 This project is a fork of [mysql-haskell](https://github.com/winterland1989/mysql-haskell), originally created by Winterland and maintained by its upstream contributors. We are building on that work to make a reliable, well-tested and efficient MariaDB driver. **Supporting MySQL servers is outside the scope of this fork.**
 
@@ -72,6 +72,18 @@ preserved. See the [publication record](validation/results/stage6-publication.js
 See the [final validation checkpoint](docs/STAGE6_IMPLEMENTATION.md#final-review-fix-validation--9-november-2026)
 and [resolved follow-up review](docs/STAGE6_CODE_REVIEW.md) for ownership,
 compression/ACK sequencing, memory controls and measured costs.
+
+
+[Stage 7](docs/STAGE7_IMPLEMENTATION.md) implements PAM dialog authentication and
+principal-pinned Kerberos/GSSAPI with isolated, reproducible fixtures. Current
+Mac/Linux correctness records **844 PASS / 0 FAIL / 0 UNSUPPORTED / 0 unavailable**.
+The timeout test now verifies safe retirement under an explicitly approved
+contract correction; its original baseline/history remain intact. All 48 new
+security checks and 173 policy tests pass. The full workflow retains the original
+60 profiles and adds three independent authentication setup benchmarks. The
+[live report](validation/RESULTS.md) preserves the pre-commit review capture and
+identifies its exact input fingerprint and open timing investigations. Publication
+reuses those measurements; it does not claim a new run on the committed revision.
 
 ## A first query
 

@@ -1,0 +1,1 @@
+External authentication fixture preflight failed: Command '['/opt/homebrew/bin/mariadb', '--defaults-extra-file=/var/folders/w4/0_95kdj51l35cqyg07_w5v5r0000gn/T/mariadb-validation-client-8a6pbs_8/client.cnf', '--batch', '--skip-column-names', 'mariadb_haskell_validation']' returned non-zero exit status 1.

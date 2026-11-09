@@ -1,0 +1,689 @@
+--- a/src/Database/MySQL/Connection.hs
++++ b/src/Database/MySQL/Connection.hs
+@@ -252,39 +252,16 @@
+ -- Raw transports share one optional byte layer; ordinary connections retain
+ -- their existing reader/writer path without compression checks per packet.
+ newTransportConnection :: ConnectionOptions -> InputStream ByteString -> (L.ByteString -> IO ()) -> IO () -> IO MySQLConn
+-newTransportConnection = buildTransportConnection (\conn _ -> pure conn)
+-
+--- | Construct two views of one transport. Authentication rejects oversized
+--- physical headers before reading their bodies. After authentication, the
+--- ordinary view uses the caller's full message budget without an extra mutable
+--- phase check on every query packet. Both views share framing and unread bytes.
+-newAuthenticatingTransportConnection :: ConnectionOptions -> InputStream ByteString -> (L.ByteString -> IO ()) -> IO () -> IO (MySQLConn, MySQLConn)
+-newAuthenticatingTransportConnection = buildTransportConnection $ \conn input -> do
+-    packets <- decodeFramedInput (authenticationWireLimit (connectionOptions conn))
+-        (connectionSequence conn) input
+-    pure (conn {mysqlRead=packets}, conn)
+-
+--- Select compression once; both connection views must read its same byte stream.
+-buildTransportConnection :: (MySQLConn -> InputStream ByteString -> IO a) -> ConnectionOptions -> InputStream ByteString -> (L.ByteString -> IO ()) -> IO () -> IO a
+-buildTransportConnection finish options input output abort
+-    | not (enableCompression options) = do
+-        conn <- newByteConnection options input (output . Binary.encode) abort
+-        finish conn input
++newTransportConnection options input output abort
++    | not (enableCompression options) = newByteConnection options input (output . Binary.encode) abort
+     | otherwise = do
+         transport <- newCompressionTransport (maximumMessageBytes options + 4)
+             (compressionThresholdBytes options) input output
+         conn <- newByteConnection options (compressionInput transport)
+             (compressionSend transport . Binary.encode) abort
+-        finish conn {connectionCompressionStart = compressionStart transport,
++        pure conn {connectionCompressionStart = compressionStart transport,
+                    connectionCompressionReset = compressionReset transport,
+                    connectionCompressionAllowReplicationResets = compressionAllowReplicationResets transport}
+-            (compressionInput transport)
+-
+--- | One MiB of plugin data plus the largest accepted AuthSwitch envelope
+--- (marker, 128-byte plugin name and NUL). Caller budgets may be smaller. This
+--- phase limit also covers the greeting and terminal authentication messages.
+-authenticationWireLimit :: ConnectionOptions -> Word64
+-authenticationWireLimit options = min (maximumMessageBytes options) (1048576 + 130)
+ 
+ newConnectionUsing :: ConnectionOptions -> (IORef FramingState -> IO (InputStream Packet)) -> (Packet -> IO ()) -> IO () -> IO MySQLConn
+ newConnectionUsing options makeReader output abort = do
+@@ -554,13 +531,13 @@
+ connectDetailWithAuthentication opts auth ci = withConnectDeadline opts $ do
+     validateOptions opts
+     bracketOnError (TCP.connectSocketTimeout (connectTimeoutMicros opts) (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
+-        (authConn,conn) <- newAuthenticatingTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
+-        greet <- authenticationDiagnostic (readGreeting authConn)
++        conn <- newTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
++        greet <- readGreeting conn
+         let caps=negotiatedCapabilities opts greet
+         writeIORef (connectionCapabilities conn) caps
+         mysqlWrite conn (encodeToPacket 1 (mkAuthForAuthentication auth opts caps ci greet))
+-        q <- authenticationDiagnostic (readConnPacket authConn)
+-        completeAuthWithOptions auth authConn greet False (ciPassword ci) q
++        q <- readConnPacket conn
++        completeAuthWithOptions auth conn greet False (ciPassword ci) q
+         when (testBit caps 5) (connectionCompressionStart conn)
+         role <- initializeSession conn
+         rememberInitialSession conn ci role
+@@ -593,13 +570,13 @@
+             N.connect sock (N.SockAddrUnix path)
+             TCP.socketToConnectionAdaptive bUFSIZE (sock,N.SockAddrUnix path)
+     bracketOnError open Conn.close $ \raw -> do
+-        (authConn,conn) <- newAuthenticatingTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
+-        greet <- authenticationDiagnostic (readGreeting authConn)
++        conn <- newTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
++        greet <- readGreeting conn
+         let caps=negotiatedCapabilities opts greet
+         writeIORef (connectionCapabilities conn) caps
+         mysqlWrite conn (encodeToPacket 1 (mkAuthForAuthentication auth opts caps ci greet))
+-        q <- authenticationDiagnostic (readConnPacket authConn)
+-        completeAuthWithOptions auth authConn greet True (ciPassword ci) q
++        q <- readConnPacket conn
++        completeAuthWithOptions auth conn greet True (ciPassword ci) q
+         when (testBit caps 5) (connectionCompressionStart conn)
+         role <- initializeSession conn
+         rememberInitialSession conn ci role
+@@ -712,14 +689,6 @@
+     timeout (connectTimeoutMicros options) action >>= maybe
+         (throwIO (AuthException "MariaDB connection establishment timed out")) pure
+ 
+--- | Packet decoders retain failing buffers for ordinary query diagnostics.
+--- Authentication parsing must not disclose them. Keep this wrapper around the
+--- decoder itself so exceptions deliberately raised by application callbacks
+--- retain their original type and value.
+-authenticationDiagnostic :: IO a -> IO a
+-authenticationDiagnostic action = action `catch` \(_ :: DecodePacketException) ->
+-    throwIO (AuthException "malformed authentication packet")
+-
+ -- | Complete a bounded plugin conversation on this connection. Plugin and nonce
+ -- always travel together, including auth switches. Cleartext full-auth responses
+ -- are allowed only over TLS or a Unix-domain socket. Malformed messages and
+@@ -731,9 +700,7 @@
+ -- tokens use AuthMoreData. Decode that envelope before invoking a plugin, and
+ -- accept terminal OK/ERR only in their original SQL-protocol envelope.
+ completeAuthWithOptions :: AuthenticationOptions -> MySQLConn -> Greeting -> Bool -> ByteString -> Packet -> IO ()
+-completeAuthWithOptions auth conn greeting secure password first = do
+-    checkPacket first
+-    when (isERR first) (authError first)
++completeAuthWithOptions auth conn greeting secure password first =
+     if greetingAuthPlugin greeting `elem` externalPlugins
+     then external 0 (greetingAuthPlugin greeting) (unwrapPlugin first)
+     else loop 0 (greetingAuthPlugin greeting) initialNonce first
+@@ -742,23 +709,18 @@
+     input = mysqlRead conn
+     output = mysqlWrite conn
+     send packet body = output (Packet (fromIntegral (B.length body)) (pSeqN packet + 1) (L.fromStrict body))
+-    next = readPacketWithLimit (authenticationWireLimit (connectionOptions conn)) input
+-    authError packet = authenticationDiagnostic (decodeFromPacket packet) >>= throwIO . ERRException
+-    authOK packet = void (authenticationDiagnostic (consumeOK conn packet))
+-    checkPacket packet = when (pLen packet < 0 || fromIntegral (pLen packet) > authenticationWireLimit (connectionOptions conn))
+-        (throwIO (AuthException "authentication packet exceeds message limit"))
++    next = readPacket input
+     loop :: Int -> ByteString -> ByteString -> Packet -> IO ()
+     loop rounds plugin nonce packet
+         | rounds >= 16 = throwIO (AuthException "too many authentication exchanges")
+-        | isERR packet = authError packet
++        | isERR packet = decodeFromPacket packet >>= throwIO . ERRException
+         -- Requiring a principal is an authentication-method requirement, not
+         -- merely permission to use the credential cache if a server asks.
+         -- Reject OK and password continuations before any alternate response.
+         | isJust (authenticationGSSAPIPrincipal auth) && not (isAuthSwitch packet) =
+             throwIO (AuthException "MariaDB did not select required GSSAPI authentication")
+-        | isOK packet = authOK packet
++        | isOK packet = void (consumeOK conn packet)
+         | isAuthSwitch packet = do
+-            checkPacket packet
+             let (name, rest) = B.break (==0) (B.drop 1 (L.toStrict (pBody packet)))
+             when (B.null name || B.length name > 128 || B.null rest)
+                 (throwIO (AuthException "malformed authentication switch"))
+@@ -792,7 +754,7 @@
+                     else do
+                         send packet (B.singleton 2)
+                         keyPacket <- next
+-                        when (isERR keyPacket) (authError keyPacket)
++                        when (isERR keyPacket) (decodeFromPacket keyPacket >>= throwIO . ERRException)
+                         let body = L.toStrict (pBody keyPacket)
+                         unless (isAuthMoreData keyPacket && B.length body > 1 && B.length body <= 16384)
+                             (throwIO (AuthException "invalid RSA authentication key envelope"))
+@@ -815,7 +777,7 @@
+         | otherwise = packet
+     nextPlugin = do
+         packet <- next
+-        when (isERR packet) (authError packet)
++        when (isERR packet) (decodeFromPacket packet >>= throwIO . ERRException)
+         unless (isAuthMoreData packet) (throwIO (AuthException "unexpected authentication response"))
+         pure (unwrapPlugin packet)
+     externalPlugins = ["dialog", "mysql_clear_password", "auth_gssapi_client"]
+@@ -828,6 +790,7 @@
+             throwIO (AuthException "MariaDB did not select required GSSAPI authentication")
+         | rounds >= 16 = throwIO (AuthException "too many authentication exchanges")
+         | plugin == "auth_gssapi_client" = do
++            when (isERR packet) (decodeFromPacket packet >>= throwIO . ERRException)
+             announcement <- bounded packet
+             let (principal,rest) = B.break (==0) announcement
+                 mechanism = B.drop 1 rest
+@@ -846,7 +809,6 @@
+                 (authenticationDialog auth)
+             if plugin == "mysql_clear_password"
+                 then do
+-                    void (bounded packet)
+                     -- A clear-password switch usually carries no plugin data.
+                     -- Its sequence still belongs to the switch packet.
+                     reply <- callback (DialogPrompt B.empty False True 0)
+@@ -870,8 +832,7 @@
+         output (Packet (fromIntegral (B.length reply+1)) seqN (L.fromStrict (reply <> "\0")))
+     dialogLoop callback rounds question packet = do
+         when (rounds >= 16) (throwIO (AuthException "too many authentication exchanges"))
+-        -- This is raw plugin data, not an SQL envelope. In particular, an
+-        -- ERR-shaped token must not become a server error containing its bytes.
++        when (isERR packet) (decodeFromPacket packet >>= throwIO . ERRException)
+         body <- bounded packet
+         unless (not (B.null body) && B.head body `elem` [2,3,4,5])
+             (throwIO (AuthException "malformed PAM dialog question"))
+@@ -896,15 +857,15 @@
+         unless (B.null response) (send packet response)
+         reply <- next
+         if complete then terminal reply else do
+-            when (isERR reply) (authError reply)
++            when (isERR reply) (decodeFromPacket reply >>= throwIO . ERRException)
+             -- An early SQL OK is not evidence of a completed mutual context.
+             unless (isAuthMoreData reply)
+                 (throwIO (AuthException "GSSAPI context ended before mutual authentication"))
+             inputToken <- bounded (unwrapPlugin reply)
+             gssLoop step (rounds+1) reply inputToken
+     terminal packet
+-        | isOK packet = authOK packet
+-        | isERR packet = authError packet
++        | isOK packet = void (consumeOK conn packet)
++        | isERR packet = decodeFromPacket packet >>= throwIO . ERRException
+         | otherwise = throwIO (AuthException "unexpected authentication response")
+ 
+ -- | Full auth handler for plain TCP connections using RSA encryption.
+--- a/src/Database/MySQL/TLS.hs
++++ b/src/Database/MySQL/TLS.hs
+@@ -67,11 +67,11 @@
+ connectDetailWithAuthentication options auth ci (params,name) = withConnectDeadline options $ do
+     validateOptions options
+     bracketOnError (TCP.connectSocketTimeout (connectTimeoutMicros options) (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
+-        input <- decodeInputStreamWithLimit (authenticationWireLimit options) (Conn.source raw)
++        input <- decodeInputStreamWithLimit (maximumMessageBytes options) (Conn.source raw)
+         packet <- readPacket input
+         if pSeqN packet /= 0 then throwIO (ProtocolError "invalid greeting sequence") else pure ()
+-        if isERR packet then authenticationDiagnostic (decodeFromPacket packet) >>= throwIO . ERRException else pure ()
+-        greeting <- authenticationDiagnostic (getFromPacketExact getGreeting packet)
++        if isERR packet then decodeFromPacket packet >>= throwIO . ERRException else pure ()
++        greeting <- getFromPacketExact getGreeting packet
+         if not (supportTLS (greetingCaps greeting)) then throwIO (AuthException "MariaDB server does not offer TLS") else pure ()
+         let caps=negotiatedCapabilities options greeting
+             params'=params {TLS.clientServerIdentification=(name,"")}
+@@ -81,12 +81,12 @@
+         bracketOnError (TLS.contextNew sock params') (\ctx -> TLS.contextClose ctx `finally` Conn.close raw) $ \ctx -> do
+             TLS.handshake ctx
+             secure <- TLS.tLsToConnection (ctx,addr)
+-            (authConn,conn) <- newAuthenticatingTransportConnection options (Conn.source secure) (Conn.send secure) (TLS.contextClose ctx `finally` Conn.close raw)
++            conn <- newTransportConnection options (Conn.source secure) (Conn.send secure) (TLS.contextClose ctx `finally` Conn.close raw)
+             setExchangeSequence conn 2
+             writeIORef (connectionCapabilities conn) (caps+0x800)
+             mysqlWrite conn (encodeToPacket 2 (mkAuthForAuthentication auth options (caps+0x800) ci greeting))
+-            response <- authenticationDiagnostic (readConnPacket authConn)
+-            completeAuthWithOptions auth authConn greeting True (ciPassword ci) response
++            response <- readConnPacket conn
++            completeAuthWithOptions auth conn greeting True (ciPassword ci) response
+             when (testBit caps 5) (connectionCompressionStart conn)
+             role <- initializeSession conn
+             rememberInitialSession conn ci role
+--- a/validation/auth_fixture.py
++++ b/validation/auth_fixture.py
+@@ -37,27 +37,6 @@
+     return subprocess.run(list(map(str, args)), check=True, **kwargs)
+ 
+ 
+-def cleanup_container(owner):
+-    """Remove only a container bearing this invocation's unique ownership label.
+-
+-    Docker can create a container before run reports a startup error. Probe the
+-    registered name even on that failure path; a name collision is not ownership.
+-    Diagnostic failures must never prevent the removal attempt.
+-    """
+-    inspected = subprocess.run(['docker', 'inspect', '--format',
+-        '{{ index .Config.Labels "mariadb-haskell.fixture-owner" }}', owner],
+-        capture_output=True, text=True, check=False, timeout=15)
+-    if inspected.returncode or inspected.stdout.strip() != owner:
+-        return
+-    try:
+-        subprocess.run(['docker', 'logs', owner], check=False, timeout=15)
+-    except (OSError, subprocess.SubprocessError):
+-        pass
+-    finally:
+-        subprocess.run(['docker', 'rm', '-f', owner], check=True,
+-                       stdout=subprocess.DEVNULL, timeout=30)
+-
+-
+ @contextmanager
+ def environment(*, local=False):
+     """Yield fixture-specific environment and clean up only owned resources.
+@@ -84,15 +63,12 @@
+                 port, kdc_port = 3307, 10088
+             else:
+                 command(['docker', 'build', '-t', IMAGE, '-f', HERE/'auth_fixture/Dockerfile', HERE/'auth_fixture'])
+-                # Register before the fallible creation call: the daemon may
+-                # have created the resource when its client fails or is killed.
+-                container = owner
+                 command(['docker', 'run', '-d', '--name', owner,
+                     '--label', 'mariadb-haskell.fixture=external-authentication',
+-                    '--label', 'mariadb-haskell.fixture-owner='+owner,
+                     '--tmpfs', '/fixture:rw,mode=0700,size=536870912',
+                     '-p', '127.0.0.1::3306', '-p', '127.0.0.1::10088', IMAGE],
+                     stdout=subprocess.DEVNULL)
++                container = owner
+                 def published_port(number):
+                     value = subprocess.check_output(['docker', 'port', owner, f'{number}/tcp'], text=True).strip()
+                     if not value.startswith('127.0.0.1:'):
+@@ -155,7 +131,9 @@
+             if container:
+                 # Exact generated name only. Never prune unrelated containers,
+                 # images, volumes, builder caches or the developer's databases.
+-                cleanup_container(container)
++                subprocess.run(['docker', 'logs', container], check=False)
++                subprocess.run(['docker', 'rm', '-f', container], check=False,
++                               stdout=subprocess.DEVNULL)
+             if process:
+                 process.terminate()
+                 try:
+--- a/validation/check.py
++++ b/validation/check.py
+@@ -85,8 +85,11 @@
+     return json.loads((path / 'results.json').read_text())
+ 
+ 
+-def parse_arguments(argv=None):
+-    """Share option parsing between execution and setup-failure publication."""
++def main():
++    if "--help" in sys.argv or "-h" in sys.argv:
++        status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
++        print("\nFull runs also execute native, session-reuse and CDC benchmarks and update validation/RESULTS.md, results/overview.svg and results/current.json; the original baseline is compared by default. Partial runs do not replace the live report.")
++        return status
+     parser=argparse.ArgumentParser(add_help=False)
+     parser.add_argument("--config",type=Path,default=run.HERE/".local/environment.json")
+     parser.add_argument("--output",type=Path)
+@@ -97,39 +100,8 @@
+     parser.add_argument("--compare",type=Path)
+     parser.add_argument("--freeze",type=Path)
+     parser.add_argument("--working-tree",action="store_true")
+-    args,_=parser.parse_known_args(argv)
+-    return args
+-
+-
+-def is_full_run(args):
+-    return not (args.only or args.no_upstream or args.no_benchmarks) and args.repetitions >= 7
+-
+-
+-# Keep fixture routing independent of non-live wire probes. Prefix/substring
+-# selections use the recorder's same substring semantics; complete selections
+-# always need the real services. Live Stage 7 cases follow this inventory.
+-AUTHENTICATION_FIXTURE_CASES = (
+-    'auth.pam-environment', 'auth.gssapi-environment',
+-    'stage7.live.gssapi-rejects-password-only-success',
+-    'stage7.live.pam-wrong-password', 'stage7.live.pam-multiple-questions',
+-    'stage7.live.pam-wrong-second-factor', 'stage7.live.pam-cancellation-and-reconnect',
+-    'stage7.live.gssapi-tls', 'stage7.live.gssapi-premature-ok-rejected',
+-    'stage7.live.gssapi-wrong-identity', 'stage7.live.gssapi-missing-cache',
+-    'stage7.live.gssapi-repeated-context-cleanup', 'stage7.live.gssapi-cancel-before-server-token',
+-)
+-
+-
+-def needs_authentication_fixture(args):
+-    return not args.only or any(args.only in ident for ident in AUTHENTICATION_FIXTURE_CASES)
+-
+-
+-def main(args=None):
+-    if "--help" in sys.argv or "-h" in sys.argv:
+-        status = subprocess.call([sys.executable,str(run.HERE/"run.py"),"--help"])
+-        print("\nFull runs execute native, reuse, CDC, wire and authentication benchmarks and update the live report. Partial runs do not replace it.")
+-        return status
+-    args = args if args is not None else parse_arguments()
+-    full = is_full_run(args)
++    args,_=parser.parse_known_args()
++    full = not (args.only or args.no_upstream or args.no_benchmarks) and args.repetitions >= 7
+     inputs = live.input_snapshot()
+     output = args.output.resolve() if args.output else run.HERE / "results/runs" / run.dt.datetime.now(run.dt.timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+     if output.exists():
+@@ -303,7 +275,7 @@
+     if not unchanged_inputs(inputs):
+         return finish(1, "Test/build inputs changed during runtime data installation; no suite was measured.")
+     attempt["stage"]="suite"
+-    options = [*[arg for arg in sys.argv[1:] if arg != "--working-tree"],"--config",str(args.config),"--output",str(output)]
++    options = [*[arg for arg in sys.argv[1:] if arg != "--working-tree"],"--output",str(output)]
+     if full and not args.compare and not args.freeze:
+         options += ["--compare",str(live.BASELINE)]
+     try:
+@@ -326,41 +298,36 @@
+ 
+ 
+ def main_with_authentication():
+-    """Publish setup failures only for the same full-run modes as execution."""
++    """Publish failed fixture/preflight attempts as explicitly incomplete."""
++    try:
++        return _main_with_authentication()
++    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
++        partial = any(arg in sys.argv for arg in ('--only', '--no-upstream', '--no-benchmarks'))
++        if not partial:
++            snapshot = live.input_snapshot()
++            live.publish({'state': 'FAILED', 'stage': 'external authentication fixture preflight',
++                'started_at': live.now(), 'finished_at': live.now(), 'exit_code': 1,
++                'inputs': snapshot, 'uncommitted_review': '--working-tree' in sys.argv,
++                'run_directory': 'validation/results/runs',
++                'reason': 'External authentication fixture could not be prepared: ' + str(error)})
++        print('External authentication fixture preflight failed: ' + str(error), file=sys.stderr)
++        return 1
++
++
++def _main_with_authentication():
++    """Keep disposable external-authentication services alive for the whole run.
++
++    The private merged config is passed to the unchanged recorder and all
++    additive benchmark processes. Existing caller-provided fixtures are reused.
++    """
+     if "--help" in sys.argv or "-h" in sys.argv:
+         return main()
+-    args = parse_arguments()
+-    started = live.now()
+-    try:
+-        return _main_with_authentication(args)
+-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, KeyboardInterrupt) as error:
+-        status = 130 if isinstance(error, KeyboardInterrupt) else 1
+-        reason = 'Authentication fixture setup interrupted.' if status == 130 else str(error)
+-        if is_full_run(args):
+-            snapshot = live.input_snapshot()
+-            live.publish({'state': 'FAILED', 'stage': 'external authentication fixture preflight',
+-                'started_at': started, 'finished_at': live.now(), 'exit_code': status,
+-                'inputs': snapshot, 'uncommitted_review': args.working_tree,
+-                'run_directory': 'validation/results/runs',
+-                'reason': 'External authentication fixture could not be prepared: ' + reason})
+-        print('External authentication fixture preflight failed: ' + reason, file=sys.stderr)
+-        return status
+-
+-
+-def _main_with_authentication(args=None):
+-    """Keep required services alive through correctness and feature benchmarks.
+-
+-    Non-live filtered checks do not acquire Docker/Kerberos resources. A private
+-    config overrides only this invocation; original argv and caller settings are
+-    preserved, including unknown options forwarded to the frozen recorder.
+-    """
+-    args = args if args is not None else parse_arguments()
+-    if not needs_authentication_fixture(args):
+-        return main(args)
+-    settings = json.loads(args.config.read_text())
+-    env = {**os.environ, **settings}
++    parser = argparse.ArgumentParser(add_help=False)
++    parser.add_argument("--config", type=Path, default=run.HERE/".local/environment.json")
++    args, rest = parser.parse_known_args()
++    env = {**os.environ, **json.loads(args.config.read_text())}
+     if env.get("MB_AUTH_HOST"):
+-        return main(args)
++        return main()
+     # Verify the managed server before acquiring/building any test resources.
+     if "MariaDB" not in run.sql_client(env, "SELECT VERSION()"):
+         raise RuntimeError("expected a running MariaDB server before validation")
+@@ -368,10 +335,14 @@
+     import tempfile
+     with auth_fixture.environment() as fixture:
+         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", dir=run.HERE/".local") as config:
+-            json.dump({**settings, **fixture}, config)
++            json.dump({**json.loads(args.config.read_text()), **fixture}, config)
+             config.flush()
+-            configured = argparse.Namespace(**{**vars(args), 'config': Path(config.name)})
+-            return main(configured)
++            original = sys.argv
++            try:
++                sys.argv = [original[0], "--config", config.name, *rest]
++                return main()
++            finally:
++                sys.argv = original
+ 
+ 
+ if __name__=="__main__": raise SystemExit(main_with_authentication())
+--- a/validation/hs/Validation/Stage7.hs
++++ b/validation/hs/Validation/Stage7.hs
+@@ -74,43 +74,6 @@
+         Left (_ :: AuthException) -> pure ()
+         Right _ -> fail "invalid authentication unexpectedly succeeded"
+ 
+--- Check displayed exceptions as well as rejection: rejecting a packet is not
+--- sufficient if the error would copy an opaque token into application logs.
+-redactedAuth :: String -> IO () -> IO ()
+-redactedAuth marker action = do
+-    result <- try action
+-    case result of
+-        Left (err :: SomeException) -> do
+-            assert (not (marker `isInfixOf` displayException err)) "authentication data disclosed"
+-            case fromException err of
+-                Just (_ :: AuthException) -> pure ()
+-                Nothing -> fail "malformed authentication did not produce AuthException"
+-        Right () -> fail "malformed authentication unexpectedly succeeded"
+-
+--- Only the header exists. Reading a body is a test failure, rather than a large
+--- allocation that could accidentally make a post-read check appear sufficient.
+-headerOnly :: ConnectionOptions -> Int -> IO (MySQLConn, IO Bool)
+-headerOnly options size = do
+-    supplied <- newIORef False
+-    bodyRead <- newIORef False
+-    input <- S.makeInputStream $ do
+-        previous <- atomicModifyIORef' supplied (\old -> (True,old))
+-        if previous then writeIORef bodyRead True >> fail "authentication body requested"
+-        else pure (Just (B.pack [fromIntegral size,fromIntegral (size `div` 256),
+-            fromIntegral (size `div` 65536),4]))
+-    (conn,_) <- C.newAuthenticatingTransportConnection options input (const (pure ())) (pure ())
+-    C.setExchangeSequence conn 4
+-    pure (conn,readIORef bodyRead)
+-
+-rejectHeader :: IO a -> IO Bool -> IO ()
+-rejectHeader action bodyRead = do
+-    result <- try (void action)
+-    case result of
+-        Left (ProtocolError _) -> pure ()
+-        Left err -> throwIO err
+-        Right () -> fail "oversized authentication header accepted"
+-    equal "authentication header rejected before body read" False =<< bodyRead
+-
+ fixturePassword :: IO B.ByteString
+ fixturePassword = BC.pack <$> getEnv "MB_AUTH_PAM_PASSWORD"
+ 
+@@ -216,33 +179,6 @@
+         case result of
+             Left ThreadKilled -> pure ()
+             _ -> fail "callback cancellation was swallowed"
+-    , case7 "dialog.wrapped-err-token-is-redacted" $ do
+-        (run,_) <- conversation (pam (passwordDialog "secret")) True
+-            (switch "dialog" "\4Password:") [packet 4 "\1\255\21\4#28000PRIVATE-TOKEN-MARKER"]
+-        redactedAuth "PRIVATE-TOKEN-MARKER" run
+-    , case7 "dialog.initial-err-token-is-redacted" $ do
+-        (run,_) <- conversation (pam (passwordDialog "secret")) True
+-            (switch "dialog" "\255\21\4#28000PRIVATE-TOKEN-MARKER") []
+-        redactedAuth "PRIVATE-TOKEN-MARKER" run
+-    , case7 "dialog.malformed-ok-is-redacted" $ do
+-        (run,_) <- conversation (pam (passwordDialog "secret")) True
+-            (switch "dialog" "\5Password:") [packet 4 "\0\255PRIVATE-TOKEN-MARKER"]
+-        redactedAuth "PRIVATE-TOKEN-MARKER" run
+-    , case7 "dialog.malformed-err-is-redacted" $ do
+-        (run,_) <- conversation (pam (passwordDialog "secret")) True
+-            (switch "dialog" "\5Password:") [packet 4 "\255\0\0#Z!Z!"]
+-        redactedAuth "Z!Z!" run
+-    , case7 "dialog.raw-server-err-preserved" $ do
+-        (run,_) <- conversation (pam (passwordDialog "secret")) True
+-            (switch "dialog" "\5Password:") [packet 4 "\255\21\4#28000ordinary rejection"]
+-        expectERR [1045] run
+-    , case7 "dialog.callback-decode-exception-preserved" $ do
+-        (run,_) <- conversation (pam (\_ -> throwIO (DecodePacketFailed "callback-owned" 0 "callback failure"))) True
+-            (switch "dialog" "\5Password:") []
+-        result <- try run
+-        case result of
+-            Left (DecodePacketFailed bytes _ _) -> equal "callback owns exception" "callback-owned" bytes
+-            Right () -> fail "callback exception swallowed"
+     , case7 "dialog.round-limit" $ do
+         count <- newIORef (0::Int)
+         (run,_) <- conversation (pam (\_ -> modifyIORef' count (+1) >> pure "response")) True
+@@ -263,37 +199,6 @@
+             (switch "mysql_clear_password" B.empty) []
+         rejectAuth run
+         equal "no clear password" [] =<< sent
+-    , case7 "clear-password.oversized-challenge-rejected" $ do
+-        called <- newIORef False
+-        (run,sent) <- conversation (pam (\_ -> writeIORef called True >> pure "secret")) True
+-            (switch "mysql_clear_password" (B.replicate 1048577 65)) []
+-        rejectAuth run
+-        equal "oversized challenge did not invoke callback" False =<< readIORef called
+-        equal "no credential reply" [] =<< sent
+-    , case7 "wire.initial-header-limit" $ do
+-        (conn,bodyRead) <- headerOnly defaultConnectionOptions (2*1024*1024)
+-        rejectHeader (C.readConnPacket conn) bodyRead
+-    , case7 "wire.continuation-header-limit" $ do
+-        (conn,bodyRead) <- headerOnly defaultConnectionOptions (2*1024*1024)
+-        C.setExchangeSequence conn 3
+-        let hello = Greeting 10 "12.3.3-MariaDB" 1 "12345678" clientCap 224 2
+-                "901234567890" "mysql_native_password"
+-        rejectHeader (C.completeAuthWithOptions (pam (passwordDialog "secret")) conn hello True ""
+-            (switch "dialog" "\4Password:")) bodyRead
+-    , case7 "wire.smaller-caller-budget" $ do
+-        (conn,bodyRead) <- headerOnly defaultConnectionOptions {maximumMessageBytes=512} 1024
+-        rejectHeader (C.readConnPacket conn) bodyRead
+-    , case7 "wire.query-budget-restored-after-auth" $ do
+-        let payload = B.replicate (2*1024*1024) 65
+-        input <- S.fromList [L.toStrict (encode (ok 4)),L.toStrict (encode (packet 5 payload))]
+-        (authConn,conn) <- C.newAuthenticatingTransportConnection defaultConnectionOptions input (const (pure ())) (pure ())
+-        C.setExchangeSequence authConn 3
+-        let hello = Greeting 10 "12.3.3-MariaDB" 1 "12345678" clientCap 224 2
+-                "901234567890" "mysql_native_password"
+-        C.completeAuthWithOptions (pam (passwordDialog "secret")) authConn hello True ""
+-            (switch "dialog" "\5Password:")
+-        reply <- C.readConnPacket conn
+-        equal "ordinary reader admits larger query result" (L.fromStrict payload) (pBody reply)
+     , case7 "gssapi.principal-opt-in-required" $ do
+         (run,sent) <- conversation defaultAuthenticationOptions False
+             (switch "auth_gssapi_client" "mariadb/localhost@TEST\0\0") []
+--- a/validation/test_stage7.py
++++ b/validation/test_stage7.py
+@@ -1,11 +1,7 @@
+ """Preserve the approved contract correction and real external-auth evidence."""
+ import copy
+-from contextlib import contextmanager
+ import json
+ from pathlib import Path
+-import re
+-import subprocess
+-import sys
+ import tempfile
+ import unittest
+ from unittest.mock import patch
+@@ -19,114 +15,6 @@
+ 
+ 
+ class ExternalAuthenticationPolicyTests(unittest.TestCase):
+-    def test_partial_setup_failures_never_publish_full_status(self):
+-        variants = [['--only=protocol.length-0'], ['--only', 'stage7.live.'],
+-                    ['--repetitions', '1'], ['--repetitions=6'],
+-                    ['--no-upstream'], ['--no-benchmarks']]
+-        for arguments in variants:
+-            for error in [RuntimeError('fixture failed'), KeyboardInterrupt()]:
+-                with self.subTest(arguments=arguments, error=type(error).__name__), \
+-                     patch('sys.argv', ['check.py', *arguments]), \
+-                     patch.object(check, '_main_with_authentication', side_effect=error), \
+-                     patch.object(check.live, 'publish') as publish:
+-                    self.assertEqual(130 if isinstance(error, KeyboardInterrupt) else 1,
+-                                     check.main_with_authentication())
+-                    publish.assert_not_called()
+-
+-    def test_full_fixture_interruption_is_published(self):
+-        with patch('sys.argv', ['check.py', '--working-tree']), \
+-             patch.object(check, '_main_with_authentication', side_effect=KeyboardInterrupt()), \
+-             patch.object(check.live, 'input_snapshot', return_value={'files': {}}), \
+-             patch.object(check.live, 'publish') as publish:
+-            self.assertEqual(130, check.main_with_authentication())
+-        attempt = publish.call_args.args[0]
+-        self.assertEqual('FAILED', attempt['state'])
+-        self.assertEqual(130, attempt['exit_code'])
+-
+-    def test_non_live_filters_do_not_provision_services(self):
+-        for selected in ['protocol.length-0', 'stage7.dialog.', 'stage7.wire.',
+-                         'stage7.clear-password.', 'stage7.gssapi.wrong-principal']:
+-            with self.subTest(selected=selected), \
+-                 patch('sys.argv', ['check.py', '--only='+selected]), \
+-                 patch.object(check, 'main', return_value=0), \
+-                 patch.object(check.run, 'sql_client') as preflight, \
+-                 patch.object(auth_fixture, 'environment') as fixture:
+-                self.assertEqual(0, check.main_with_authentication())
+-                fixture.assert_not_called()
+-                preflight.assert_not_called()
+-
+-    def test_live_and_complete_selections_require_fixtures(self):
+-        for arguments in [[], ['--no-benchmarks'], ['--only', 'stage7'],
+-                          ['--only', 'gssapi'], ['--only', 'auth.pam-environment'],
+-                          ['--only', 'stage7.live.pam-wrong-password']]:
+-            with self.subTest(arguments=arguments):
+-                self.assertTrue(check.needs_authentication_fixture(check.parse_arguments(arguments)))
+-        source = (live.ROOT/'validation/hs/Validation/Stage7.hs').read_text()
+-        required = {'stage7.'+name for name in re.findall(r'case7\s+"(live\.[^"]+)"', source)}
+-        self.assertTrue(required)
+-        self.assertTrue(required.issubset(check.AUTHENTICATION_FIXTURE_CASES))
+-
+-    def test_private_fixture_config_preserves_argv_and_caller_settings(self):
+-        with tempfile.TemporaryDirectory() as folder:
+-            root = Path(folder)
+-            (root/'.local').mkdir()
+-            config = root/'config.json'
+-            config.write_text(json.dumps({'MB_USER': 'caller', 'MB_PASSWORD': 'private'}))
+-            arguments = ['check.py', '--config', str(config), '--only=stage7.live.', '--unknown-option']
+-            @contextmanager
+-            def fixture():
+-                yield {'MB_AUTH_HOST': 'fixture', 'KRB5CCNAME': 'private-cache'}
+-            def run(args):
+-                settings = json.loads(args.config.read_text())
+-                self.assertEqual('caller', settings['MB_USER'])
+-                self.assertEqual('private', settings['MB_PASSWORD'])
+-                self.assertEqual('fixture', settings['MB_AUTH_HOST'])
+-                self.assertEqual(arguments, sys.argv)
+-                return 0
+-            with patch('sys.argv', arguments), patch.dict('os.environ', {}, clear=True), \
+-                 patch.object(check.run, 'HERE', root), \
+-                 patch.object(check.run, 'sql_client', return_value='MariaDB'), \
+-                 patch.object(auth_fixture, 'environment', side_effect=fixture), \
+-                 patch.object(check, 'main', side_effect=run):
+-                self.assertEqual(0, check.main_with_authentication())
+-            self.assertEqual([], list((root/'.local').iterdir()))
+-
+-    def test_created_container_is_cleaned_after_creation_error_or_interrupt(self):
+-        for error in [RuntimeError('created but start failed'), KeyboardInterrupt()]:
+-            with self.subTest(error=type(error).__name__), tempfile.TemporaryDirectory() as folder:
+-                owner = []
+-                def command(args, **_):
+-                    if args[:2] == ['docker', 'run']:
+-                        owner.append(args[args.index('--name')+1])
+-                        self.assertIn('mariadb-haskell.fixture-owner='+owner[0], args)
+-                        raise error
+-                def run(args, **_):
+-                    return subprocess.CompletedProcess(args, 0, owner[0]+'\n', '')
+-                with patch.object(auth_fixture, 'HERE', Path(folder)), \
+-                     patch.object(auth_fixture, 'command', side_effect=command), \
+-                     patch.object(auth_fixture.subprocess, 'run', side_effect=run) as cleanup:
+-                    with self.assertRaises(type(error)):
+-                        with auth_fixture.environment():
+-                            self.fail('failed fixture yielded an environment')
+-                removals = [c.args[0] for c in cleanup.call_args_list if c.args[0][:3] == ['docker', 'rm', '-f']]
+-                self.assertEqual([['docker', 'rm', '-f', owner[0]]], removals)
+-
+-    def test_fixture_log_failure_cannot_skip_removal(self):
+-        def run(args, **_):
+-            if args[:2] == ['docker', 'logs']:
+-                raise OSError('diagnostics failed')
+-            return subprocess.CompletedProcess(args, 0, 'owned\n', '')
+-        with patch.object(auth_fixture.subprocess, 'run', side_effect=run) as cleanup:
+-            auth_fixture.cleanup_container('owned')
+-        self.assertEqual(['docker', 'rm', '-f', 'owned'], cleanup.call_args_list[-1].args[0])
+-
+-    def test_name_collision_or_absent_container_is_not_removed(self):
+-        for result in [subprocess.CompletedProcess([], 0, 'another-owner\n', ''),
+-                       subprocess.CompletedProcess([], 1, '', 'absent')]:
+-            with self.subTest(result=result), patch.object(auth_fixture.subprocess, 'run', return_value=result) as cleanup:
+-                auth_fixture.cleanup_container('owned')
+-                self.assertEqual(1, cleanup.call_count)
+-
+     def test_runtime_identity_ignores_provenance_indexes(self):
+         image = {'Id': 'old-index', 'RepoDigests': ['old-attestation'],
+                  'Architecture': 'arm64', 'Os': 'linux',

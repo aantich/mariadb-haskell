@@ -1,0 +1,18 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+import Control.Exception
+import Data.List (isInfixOf)
+import Data.String (fromString)
+import Database.MySQL.Base
+import System.Environment
+main :: IO ()
+main = do
+    host <- getEnv "MB_AUTH_HOST"
+    port <- read <$> getEnv "MB_AUTH_PORT"
+    principal <- fromString <$> getEnv "MB_AUTH_GSSAPI_PRINCIPAL"
+    let ci = defaultConnectInfoMB4 {ciHost=host,ciPort=port,ciUser=fromString "mariadb_gssapi",ciDatabase=fromString "mariadb_haskell_validation"}
+        auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just principal}
+    result <- try (connectWithAuthentication defaultConnectionOptions auth ci)
+    case result of
+        Left (AuthException message) | "-threaded" `isInfixOf` message -> putStrLn "PASS: non-threaded GSSAPI is rejected before native credential access"
+        Left err -> throwIO err
+        Right conn -> close conn >> fail "non-threaded GSSAPI unexpectedly succeeded"

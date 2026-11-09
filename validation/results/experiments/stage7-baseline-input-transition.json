@@ -1,0 +1,28 @@
+{
+  "recorded_at": "2026-11-09T11:13:46.853855+00:00",
+  "first_capture_input_sha256": "4d6d175c0783b5bc28b74db3c02ae0edde8f45b2fee619d3036212610038b982",
+  "final_input_sha256": "e1723613e7149189b5848da7b02340c53ee2331c5b7c6f794cc0ce4892e0200c",
+  "added_files_only": [
+    "validation/baselines/macos-arm64-external-authentication/SHA256SUMS",
+    "validation/baselines/macos-arm64-external-authentication/SUMMARY.md",
+    "validation/baselines/macos-arm64-external-authentication/results.json"
+  ],
+  "existing_input_hashes_unchanged": true,
+  "latest_input_sha256": "c2e48f1c67af0255eea4bedf627b7099f71ff5a67b8f6176be072dbd01bb513e",
+  "subsequent_review_changes": [
+    "cbits/gssapi.c",
+    "src/Database/MySQL/Authentication.hs",
+    "src/Database/MySQL/Authentication/GSSAPI.hs",
+    "src/Database/MySQL/Connection.hs",
+    "src/Database/MySQL/TLS.hs",
+    "validation/auth_fixture.py",
+    "validation/feature_benchmarks.py",
+    "validation/hs/Validation/Stage7.hs",
+    "validation/linux/Dockerfile",
+    "validation/publish_results.py",
+    "validation/stage7_benchmarks.py",
+    "validation/test_stage7.py"
+  ],
+  "reason": "Native credential ownership, required-GSSAPI policy, credential redaction and regressions; Linux/threaded-runtime guards; stable fixture identity with four verified historical proof inputs. Benchmark workloads and fixture runtime unchanged.",
+  "final_verified_input_sha256": "c2e48f1c67af0255eea4bedf627b7099f71ff5a67b8f6176be072dbd01bb513e"
+}

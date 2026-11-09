@@ -1,0 +1,99 @@
+{
+  "recorded_at": "2026-11-09T10:57:41.487805+00:00",
+  "reason": "Docker VM full during isolated authentication fixture package verification",
+  "scope": "Two exact completed disposable Stage 6 validation execution cache entries only; evidence already exported to host and retained in repository. No containers, images or volumes removed.",
+  "entries": [
+    {
+      "id": "0qkfai6x1utjpyddf2rggjwvj",
+      "metadata": "ID:\t\t0qkfai6x1utjpyddf2rggjwvj\nParent:\t\tydzpaa6p81ju1co81o960own1\nCreated at:\t2026-11-08 20:32:24.57000693 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t607.2MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage6-clean-linux-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nwith (out/'validation.log').open('w') as log:\n    child = subprocess.Popen(['python3','-u','validation/linux/verify.py'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,\n        env={**os.environ,'PYTHONUNBUFFERED':'1','MB_LINUX_OUTPUT':str(out/'linux')})\n    for line in child.stdout:\n        log.write(line); log.flush(); print(line,end='',flush=True)\n    status = child.wait()\n(out/'status.json').write_text(json.dumps({'exit_code':status})+'\\n')\nPYRUN\nUsage count:\t1\nLast used:\t14 hours ago\nType:\t\tregular",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\n0qkfai6x1utjpyddf2rggjwvj*              \ttrue \t\t607.2MB   \t14 hours ago\nTotal:\t607.2MB\n"
+    },
+    {
+      "id": "r5573c2qm248j2dhy0zc6f9zg",
+      "metadata": "ID:\t\tr5573c2qm248j2dhy0zc6f9zg\nParent:\t\ti349tnpdwpjwsoe7ga3290d2n\nCreated at:\t2026-11-09 10:06:13.15650943 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t607.6MB\nDescription:\tmount / from exec /bin/sh -c python3 - <<'PYRUN'\nimport json, os, pathlib, subprocess, sys\nsys.path.insert(0, '/workspace/validation')\nimport publish_results as live\nout = pathlib.Path('/tmp/stage6-fixes-linux-evidence')\nout.mkdir()\n(out/'inputs.json').write_text(json.dumps(live.input_snapshot(),indent=2)+'\\n')\nwith (out/'validation.log').open('w') as log:\n    child = subprocess.Popen(['python3','-u','validation/linux/verify.py'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,\n        env={**os.environ,'PYTHONUNBUFFERED':'1','MB_LINUX_OUTPUT':str(out/'linux')})\n    for line in child.stdout:\n        log.write(line); log.flush(); print(line,end='',flush=True)\n    status = child.wait()\n(out/'status.json').write_text(json.dumps({'exit_code':status})+'\\n')\nPYRUN\nUsage count:\t1\nLast used:\t48 minutes ago\nType:\t\tregular",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nr5573c2qm248j2dhy0zc6f9zg*              \ttrue \t\t607.6MB   \t49 minutes ago\nTotal:\t607.6MB\n"
+    },
+    {
+      "id": "nrfow3uzv04ccr0yf8nrn1jl7",
+      "metadata": "ID:\t\tnrfow3uzv04ccr0yf8nrn1jl7\nParent:\t\t0u0l39b8oqjcvp1cq52jhqrw7\nCreated at:\t2026-11-09 10:55:29.804670673 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t26.96kB\nDescription:\t[5/5] COPY serve.py /opt/driver-auth/serve.py\nUsage count:\t1\nLast used:\t15 minutes ago\nType:\t\tregular",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nnrfow3uzv04ccr0yf8nrn1jl7               \ttrue \t\t26.96kB   \t16 minutes ago\nTotal:\t26.96kB\n"
+    },
+    {
+      "id": "yxxkpkumdkrw8wbc94x66zjvl",
+      "metadata": "ID:\t\tyxxkpkumdkrw8wbc94x66zjvl\nCreated at:\t2026-11-08 20:32:23.816798138 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t8.192kB\nDescription:\tlocal source for stage6cleaninputs\nUsage count:\t1\nLast used:\t15 hours ago\nType:\t\tsource.local",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nyxxkpkumdkrw8wbc94x66zjvl*              \ttrue \t\t8.192kB   \t15 hours ago\nTotal:\t8.192kB\n"
+    },
+    {
+      "id": "kcpod4kiyzby3aa6xolzv21md",
+      "metadata": "ID:\t\tkcpod4kiyzby3aa6xolzv21md\nParent:\t\t53zlozc1c5dxab9a8o84939cp\nCreated at:\t2026-11-09 10:52:59.289663757 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t17.22kB\nDescription:\t[3/5] COPY pam_fixture.c /opt/driver-auth/pam_fixture.c\nUsage count:\t1\nLast used:\t17 minutes ago\nType:\t\tregular",
+      "output": "Total:\t0B\n"
+    },
+    {
+      "id": "xyqde6f5ehwvohgnpdc8sqyqz",
+      "metadata": "ID:\t\txyqde6f5ehwvohgnpdc8sqyqz\nCreated at:\t2026-11-09 10:06:12.682812847 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t27.22MB\nDescription:\tlocal source for stage6fixesinputs\nUsage count:\t1\nLast used:\tAbout an hour ago\nType:\t\tsource.local",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nxyqde6f5ehwvohgnpdc8sqyqz*              \ttrue \t\t27.22MB   \tAbout an hour ago\nTotal:\t27.22MB\n"
+    },
+    {
+      "id": "0ym9xjd4rr9whej7da9wgndux",
+      "metadata": "ID:\t\t0ym9xjd4rr9whej7da9wgndux\nParent:\t\t0u0l39b8oqjcvp1cq52jhqrw7\nCreated at:\t2026-11-09 10:52:59.772402674 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t26.91kB\nDescription:\t[5/5] COPY serve.py /opt/driver-auth/serve.py\nUsage count:\t1\nLast used:\t17 minutes ago\nType:\t\tregular",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\n0ym9xjd4rr9whej7da9wgndux               \ttrue \t\t26.91kB   \t18 minutes ago\nTotal:\t26.91kB\n"
+    },
+    {
+      "id": "0u0l39b8oqjcvp1cq52jhqrw7",
+      "metadata": "ID:\t\t0u0l39b8oqjcvp1cq52jhqrw7\nParent:\t\tkcpod4kiyzby3aa6xolzv21md\nCreated at:\t2026-11-09 10:52:59.636346632 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t40.06kB\nDescription:\tmount / from exec /bin/sh -c gcc -Wall -Wextra -Werror -fPIC -shared /opt/driver-auth/pam_fixture.c     -lpam -o /opt/driver-auth/pam_fixture.so\nUsage count:\t3\nLast used:\t15 minutes ago\nType:\t\tregular",
+      "output": "Total:\t0B\n"
+    },
+    {
+      "id": "jh2ou46tep52ojuvvslxv4vwo",
+      "metadata": "ID:\t\tjh2ou46tep52ojuvvslxv4vwo\nCreated at:\t2026-11-09 10:06:11.831826346 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t8.192kB\nDescription:\tlocal source for stage6fixesinputs\nUsage count:\t1\nLast used:\tAbout an hour ago\nType:\t\tsource.local",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\njh2ou46tep52ojuvvslxv4vwo*              \ttrue \t\t8.192kB   \tAbout an hour ago\nTotal:\t8.192kB\n"
+    },
+    {
+      "id": "p4c4fs1taxib60n85kdqr0jr0",
+      "metadata": "ID:\t\tp4c4fs1taxib60n85kdqr0jr0\nCreated at:\t2026-11-08 20:25:28.407487501 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t26.64MB\nDescription:\tlocal source for stage6finalinputs\nUsage count:\t1\nLast used:\t15 hours ago\nType:\t\tsource.local",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\np4c4fs1taxib60n85kdqr0jr0*              \ttrue \t\t26.64MB   \t15 hours ago\nTotal:\t26.64MB\n"
+    },
+    {
+      "id": "ydzpaa6p81ju1co81o960own1",
+      "metadata": "ID:\t\tydzpaa6p81ju1co81o960own1\nParent:\t\t93w3kfihe9zt21fea6dazubk9\nCreated at:\t2026-11-08 20:32:24.555613305 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t27.25MB\nDescription:\t[verification 10/11] COPY --from=stage6cleaninputs / /workspace/\nUsage count:\t1\nLast used:\t15 hours ago\nType:\t\tregular",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nydzpaa6p81ju1co81o960own1               \ttrue \t\t27.25MB   \t15 hours ago\nTotal:\t27.25MB\n"
+    },
+    {
+      "id": "i349tnpdwpjwsoe7ga3290d2n",
+      "metadata": "ID:\t\ti349tnpdwpjwsoe7ga3290d2n\nParent:\t\t93w3kfihe9zt21fea6dazubk9\nCreated at:\t2026-11-09 10:06:13.142783805 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t27.34MB\nDescription:\t[verification 10/11] COPY --from=stage6fixesinputs / /workspace/\nUsage count:\t1\nLast used:\tAbout an hour ago\nType:\t\tregular",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\ni349tnpdwpjwsoe7ga3290d2n               \ttrue \t\t27.34MB   \tAbout an hour ago\nTotal:\t27.34MB\n"
+    },
+    {
+      "id": "mb9a715xfx7thyvc1amso4bot",
+      "metadata": "ID:\t\tmb9a715xfx7thyvc1amso4bot\nCreated at:\t2026-11-08 20:32:23.850988513 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t27.12MB\nDescription:\tlocal source for stage6cleaninputs\nUsage count:\t1\nLast used:\t15 hours ago\nType:\t\tsource.local",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nmb9a715xfx7thyvc1amso4bot*              \ttrue \t\t27.12MB   \t15 hours ago\nTotal:\t27.12MB\n"
+    },
+    {
+      "id": "xwgt433vekzxqqvowjbhq9m98",
+      "metadata": "ID:\t\txwgt433vekzxqqvowjbhq9m98\nCreated at:\t2026-11-08 20:19:17.580597718 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t91.02MB\nDescription:\tlocal source for stage6inputs\nUsage count:\t2\nLast used:\t15 hours ago\nType:\t\tsource.local",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nxwgt433vekzxqqvowjbhq9m98*              \ttrue \t\t91.02MB   \t15 hours ago\nTotal:\t91.02MB\n"
+    },
+    {
+      "id": "qfhtrjjc4qfnwz4k6kkqhr4s1",
+      "metadata": "ID:\t\tqfhtrjjc4qfnwz4k6kkqhr4s1\nCreated at:\t2026-11-08 20:25:28.364149917 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t8.192kB\nDescription:\tlocal source for stage6finalinputs\nUsage count:\t1\nLast used:\t15 hours ago\nType:\t\tsource.local",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nqfhtrjjc4qfnwz4k6kkqhr4s1*              \ttrue \t\t8.192kB   \t15 hours ago\nTotal:\t8.192kB\n"
+    },
+    {
+      "id": "x3j12orqm1rlmw8iozxbrt1lo",
+      "metadata": "ID:\t\tx3j12orqm1rlmw8iozxbrt1lo\nCreated at:\t2026-11-08 20:19:16.707662634 +0000 UTC\nMutable:\ttrue\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t8.192kB\nDescription:\tlocal source for stage6inputs\nUsage count:\t2\nLast used:\t15 hours ago\nType:\t\tsource.local",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nx3j12orqm1rlmw8iozxbrt1lo*              \ttrue \t\t8.192kB   \t15 hours ago\nTotal:\t8.192kB\n"
+    },
+    {
+      "id": "dshx94lbamu7e42v2fffo9zar",
+      "metadata": "ID:\t\tdshx94lbamu7e42v2fffo9zar\nParent:\t\t0u0l39b8oqjcvp1cq52jhqrw7\nCreated at:\t2026-11-09 10:55:51.648318836 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t27.05kB\nDescription:\t[5/5] COPY serve.py /opt/driver-auth/serve.py\nUsage count:\t1\nLast used:\t15 minutes ago\nType:\t\tregular",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\ndshx94lbamu7e42v2fffo9zar               \ttrue \t\t27.05kB   \t16 minutes ago\nTotal:\t27.05kB\n"
+    },
+    {
+      "id": "53zlozc1c5dxab9a8o84939cp",
+      "metadata": "ID:\t\t53zlozc1c5dxab9a8o84939cp\nParent:\t\tpb3k5rqp2241wpa4azcmv2c0v\nCreated at:\t2026-11-09 10:52:59.169862007 +0000 UTC\nMutable:\tfalse\nReclaimable:\ttrue\nShared:\t\tfalse\nSize:\t\t368MB\nDescription:\tmount / from exec /bin/sh -c apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     krb5-kdc krb5-admin-server krb5-user libpam0g-dev gcc libc6-dev python3 openssl     && rm -rf /var/lib/apt/lists/*\nUsage count:\t1\nLast used:\t17 minutes ago\nType:\t\tregular",
+      "output": "Total:\t0B\n"
+    }
+  ],
+  "additional_cleanup_at": "2026-11-09T11:11:57.139805+00:00",
+  "additional_scope": "Superseded initial Stage 7 fixture layers plus Stage 6 input/copy caches only; exact ancestry/descriptions establish ownership. No application images, containers or volumes removed."
+}

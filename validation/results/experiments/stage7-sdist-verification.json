@@ -1,0 +1,12 @@
+{
+  "archive_sha256": "62df01ff206cf8a5da14bbdea556be396b122b4ce84431d355dedbc25335ab39",
+  "source_payload_verified": {
+    "cbits/gssapi.c": "55b5b1d32790950d61394f9f38093197c29d983ace2ea2630abefd0f244da30a",
+    "src/Database/MySQL/Authentication.hs": "2982e5dd7da4a861176993ccffe529c1c5c9cae56f4b6fe7e2b0cb7a9e7c572d",
+    "src/Database/MySQL/Authentication/GSSAPI.hs": "5ad3a1900a1bdc0df318f26c0da593a8e550f5666aa4c69103f157db720c5779",
+    "mysql-haskell.cabal": "b2bc3e4e5a26c64f1df85826622c72ea1383171d2d7e5efb44d5fe728d0fc8a8",
+    "validation/hs/Validation/Stage7.hs": "4d1ec4d5da5fd521da140b7e8992c18455bd57c412d0de4987bb18a7a3d0ba33",
+    "validation/hs/Validation/Stage7Bench.hs": "3b991ecc5364c8cc8ebb04e936a0038b603ee5f48e78deaf2ebdbbb2a89ff9fc",
+    "validation/hs/Validation/ExternalAuthFixture.hs": "293db58eabd1644089f87450fef6ce94b7a5c1d94c8307b0e48189ed278feb6d"
+  }
+}

@@ -48,6 +48,8 @@ import qualified Data.PEM                        as PEM
 import           Data.Typeable
 import           Data.Word
 import           Database.MySQL.Protocol.Auth
+import           Database.MySQL.Authentication
+import qualified Database.MySQL.Authentication.GSSAPI as GSSAPI
 import           Database.MySQL.Protocol.Command
 import           Database.MySQL.Protocol.Packet
 import           Network.Socket                  (HostName, PortNumber)
@@ -250,16 +252,39 @@ newByteConnection options input output abort = newConnectionUsing options (\fram
 -- Raw transports share one optional byte layer; ordinary connections retain
 -- their existing reader/writer path without compression checks per packet.
 newTransportConnection :: ConnectionOptions -> InputStream ByteString -> (L.ByteString -> IO ()) -> IO () -> IO MySQLConn
-newTransportConnection options input output abort
-    | not (enableCompression options) = newByteConnection options input (output . Binary.encode) abort
+newTransportConnection = buildTransportConnection (\conn _ -> pure conn)
+
+-- | Construct two views of one transport. Authentication rejects oversized
+-- physical headers before reading their bodies. After authentication, the
+-- ordinary view uses the caller's full message budget without an extra mutable
+-- phase check on every query packet. Both views share framing and unread bytes.
+newAuthenticatingTransportConnection :: ConnectionOptions -> InputStream ByteString -> (L.ByteString -> IO ()) -> IO () -> IO (MySQLConn, MySQLConn)
+newAuthenticatingTransportConnection = buildTransportConnection $ \conn input -> do
+    packets <- decodeFramedInput (authenticationWireLimit (connectionOptions conn))
+        (connectionSequence conn) input
+    pure (conn {mysqlRead=packets}, conn)
+
+-- Select compression once; both connection views must read its same byte stream.
+buildTransportConnection :: (MySQLConn -> InputStream ByteString -> IO a) -> ConnectionOptions -> InputStream ByteString -> (L.ByteString -> IO ()) -> IO () -> IO a
+buildTransportConnection finish options input output abort
+    | not (enableCompression options) = do
+        conn <- newByteConnection options input (output . Binary.encode) abort
+        finish conn input
     | otherwise = do
         transport <- newCompressionTransport (maximumMessageBytes options + 4)
             (compressionThresholdBytes options) input output
         conn <- newByteConnection options (compressionInput transport)
             (compressionSend transport . Binary.encode) abort
-        pure conn {connectionCompressionStart = compressionStart transport,
+        finish conn {connectionCompressionStart = compressionStart transport,
                    connectionCompressionReset = compressionReset transport,
                    connectionCompressionAllowReplicationResets = compressionAllowReplicationResets transport}
+            (compressionInput transport)
+
+-- | One MiB of plugin data plus the largest accepted AuthSwitch envelope
+-- (marker, 128-byte plugin name and NUL). Caller budgets may be smaller. This
+-- phase limit also covers the greeting and terminal authentication messages.
+authenticationWireLimit :: ConnectionOptions -> Word64
+authenticationWireLimit options = min (maximumMessageBytes options) (1048576 + 130)
 
 newConnectionUsing :: ConnectionOptions -> (IORef FramingState -> IO (InputStream Packet)) -> (Packet -> IO ()) -> IO () -> IO MySQLConn
 newConnectionUsing options makeReader output abort = do
@@ -516,16 +541,26 @@ connectDetail :: ConnectInfo -> IO (Greeting,MySQLConn)
 connectDetail = connectDetailWithOptions defaultConnectionOptions
 -- | Explicit-options variant of 'connectDetail'.
 connectDetailWithOptions :: ConnectionOptions -> ConnectInfo -> IO (Greeting,MySQLConn)
-connectDetailWithOptions opts ci = withConnectDeadline opts $ do
+connectDetailWithOptions opts = connectDetailWithAuthentication opts defaultAuthenticationOptions
+
+-- | Open TCP with explicit external authentication. PAM still requires TLS or
+-- a Unix socket; TCP permits principal-pinned mutually authenticated GSSAPI.
+-- The authentication settings are discarded after establishment.
+connectWithAuthentication :: ConnectionOptions -> AuthenticationOptions -> ConnectInfo -> IO MySQLConn
+connectWithAuthentication opts auth ci = snd <$> connectDetailWithAuthentication opts auth ci
+
+-- | Greeting-returning variant of 'connectWithAuthentication'.
+connectDetailWithAuthentication :: ConnectionOptions -> AuthenticationOptions -> ConnectInfo -> IO (Greeting,MySQLConn)
+connectDetailWithAuthentication opts auth ci = withConnectDeadline opts $ do
     validateOptions opts
     bracketOnError (TCP.connectSocketTimeout (connectTimeoutMicros opts) (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
-        conn <- newTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
-        greet <- readGreeting conn
+        (authConn,conn) <- newAuthenticatingTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
+        greet <- authenticationDiagnostic (readGreeting authConn)
         let caps=negotiatedCapabilities opts greet
         writeIORef (connectionCapabilities conn) caps
-        mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
-        q <- readConnPacket conn
-        completeAuth conn greet False (ciPassword ci) q
+        mysqlWrite conn (encodeToPacket 1 (mkAuthForAuthentication auth opts caps ci greet))
+        q <- authenticationDiagnostic (readConnPacket authConn)
+        completeAuthWithOptions auth authConn greet False (ciPassword ci) q
         when (testBit caps 5) (connectionCompressionStart conn)
         role <- initializeSession conn
         rememberInitialSession conn ci role
@@ -542,19 +577,29 @@ connectUnixSocketDetail :: FilePath -> ConnectInfo -> IO (Greeting,MySQLConn)
 connectUnixSocketDetail = connectUnixSocketDetailWithOptions defaultConnectionOptions
 -- | Explicit-options variant of 'connectUnixSocketDetail'.
 connectUnixSocketDetailWithOptions :: ConnectionOptions -> FilePath -> ConnectInfo -> IO (Greeting,MySQLConn)
-connectUnixSocketDetailWithOptions opts path ci = withConnectDeadline opts $ do
+connectUnixSocketDetailWithOptions opts = connectUnixSocketDetailWithAuthentication opts defaultAuthenticationOptions
+
+-- | Open a Unix socket with explicit PAM/GSSAPI settings. The local socket is
+-- a permitted cleartext authentication transport; its filesystem access policy
+-- remains the application's responsibility.
+connectUnixSocketWithAuthentication :: ConnectionOptions -> AuthenticationOptions -> FilePath -> ConnectInfo -> IO MySQLConn
+connectUnixSocketWithAuthentication opts auth path ci = snd <$> connectUnixSocketDetailWithAuthentication opts auth path ci
+
+-- | Greeting-returning variant of 'connectUnixSocketWithAuthentication'.
+connectUnixSocketDetailWithAuthentication :: ConnectionOptions -> AuthenticationOptions -> FilePath -> ConnectInfo -> IO (Greeting,MySQLConn)
+connectUnixSocketDetailWithAuthentication opts auth path ci = withConnectDeadline opts $ do
     validateOptions opts
     let open=bracketOnError (N.socket N.AF_UNIX N.Stream 0) N.close $ \sock -> do
             N.connect sock (N.SockAddrUnix path)
             TCP.socketToConnectionAdaptive bUFSIZE (sock,N.SockAddrUnix path)
     bracketOnError open Conn.close $ \raw -> do
-        conn <- newTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
-        greet <- readGreeting conn
+        (authConn,conn) <- newAuthenticatingTransportConnection opts (Conn.source raw) (Conn.send raw) (Conn.close raw)
+        greet <- authenticationDiagnostic (readGreeting authConn)
         let caps=negotiatedCapabilities opts greet
         writeIORef (connectionCapabilities conn) caps
-        mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
-        q <- readConnPacket conn
-        completeAuth conn greet True (ciPassword ci) q
+        mysqlWrite conn (encodeToPacket 1 (mkAuthForAuthentication auth opts caps ci greet))
+        q <- authenticationDiagnostic (readConnPacket authConn)
+        completeAuthWithOptions auth authConn greet True (ciPassword ci) q
         when (testBit caps 5) (connectionCompressionStart conn)
         role <- initializeSession conn
         rememberInitialSession conn ci role
@@ -580,6 +625,16 @@ negotiatedCapabilities options greeting = (implemented .&. greetingCaps greeting
         .|. (if enableMetadataCaching options then bit 36 else 0)
         .|. (if enableExtendedMetadata options then bit 35 else 0)
 
+-- | A required GSSAPI principal also forbids sending a password proof before
+-- that method has been negotiated. MariaDB normally greets with native-password
+-- even for GSSAPI accounts; send an empty initial response and require its switch.
+mkAuthForAuthentication :: AuthenticationOptions -> ConnectionOptions -> Word64 -> ConnectInfo -> Greeting -> Auth
+mkAuthForAuthentication auth options caps ci greeting
+    | isJust (authenticationGSSAPIPrincipal auth) = Auth caps
+        (fromIntegral (maximumMessageBytes options)) (ciCharset ci) (ciUser ci)
+        B.empty (ciDatabase ci) (greetingAuthPlugin greeting)
+    | otherwise = mkAuthWithOptions options caps ci greeting
+
 mkAuthWithOptions :: ConnectionOptions -> Word64 -> ConnectInfo -> Greeting -> Auth
 mkAuthWithOptions options caps ci greeting =
     let Auth _ _ charset user response database plugin = mkAuth (ciDatabase ci) (ciUser ci) (ciPassword ci) (ciCharset ci) greeting
@@ -599,6 +654,9 @@ scrambleForPlugin plugin salt pass
     | plugin == "mysql_native_password" = checkedNonce 20 (scrambleSHA1 salt pass)
     | plugin == "client_ed25519" = checkedNonce 32 (scrambleEd25519 salt pass)
     | plugin == "parsec" = checkedNonce 32 B.empty
+    -- External plugins begin their conversation after the client header. No
+    -- password/token may be emitted before transport and opt-in checks.
+    | plugin `elem` ["dialog", "mysql_clear_password", "auth_gssapi_client"] = B.empty
     | otherwise = throw (AuthException ("unsupported MariaDB authentication plugin: " ++ show plugin))
   where
     checkedNonce count result
@@ -654,34 +712,63 @@ withConnectDeadline options action = do
     timeout (connectTimeoutMicros options) action >>= maybe
         (throwIO (AuthException "MariaDB connection establishment timed out")) pure
 
+-- | Packet decoders retain failing buffers for ordinary query diagnostics.
+-- Authentication parsing must not disclose them. Keep this wrapper around the
+-- decoder itself so exceptions deliberately raised by application callbacks
+-- retain their original type and value.
+authenticationDiagnostic :: IO a -> IO a
+authenticationDiagnostic action = action `catch` \(_ :: DecodePacketException) ->
+    throwIO (AuthException "malformed authentication packet")
+
 -- | Complete a bounded plugin conversation on this connection. Plugin and nonce
 -- always travel together, including auth switches. Cleartext full-auth responses
 -- are allowed only over TLS or a Unix-domain socket. Malformed messages and
 -- unsupported plugins fail closed; the constructor owns transport cleanup.
 completeAuth :: MySQLConn -> Greeting -> Bool -> ByteString -> Packet -> IO ()
-completeAuth conn greeting secure password = loop 0 (greetingAuthPlugin greeting) initialNonce
+completeAuth = completeAuthWithOptions defaultAuthenticationOptions
+
+-- | External-authentication variant. Switches embed raw plugin data; later
+-- tokens use AuthMoreData. Decode that envelope before invoking a plugin, and
+-- accept terminal OK/ERR only in their original SQL-protocol envelope.
+completeAuthWithOptions :: AuthenticationOptions -> MySQLConn -> Greeting -> Bool -> ByteString -> Packet -> IO ()
+completeAuthWithOptions auth conn greeting secure password first = do
+    checkPacket first
+    when (isERR first) (authError first)
+    if greetingAuthPlugin greeting `elem` externalPlugins
+    then external 0 (greetingAuthPlugin greeting) (unwrapPlugin first)
+    else loop 0 (greetingAuthPlugin greeting) initialNonce first
   where
     initialNonce = greetingSalt1 greeting <> greetingSalt2 greeting
     input = mysqlRead conn
     output = mysqlWrite conn
     send packet body = output (Packet (fromIntegral (B.length body)) (pSeqN packet + 1) (L.fromStrict body))
-    next = readPacket input
+    next = readPacketWithLimit (authenticationWireLimit (connectionOptions conn)) input
+    authError packet = authenticationDiagnostic (decodeFromPacket packet) >>= throwIO . ERRException
+    authOK packet = void (authenticationDiagnostic (consumeOK conn packet))
+    checkPacket packet = when (pLen packet < 0 || fromIntegral (pLen packet) > authenticationWireLimit (connectionOptions conn))
+        (throwIO (AuthException "authentication packet exceeds message limit"))
     loop :: Int -> ByteString -> ByteString -> Packet -> IO ()
     loop rounds plugin nonce packet
         | rounds >= 16 = throwIO (AuthException "too many authentication exchanges")
-        | isOK packet = void (consumeOK conn packet)
-        | isERR packet = decodeFromPacket packet >>= throwIO . ERRException
+        | isERR packet = authError packet
+        -- Requiring a principal is an authentication-method requirement, not
+        -- merely permission to use the credential cache if a server asks.
+        -- Reject OK and password continuations before any alternate response.
+        | isJust (authenticationGSSAPIPrincipal auth) && not (isAuthSwitch packet) =
+            throwIO (AuthException "MariaDB did not select required GSSAPI authentication")
+        | isOK packet = authOK packet
         | isAuthSwitch packet = do
+            checkPacket packet
             let (name, rest) = B.break (==0) (B.drop 1 (L.toStrict (pBody packet)))
             when (B.null name || B.length name > 128 || B.null rest)
                 (throwIO (AuthException "malformed authentication switch"))
+            when (isJust (authenticationGSSAPIPrincipal auth) && name /= "auth_gssapi_client")
+                (throwIO (AuthException "MariaDB requested another method instead of required GSSAPI"))
             let challenge = B.drop 1 rest
-                expected = if name `elem` ["client_ed25519", "parsec"] then 32 else 20
-                exact = if B.length challenge == expected+1 && B.last challenge == 0
-                        then B.init challenge else challenge
-            response <- evaluate (scrambleForPlugin name exact password)
-            send packet response
-            next >>= loop (rounds+1) name exact
+            if name `elem` externalPlugins
+                then external (rounds+1) name
+                    (Packet (fromIntegral (B.length challenge)) (pSeqN packet) (L.fromStrict challenge))
+                else passwordSwitch rounds name challenge packet
         | isAuthMoreData packet && plugin == "parsec" = do
             let parameters = B.drop 1 (L.toStrict (pBody packet))
             unless (B.length parameters == 20 && B.head parameters == 80)
@@ -705,18 +792,120 @@ completeAuth conn greeting secure password = loop 0 (greetingAuthPlugin greeting
                     else do
                         send packet (B.singleton 2)
                         keyPacket <- next
-                        when (isERR keyPacket) (decodeFromPacket keyPacket >>= throwIO . ERRException)
+                        when (isERR keyPacket) (authError keyPacket)
                         let body = L.toStrict (pBody keyPacket)
                         unless (isAuthMoreData keyPacket && B.length body > 1 && B.length body <= 16384)
                             (throwIO (AuthException "invalid RSA authentication key envelope"))
                         doRSAAuth output (pSeqN keyPacket+1) password nonce (B.drop 1 body)
                     next >>= terminal
                 _ -> throwIO (AuthException "invalid SHA-2 authentication continuation")
-        | otherwise = throwIO (UnexpectedPacket packet)
+        | otherwise = throwIO (AuthException "unexpected authentication response")
+    passwordSwitch rounds name challenge packet = do
+        let expected = if name `elem` ["client_ed25519", "parsec"] then 32 else 20
+            exact = if B.length challenge == expected+1 && B.last challenge == 0
+                    then B.init challenge else challenge
+        response <- evaluate (scrambleForPlugin name exact password)
+        send packet response
+        next >>= loop (rounds+1) name exact
+    -- MariaDB wraps later plugin data with AuthMoreData (0x01), while data
+    -- embedded in AuthSwitchRequest is already raw. Strip the wrapper exactly
+    -- once at the wire boundary; never feed it to PAM or the GSS mechanism.
+    unwrapPlugin packet
+        | isAuthMoreData packet = packet {pLen=pLen packet-1,pBody=L.tail (pBody packet)}
+        | otherwise = packet
+    nextPlugin = do
+        packet <- next
+        when (isERR packet) (authError packet)
+        unless (isAuthMoreData packet) (throwIO (AuthException "unexpected authentication response"))
+        pure (unwrapPlugin packet)
+    externalPlugins = ["dialog", "mysql_clear_password", "auth_gssapi_client"]
+    bounded packet = do
+        when (pLen packet > 1048576) (throwIO (AuthException "authentication token exceeds 1 MiB"))
+        pure (L.toStrict (pBody packet))
+    external :: Int -> ByteString -> Packet -> IO ()
+    external rounds plugin packet
+        | isJust (authenticationGSSAPIPrincipal auth) && plugin /= "auth_gssapi_client" =
+            throwIO (AuthException "MariaDB did not select required GSSAPI authentication")
+        | rounds >= 16 = throwIO (AuthException "too many authentication exchanges")
+        | plugin == "auth_gssapi_client" = do
+            announcement <- bounded packet
+            let (principal,rest) = B.break (==0) announcement
+                mechanism = B.drop 1 rest
+            expected <- maybe (throwIO (AuthException "GSSAPI requires an expected server principal")) pure
+                (authenticationGSSAPIPrincipal auth)
+            unless (not (B.null expected) && B.length expected <= 1024 && not (B.elem 0 expected)
+                && principal == expected && not (B.null rest)
+                && mechanism `elem` ["", "\0", "Kerberos\0", "Negotiate\0"])
+                (throwIO (AuthException "GSSAPI server principal or mechanism does not match configuration"))
+            (GSSAPI.withGSSAPI expected (mechanism == "Negotiate\0") $ \step ->
+                gssLoop step rounds packet B.empty)
+                `catch` \(GSSAPI.GSSAPIError message) -> throwIO (AuthException message)
+        | otherwise = do
+            unless secure (throwIO (AuthException "PAM cleartext authentication requires TLS or a Unix socket"))
+            callback <- maybe (throwIO (AuthException "PAM requires an explicit dialog callback")) pure
+                (authenticationDialog auth)
+            if plugin == "mysql_clear_password"
+                then do
+                    void (bounded packet)
+                    -- A clear-password switch usually carries no plugin data.
+                    -- Its sequence still belongs to the switch packet.
+                    reply <- callback (DialogPrompt B.empty False True 0)
+                    sendReply reply
+                    next >>= terminal
+                else do
+                    -- PAM can request a client-plugin switch before its
+                    -- helper has produced a prompt. A zero-byte reply
+                    -- acknowledges that switch; it contains no password.
+                    question <- if pLen packet == 0
+                        then send packet B.empty >> nextPlugin
+                        else pure packet
+                    dialogLoop callback rounds 0 question
+    sendReply reply = do
+        when (B.length reply > 65535 || B.elem 0 reply)
+            (throwIO (AuthException "PAM reply exceeds 65535 bytes or contains NUL"))
+        -- The checked writer owns the next sequence, including an empty-data
+        -- auth switch; using it avoids a second read before the required reply.
+        FramingState sequenceN _ <- readIORef (connectionSequence conn)
+        let seqN = fromIntegral sequenceN
+        output (Packet (fromIntegral (B.length reply+1)) seqN (L.fromStrict (reply <> "\0")))
+    dialogLoop callback rounds question packet = do
+        when (rounds >= 16) (throwIO (AuthException "too many authentication exchanges"))
+        -- This is raw plugin data, not an SQL envelope. In particular, an
+        -- ERR-shaped token must not become a server error containing its bytes.
+        body <- bounded packet
+        unless (not (B.null body) && B.head body `elem` [2,3,4,5])
+            (throwIO (AuthException "malformed PAM dialog question"))
+        let kind = B.head body
+            prompt = B.tail body
+            -- auth_pam sends packet-length-delimited text without a NUL;
+            -- dialog plugins may also supply one terminal NUL.
+            text = if not (B.null prompt) && B.last prompt == 0 then B.init prompt else prompt
+        when (B.length text > 65535 || B.elem 0 text)
+            (throwIO (AuthException "PAM prompt exceeds 65535 bytes or contains NUL"))
+        reply <- callback (DialogPrompt text (kind < 4) (odd kind) question)
+        sendReply reply
+        packet' <- next
+        if odd kind || isOK packet' || isERR packet'
+            then terminal packet'
+            else do
+                unless (isAuthMoreData packet') (throwIO (AuthException "unexpected authentication continuation"))
+                dialogLoop callback (rounds+1) (question+1) (unwrapPlugin packet')
+    gssLoop step rounds packet token = do
+        when (rounds >= 16) (throwIO (AuthException "too many authentication exchanges"))
+        (complete,response) <- step token
+        unless (B.null response) (send packet response)
+        reply <- next
+        if complete then terminal reply else do
+            when (isERR reply) (authError reply)
+            -- An early SQL OK is not evidence of a completed mutual context.
+            unless (isAuthMoreData reply)
+                (throwIO (AuthException "GSSAPI context ended before mutual authentication"))
+            inputToken <- bounded (unwrapPlugin reply)
+            gssLoop step (rounds+1) reply inputToken
     terminal packet
-        | isOK packet = void (consumeOK conn packet)
-        | isERR packet = decodeFromPacket packet >>= throwIO . ERRException
-        | otherwise = throwIO (UnexpectedPacket packet)
+        | isOK packet = authOK packet
+        | isERR packet = authError packet
+        | otherwise = throwIO (AuthException "unexpected authentication response")
 
 -- | Full auth handler for plain TCP connections using RSA encryption.
 --

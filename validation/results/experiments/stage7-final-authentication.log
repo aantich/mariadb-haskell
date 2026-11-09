@@ -1,0 +1,134 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 729B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 52B done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 63B done
+#4 DONE 0.0s
+
+#5 [1/5] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#5 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 done
+#5 DONE 0.0s
+
+#6 [2/5] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     krb5-kdc krb5-admin-server krb5-user libpam0g-dev gcc libc6-dev python3 openssl     mariadb-plugin-gssapi-server     && rm -rf /var/lib/apt/lists/*
+#6 CACHED
+
+#7 [4/5] RUN gcc -Wall -Wextra -Werror -fPIC -shared /opt/driver-auth/pam_fixture.c     -lpam -o /opt/driver-auth/pam_fixture.so
+#7 CACHED
+
+#8 [3/5] COPY pam_fixture.c /opt/driver-auth/pam_fixture.c
+#8 CACHED
+
+#9 [5/5] COPY serve.py /opt/driver-auth/serve.py
+#9 CACHED
+
+#10 exporting to image
+#10 exporting layers done
+#10 exporting manifest sha256:6382c59b954e8b4e99719b503eddc82b746f332dcd0e1ae607c72489dabf325e done
+#10 exporting config sha256:a08768478b7bd2038b3d88478e64d24b5977d9968f5479163adf9479a43238b1 done
+#10 exporting attestation manifest sha256:59c73f086b6630d183ddfb23ad837580b77d0fcae4e809c1c0036abdfadbb164 done
+#10 exporting manifest list sha256:77943c3aac87d9a59a99982a0d94739b3d6ef8e5b98927614e8b5af0afc08280 done
+#10 naming to docker.io/library/mariadb-haskell-stage7-auth:latest done
+#10 unpacking to docker.io/library/mariadb-haskell-stage7-auth:latest done
+#10 DONE 0.0s
+Server verified before build: 12.3.3-MariaDB-log
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (lib) (file cbits/gssapi.c changed)
+ - mysql-haskell-1.3.3 (test:test) (dependency rebuilt)
+ - mysql-haskell-1.3.3 (exe:mariadb-validation) (dependency rebuilt)
+ - mysql-haskell-1.3.3 (test:integration) (dependency rebuilt)
+Preprocessing library for mysql-haskell-1.3.3...
+Building library for mysql-haskell-1.3.3...
+<no location info>: warning: [GHC-42258] [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id dt-dflt-clss-0.2.0.0-aac0c9c2)
+      - monad-loops-0.4.3 (exposed by flag -package-id mnd-lps-0.4.3-ff24b47c)
+
+Preprocessing test suite 'integration' for mysql-haskell-1.3.3...
+Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Preprocessing test suite 'test' for mysql-haskell-1.3.3...
+Building test suite 'test' for mysql-haskell-1.3.3...
+Building test suite 'integration' for mysql-haskell-1.3.3...
+Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+[18 of 18] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration [Library changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+[27 of 27] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation [Library changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+[15 of 15] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/test/opt/build/test/test [Library changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+Installing library in /Users/aantich/.cabal/lib/aarch64-osx-ghc-9.10.3-fe9c/mysql-haskell-1.3.3-inplace
+MariaDB preflight passed: 12.3.3-MariaDB-log
+PASS stage7.dialog.multiple-questions
+PASS stage7.dialog.empty-switch-acknowledged
+PASS stage7.dialog.nonlast-question-then-ok
+PASS stage7.dialog.empty-password
+PASS stage7.dialog.plaintext-rejected-before-callback
+PASS stage7.dialog.explicit-opt-in-required
+PASS stage7.dialog.bad-kind
+PASS stage7.dialog.embedded-nul-prompt
+PASS stage7.dialog.embedded-nul-response
+PASS stage7.dialog.oversized-response
+PASS stage7.dialog.oversized-prompt
+PASS stage7.dialog.final-question-requires-ok
+PASS stage7.dialog.continuation-wrapper-required
+PASS stage7.dialog.wrapped-ok-is-not-terminal
+PASS stage7.dialog.unexpected-response-does-not-disclose-token
+PASS stage7.dialog.callback-failure-propagates
+PASS stage7.dialog.round-limit
+PASS stage7.dialog.password-helper-rejects-second-factor
+PASS stage7.clear-password.secure-switch
+PASS stage7.clear-password.plaintext-rejected
+PASS stage7.gssapi.principal-opt-in-required
+PASS stage7.gssapi.wrong-principal
+PASS stage7.gssapi.native-ok-cannot-bypass-required-principal
+PASS stage7.gssapi.initial-password-proof-is-suppressed
+PASS stage7.live.gssapi-rejects-password-only-success
+PASS stage7.gssapi.oversized-announcement
+PASS stage7.gssapi.malformed-announcement
+PASS stage7.live.pam-wrong-password
+PASS stage7.live.pam-multiple-questions
+PASS stage7.live.pam-wrong-second-factor
+PASS stage7.live.pam-cancellation-and-reconnect
+PASS stage7.live.gssapi-tls
+PASS stage7.live.gssapi-premature-ok-rejected
+PASS stage7.live.gssapi-wrong-identity
+PASS stage7.live.gssapi-missing-cache
+PASS stage7.live.gssapi-repeated-context-cleanup
+PASS stage7.live.gssapi-cancel-before-server-token
+Results: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/results/runs/stage7-final-authentication/SUMMARY.md
+Partial/short development run: live full-suite results were not replaced.
+Initializing database '/fixture/principal' for realm 'MARIADB-HASKELL.TEST',
+master key name 'K/M@MARIADB-HASKELL.TEST'
+No policy specified for mariadb/localhost@MARIADB-HASKELL.TEST; defaulting to no policy
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Principal "mariadb/localhost@MARIADB-HASKELL.TEST" created.
+No policy specified for driver@MARIADB-HASKELL.TEST; defaulting to no policy
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Principal "driver@MARIADB-HASKELL.TEST" created.
+No policy specified for other@MARIADB-HASKELL.TEST; defaulting to no policy
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Principal "other@MARIADB-HASKELL.TEST" created.
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Entry for principal mariadb/localhost@MARIADB-HASKELL.TEST with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/server.keytab.
+Entry for principal mariadb/localhost@MARIADB-HASKELL.TEST with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/server.keytab.
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Entry for principal driver@MARIADB-HASKELL.TEST with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/driver.keytab.
+Entry for principal driver@MARIADB-HASKELL.TEST with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/driver.keytab.
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Entry for principal other@MARIADB-HASKELL.TEST with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/other.keytab.
+Entry for principal other@MARIADB-HASKELL.TEST with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/other.keytab.
+2026-11-09 11:37:33 0 [Warning] mariadbd: io_uring_queue_init() failed with EPERM: sysctl kernel.io_uring_disabled has the value 2, or 1 and the user of the process is not a member of sysctl kernel.io_uring_group. (see man 2 io_uring_setup).
+create_uring failed: falling back to libaio
+mariadb/localhost@MARIADB-HASKELL.TEST: kvno = 2
+mariadb/localhost@MARIADB-HASKELL.TEST: kvno = 2

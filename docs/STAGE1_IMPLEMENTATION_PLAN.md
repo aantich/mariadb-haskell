@@ -276,6 +276,11 @@ Keep original IDs, inputs and success conditions. These 23 original failures mus
 | Parameters | `parameters.literal-question-mark`, `parameters.comment-question-mark`, `parameters.no-backslash-text` | 3 |
 | **Total** | | **23** |
 
+**Historical requirement:** the timeout assertion below was explicitly superseded
+on 9 November 2026. Anton approved safe retirement and correction of the obsolete
+reuse expectation, preserving this plan and the original baseline as history.
+See [Stage 7](STAGE7_IMPLEMENTATION.md).
+
 `reliability.timeout-before-metadata` still requires reuse of the interrupted connection and remains an honest deferred failure. Do not relabel it UNSUPPORTED or count a new safe-abort case as satisfying it. `transaction.partial-result-exception`, by contrast, explicitly requires the same connection and surviving temporary table; bounded drain/rollback must satisfy it.
 
 The public type/constructor changes need mechanical compilation adaptations. For example, widen `test/MultipleResults.hs`’s OK helper annotation from `Either Int`; adapt the synthetic old `MySQLConn` fixture to shared construction. Do not change statements, expected values, exception requirements or assertion strength. List every adaptation in review and preserve the original baseline snapshot.

@@ -1,0 +1,10 @@
+partial failure ['--only=protocol.length-0'] full-report publications: 1
+partial failure ['--repetitions', '1'] full-report publications: 1
+partial failure ['--only', 'protocol.length-0'] full-report publications: 0
+fixture creation interrupted: created names= 1 cleanup subprocesses= 0
+recorded external metadata fields: ['MB_AUTH_FIXTURE_IMAGE_ID']
+auth-specific server metadata: False
+protocol-only run provisions external fixture: True
+External authentication fixture preflight failed: synthetic fixture failure
+External authentication fixture preflight failed: synthetic fixture failure
+External authentication fixture preflight failed: synthetic fixture failure

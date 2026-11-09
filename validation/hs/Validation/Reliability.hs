@@ -112,7 +112,17 @@ cases =
     , Case "reliability.timeout-before-metadata" "reliability" $ withConn $ \c -> do
         result <- timeout 20000 (rows c "SELECT SLEEP(0.2)")
         equal "query timed out" Nothing result
-        healthy c
+        -- Contract correction approved 9 November 2026: cancellation while the
+        -- reply is incomplete retires the wire. Reusing it could consume this
+        -- command's late packets as another command's result. The original
+        -- baseline retains its historical reuse expectation and failure.
+        equal "cancelled transport retired" Broken =<< connectionStatus c
+        rejected <- try (ping c)
+        case rejected of
+            Left (ConnectionUnavailable Broken) -> pure ()
+            Left err -> throwIO err
+            Right _ -> fail "cancelled connection admitted another command"
+        withConn healthy
     , Case "reliability.server-kill-query" "reliability" $ withConn $ \c -> withConn $ \control -> do
         connectionId <- scalarInt c "SELECT CONNECTION_ID()"
         (_,stream) <- query_ c "SELECT REPEAT('x',20000),SLEEP(0.01) FROM seq_1_to_10000"

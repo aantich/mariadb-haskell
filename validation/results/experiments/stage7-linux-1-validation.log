@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/workspace/validation/linux/verify.py", line 172, in <module>
+    with auth_fixture.environment(local=True) as fixture:
+  File "/usr/lib/python3.12/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/workspace/validation/auth_fixture.py", line 43, in environment
+    raise RuntimeError('local authentication fixtures require the disposable Linux CI image')
+RuntimeError: local authentication fixtures require the disposable Linux CI image

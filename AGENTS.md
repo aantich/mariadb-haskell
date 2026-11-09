@@ -162,3 +162,30 @@ commit and push the reviewed implementation and retained evidence directly on
 main. Use the committed-input publication workflow above, preserve all immutable
 references and unsuccessful attempts, and keep timing investigations visible.
 Provide the GitHub link to the refreshed live report after verifying the push.
+
+
+User approval, 9 November 2026: close the PAM/GSSAPI authentication gaps with
+real client support and isolated reproducible fixtures. Keep safe retirement
+and correct the obsolete timeout-reuse expectation to explicit retirement
+assertions. Preserve the original baseline/history and label the change as a
+test-contract correction, not a driver fix. This supersedes the earlier rule
+requiring that particular contradictory assertion to remain unchanged. Work on
+main and leave implementation uncommitted for review unless publication is
+separately requested. Avoid unnecessary repeated full benchmark runs when a
+complete matching capture already exists.
+
+
+User approval, 9 November 2026 after the Stage 7 review: fix all five findings
+in docs/STAGE7_CODE_REVIEW.md. Preserve callback exception identity and real
+server errors while sanitizing malformed authentication decodes; enforce the
+authentication limit before body reads without adding query-loop phase checks;
+share full-run classification; clean up owned partial container creation; and
+avoid external services for non-live filtered checks. Add regressions and refresh
+the required complete correctness/performance report. Continue on main with all
+changes uncommitted for review; preserve earlier captures and immutable baselines.
+
+
+User instruction, 9 November 2026 after the Stage 7 review fixes: commit and
+push the reviewed changes and existing complete results directly on main. Keep
+the exact pre-commit measurements and their provenance; do not relabel them as
+a fresh committed-input run. No additional benchmark confirmation is requested.

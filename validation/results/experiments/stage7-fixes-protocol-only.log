@@ -1,0 +1,7 @@
+Server verified before build: 12.3.3-MariaDB-log
+Up to date
+Installing library in /Users/aantich/.cabal/lib/aarch64-osx-ghc-9.10.3-fe9c/mysql-haskell-1.3.3-inplace
+MariaDB preflight passed: 12.3.3-MariaDB-log
+PASS protocol.length-0
+Results: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/results/runs/stage7-fixes-protocol-only/SUMMARY.md
+Partial/short development run: live full-suite results were not replaced.

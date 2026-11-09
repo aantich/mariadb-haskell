@@ -1,0 +1,6 @@
+{
+  "reference": "references/stage6-publication-1.json",
+  "sha256": "4a7e16d2ddaa7220955041361bbda4c4558d326af07602b86708a0d02b0ba367",
+  "tested_commit": "9c4bac0cbeabc269d41ec307aa53e4f2da50f345",
+  "purpose": "Protect all 793 published Stage 6 passes; this does not advance any performance baseline."
+}

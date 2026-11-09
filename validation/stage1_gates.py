@@ -116,6 +116,20 @@ def compare(candidate, previous, original, *, require_targets=True, previous_sta
             failures.append("failure outside original deferred set: " + ident)
         if ident not in original_ids and case["status"] != "PASS":
             failures.append("new case not passing: " + ident)
+    if any(ident.startswith('stage7.') for ident in new):
+        # Stage 7 protects every published Stage 6 pass independently of the
+        # unchanged performance references. The approved timeout assertion
+        # correction is reported separately from driver improvements.
+        try:
+            published, _ = reference(HERE / 'results/stage7-reference.json')
+            for case in published['correctness']:
+                if case['status'] == 'PASS' and new.get(case['id'], {}).get('status') != 'PASS':
+                    failures.append('Stage 6: lost PASS ' + case['id'])
+        except (OSError, ValueError, KeyError) as error:
+            evidence.append('Stage 6 correctness reference invalid: ' + str(error))
+        for ident in ['auth.pam-environment', 'auth.gssapi-environment', 'reliability.timeout-before-metadata']:
+            if new.get(ident, {}).get('status') != 'PASS':
+                failures.append('required external-auth/timeout target not passing: ' + ident)
     if require_targets:
         for ident in TARGETS:
             if new.get(ident, {}).get("status") != "PASS":

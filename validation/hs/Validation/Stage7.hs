@@ -1,0 +1,435 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
+-- | Independent authentication packets plus a real disposable PAM/Kerberos
+-- server. Authentication inventory entries call these same live feature checks.
+module Validation.Stage7 (cases, pamFeature, gssapiFeature) where
+
+import Control.Concurrent
+import Control.Exception hiding (assert)
+import Control.Monad
+import Data.Binary (encode)
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BC
+import qualified Data.ByteString.Lazy as L
+import Data.List (isInfixOf)
+import Data.IORef
+import Database.MySQL.Base
+import qualified Database.MySQL.Connection as C
+import qualified Database.MySQL.TLS as TLS
+import Validation.ExternalAuthFixture
+import Foreign.C.Types (CUInt(..))
+import qualified Network.Socket as N
+import qualified Network.Socket.ByteString as NB
+import System.Environment
+import qualified System.IO.Streams as S
+import System.Timeout
+import Validation.Common
+
+foreign import ccall unsafe "mariadb_gss_live_contexts"
+    nativeContextCount :: IO CUInt
+
+awaitReleasedContexts :: IO ()
+awaitReleasedContexts = do
+    released <- timeout 2000000 wait
+    equal "native GSS contexts released" (Just ()) released
+  where
+    wait = do
+        count <- nativeContextCount
+        unless (count == 0) (threadDelay 1000 >> wait)
+
+case7 :: String -> IO () -> Case
+case7 name = Case ("stage7." ++ name) "stage7-external-authentication"
+
+packet :: Int -> B.ByteString -> Packet
+packet n body = Packet (fromIntegral (B.length body)) (fromIntegral n) (L.fromStrict body)
+
+ok :: Int -> Packet
+ok n = packet n "\0\0\0\2\0\0\0"
+
+switch :: B.ByteString -> B.ByteString -> Packet
+switch plugin body = packet 2 ("\254" <> plugin <> "\0" <> body)
+
+-- Packet two has already been read by the constructor. Remaining packets and
+-- every client reply go through the production sequence validator.
+conversation :: AuthenticationOptions -> Bool -> Packet -> [Packet]
+             -> IO (IO (), IO [B.ByteString])
+conversation auth secure first rest = do
+    source <- S.fromList rest
+    sent <- newIORef []
+    conn <- C.newConnection defaultConnectionOptions source
+        (\p -> modifyIORef' sent (L.toStrict (pBody p):)) (pure ())
+    C.setExchangeSequence conn (fromIntegral (pSeqN first)+1)
+    let hello = Greeting 10 "12.3.3-MariaDB" 1 "12345678" clientCap 224 2
+            "901234567890" "mysql_native_password"
+    pure (C.completeAuthWithOptions auth conn hello secure "unused SQL password" first,
+          reverse <$> readIORef sent)
+
+pam :: (DialogPrompt -> IO B.ByteString) -> AuthenticationOptions
+pam callback = defaultAuthenticationOptions {authenticationDialog=Just callback}
+
+rejectAuth :: IO a -> IO ()
+rejectAuth action = do
+    result <- try action
+    case result of
+        Left (_ :: AuthException) -> pure ()
+        Right _ -> fail "invalid authentication unexpectedly succeeded"
+
+-- Check displayed exceptions as well as rejection: rejecting a packet is not
+-- sufficient if the error would copy an opaque token into application logs.
+redactedAuth :: String -> IO () -> IO ()
+redactedAuth marker action = do
+    result <- try action
+    case result of
+        Left (err :: SomeException) -> do
+            assert (not (marker `isInfixOf` displayException err)) "authentication data disclosed"
+            case fromException err of
+                Just (_ :: AuthException) -> pure ()
+                Nothing -> fail "malformed authentication did not produce AuthException"
+        Right () -> fail "malformed authentication unexpectedly succeeded"
+
+-- Only the header exists. Reading a body is a test failure, rather than a large
+-- allocation that could accidentally make a post-read check appear sufficient.
+headerOnly :: ConnectionOptions -> Int -> IO (MySQLConn, IO Bool)
+headerOnly options size = do
+    supplied <- newIORef False
+    bodyRead <- newIORef False
+    input <- S.makeInputStream $ do
+        previous <- atomicModifyIORef' supplied (\old -> (True,old))
+        if previous then writeIORef bodyRead True >> fail "authentication body requested"
+        else pure (Just (B.pack [fromIntegral size,fromIntegral (size `div` 256),
+            fromIntegral (size `div` 65536),4]))
+    (conn,_) <- C.newAuthenticatingTransportConnection options input (const (pure ())) (pure ())
+    C.setExchangeSequence conn 4
+    pure (conn,readIORef bodyRead)
+
+rejectHeader :: IO a -> IO Bool -> IO ()
+rejectHeader action bodyRead = do
+    result <- try (void action)
+    case result of
+        Left (ProtocolError _) -> pure ()
+        Left err -> throwIO err
+        Right () -> fail "oversized authentication header accepted"
+    equal "authentication header rejected before body read" False =<< bodyRead
+
+fixturePassword :: IO B.ByteString
+fixturePassword = BC.pack <$> getEnv "MB_AUTH_PAM_PASSWORD"
+
+pamFeature :: IO ()
+pamFeature = do
+    password <- fixturePassword
+    withConnect (pamConnect "mariadb_pam" (passwordDialog password)) healthy
+
+gssapiFeature :: IO ()
+gssapiFeature = withConnect gssapiConnect healthy
+
+withCache :: String -> IO a -> IO a
+withCache cache action = bracket (lookupEnv "KRB5CCNAME") restore $ \_ ->
+    setEnv "KRB5CCNAME" cache >> action
+  where
+    restore Nothing = unsetEnv "KRB5CCNAME"
+    restore (Just previous) = setEnv "KRB5CCNAME" previous
+
+cases :: [Case]
+cases =
+    [ case7 "dialog.multiple-questions" $ do
+        observed <- newIORef []
+        let callback prompt = do
+                modifyIORef' observed (prompt:)
+                pure (if dialogEcho prompt then "code" else "password")
+        (run,sent) <- conversation (pam callback) True
+            (switch "dialog" "\4Password:") [packet 4 "\1\3Code:\0",ok 6]
+        run
+        equal "prompt kinds/text/rounds" [DialogPrompt "Password:" False False 0,
+            DialogPrompt "Code:" True True 1] . reverse =<< readIORef observed
+        equal "wire replies" ["password\0","code\0"] =<< sent
+    , case7 "dialog.empty-switch-acknowledged" $ do
+        (run,sent) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" B.empty) [packet 4 "\1\5Password:",ok 6]
+        run
+        equal "empty switch ACK precedes credential" [B.empty,"secret\0"] =<< sent
+    , case7 "dialog.nonlast-question-then-ok" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" "\4Password:") [ok 4]
+        run
+    , case7 "dialog.empty-password" $ do
+        (run,sent) <- conversation (pam (passwordDialog B.empty)) True
+            (switch "dialog" "\5\0") [ok 4]
+        run
+        equal "empty password has terminator" ["\0"] =<< sent
+    , case7 "dialog.plaintext-rejected-before-callback" $ do
+        called <- newIORef False
+        (run,sent) <- conversation (pam (\_ -> writeIORef called True >> pure "secret")) False
+            (switch "dialog" "\5Password:") []
+        rejectAuth run
+        equal "no callback" False =<< readIORef called
+        equal "no secret sent" [] =<< sent
+    , case7 "dialog.explicit-opt-in-required" $ do
+        (run,sent) <- conversation defaultAuthenticationOptions True (switch "dialog" "\5Password:") []
+        rejectAuth run
+        equal "no response" [] =<< sent
+    , case7 "dialog.bad-kind" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True (switch "dialog" "\6Password:") []
+        rejectAuth run
+    , case7 "dialog.embedded-nul-prompt" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True (switch "dialog" "\5bad\0prompt\0") []
+        rejectAuth run
+    , case7 "dialog.embedded-nul-response" $ do
+        (run,sent) <- conversation (pam (\_ -> pure "secret\0extra")) True (switch "dialog" "\5Password:") []
+        rejectAuth run
+        equal "no truncated credential sent" [] =<< sent
+    , case7 "dialog.oversized-response" $ do
+        (run,sent) <- conversation (pam (\_ -> pure (B.replicate 65536 65))) True (switch "dialog" "\5Password:") []
+        rejectAuth run
+        equal "no oversized credential sent" [] =<< sent
+    , case7 "dialog.oversized-prompt" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" (B.singleton 5 <> B.replicate 65536 65)) []
+        rejectAuth run
+    , case7 "dialog.final-question-requires-ok" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" "\5Password:") [packet 4 "\4Another question:"]
+        expectRejection run
+    , case7 "dialog.continuation-wrapper-required" $ do
+        (run,_) <- conversation (pam (\_ -> pure "response")) True
+            (switch "dialog" "\4Question:") [packet 4 "\4Unwrapped:"]
+        expectRejection run
+    , case7 "dialog.wrapped-ok-is-not-terminal" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" "\5Password:") [packet 4 "\1\0\0\0\2\0\0\0"]
+        expectRejection run
+    , case7 "dialog.unexpected-response-does-not-disclose-token" $ do
+        let secretMarker = "credential-material-must-not-appear"
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" "\5Password:") [packet 4 ("\1" <> secretMarker)]
+        result <- try run
+        case result of
+            Left (err :: SomeException) -> do
+                assert (not (BC.unpack secretMarker `isInfixOf` show err))
+                    "authentication exception disclosed raw packet/token bytes"
+                case fromException err of
+                    Just (_ :: AuthException) -> pure ()
+                    Nothing -> fail "unexpected authentication response lacks bounded AuthException"
+            Right () -> fail "malformed authentication unexpectedly succeeded"
+    , case7 "dialog.callback-failure-propagates" $ do
+        (run,_) <- conversation (pam (\_ -> throwIO ThreadKilled)) True (switch "dialog" "\5Password:") []
+        result <- try run
+        case result of
+            Left ThreadKilled -> pure ()
+            _ -> fail "callback cancellation was swallowed"
+    , case7 "dialog.wrapped-err-token-is-redacted" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" "\4Password:") [packet 4 "\1\255\21\4#28000PRIVATE-TOKEN-MARKER"]
+        redactedAuth "PRIVATE-TOKEN-MARKER" run
+    , case7 "dialog.initial-err-token-is-redacted" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" "\255\21\4#28000PRIVATE-TOKEN-MARKER") []
+        redactedAuth "PRIVATE-TOKEN-MARKER" run
+    , case7 "dialog.malformed-ok-is-redacted" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" "\5Password:") [packet 4 "\0\255PRIVATE-TOKEN-MARKER"]
+        redactedAuth "PRIVATE-TOKEN-MARKER" run
+    , case7 "dialog.malformed-err-is-redacted" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" "\5Password:") [packet 4 "\255\0\0#Z!Z!"]
+        redactedAuth "Z!Z!" run
+    , case7 "dialog.raw-server-err-preserved" $ do
+        (run,_) <- conversation (pam (passwordDialog "secret")) True
+            (switch "dialog" "\5Password:") [packet 4 "\255\21\4#28000ordinary rejection"]
+        expectERR [1045] run
+    , case7 "dialog.callback-decode-exception-preserved" $ do
+        (run,_) <- conversation (pam (\_ -> throwIO (DecodePacketFailed "callback-owned" 0 "callback failure"))) True
+            (switch "dialog" "\5Password:") []
+        result <- try run
+        case result of
+            Left (DecodePacketFailed bytes _ _) -> equal "callback owns exception" "callback-owned" bytes
+            Right () -> fail "callback exception swallowed"
+    , case7 "dialog.round-limit" $ do
+        count <- newIORef (0::Int)
+        (run,_) <- conversation (pam (\_ -> modifyIORef' count (+1) >> pure "response")) True
+            (switch "dialog" "\4Question:") [packet n "\1\4Question:" | n <- [4,6..100]]
+        rejectAuth run
+        actual <- readIORef count
+        assert (actual <= 16) "unbounded callback loop"
+    , case7 "dialog.password-helper-rejects-second-factor" $ do
+        expectRejection (passwordDialog "password" (DialogPrompt "PIN:" False True 1))
+        expectRejection (passwordDialog "password" (DialogPrompt "Username:" True True 0))
+    , case7 "clear-password.secure-switch" $ do
+        (run,sent) <- conversation (pam (passwordDialog "secret")) True
+            (switch "mysql_clear_password" B.empty) [ok 4]
+        run
+        equal "clear password response" ["secret\0"] =<< sent
+    , case7 "clear-password.plaintext-rejected" $ do
+        (run,sent) <- conversation (pam (passwordDialog "secret")) False
+            (switch "mysql_clear_password" B.empty) []
+        rejectAuth run
+        equal "no clear password" [] =<< sent
+    , case7 "clear-password.oversized-challenge-rejected" $ do
+        called <- newIORef False
+        (run,sent) <- conversation (pam (\_ -> writeIORef called True >> pure "secret")) True
+            (switch "mysql_clear_password" (B.replicate 1048577 65)) []
+        rejectAuth run
+        equal "oversized challenge did not invoke callback" False =<< readIORef called
+        equal "no credential reply" [] =<< sent
+    , case7 "wire.initial-header-limit" $ do
+        (conn,bodyRead) <- headerOnly defaultConnectionOptions (2*1024*1024)
+        rejectHeader (C.readConnPacket conn) bodyRead
+    , case7 "wire.continuation-header-limit" $ do
+        (conn,bodyRead) <- headerOnly defaultConnectionOptions (2*1024*1024)
+        C.setExchangeSequence conn 3
+        let hello = Greeting 10 "12.3.3-MariaDB" 1 "12345678" clientCap 224 2
+                "901234567890" "mysql_native_password"
+        rejectHeader (C.completeAuthWithOptions (pam (passwordDialog "secret")) conn hello True ""
+            (switch "dialog" "\4Password:")) bodyRead
+    , case7 "wire.smaller-caller-budget" $ do
+        (conn,bodyRead) <- headerOnly defaultConnectionOptions {maximumMessageBytes=512} 1024
+        rejectHeader (C.readConnPacket conn) bodyRead
+    , case7 "wire.query-budget-restored-after-auth" $ do
+        let payload = B.replicate (2*1024*1024) 65
+        input <- S.fromList [L.toStrict (encode (ok 4)),L.toStrict (encode (packet 5 payload))]
+        (authConn,conn) <- C.newAuthenticatingTransportConnection defaultConnectionOptions input (const (pure ())) (pure ())
+        C.setExchangeSequence authConn 3
+        let hello = Greeting 10 "12.3.3-MariaDB" 1 "12345678" clientCap 224 2
+                "901234567890" "mysql_native_password"
+        C.completeAuthWithOptions (pam (passwordDialog "secret")) authConn hello True ""
+            (switch "dialog" "\5Password:")
+        reply <- C.readConnPacket conn
+        equal "ordinary reader admits larger query result" (L.fromStrict payload) (pBody reply)
+    , case7 "gssapi.principal-opt-in-required" $ do
+        (run,sent) <- conversation defaultAuthenticationOptions False
+            (switch "auth_gssapi_client" "mariadb/localhost@TEST\0\0") []
+        rejectAuth run
+        equal "no ticket disclosure" [] =<< sent
+    , case7 "gssapi.wrong-principal" $ do
+        let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/expected@TEST"}
+        (run,sent) <- conversation auth False (switch "auth_gssapi_client" "mariadb/unexpected@TEST\0\0") []
+        rejectAuth run
+        equal "no ticket disclosure" [] =<< sent
+    , case7 "gssapi.native-ok-cannot-bypass-required-principal" $ do
+        let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/localhost@TEST"}
+        (run,_) <- conversation auth False (ok 2) []
+        rejectAuth run
+    , case7 "gssapi.initial-password-proof-is-suppressed" $
+        bracket (N.socket N.AF_INET N.Stream 0) N.close $ \listener -> do
+            N.bind listener (N.SockAddrInet 0 (N.tupleToHostAddress (127,0,0,1)))
+            N.listen listener 1
+            N.SockAddrInet port _ <- N.getSocketName listener
+            captured <- newEmptyMVar
+            finished <- newEmptyMVar
+            let hello = Greeting 10 "12.3.3-MariaDB" 1 "12345678" clientCap 224 2
+                    "901234567890" "mysql_native_password"
+                receive sock size = do
+                    -- Read the fixed header first, then exactly its payload;
+                    -- no decoder under test determines the password offset.
+                    let exact 0 parts = pure (B.concat (reverse parts))
+                        exact remaining parts = do
+                            chunk <- NB.recv sock remaining
+                            when (B.null chunk) (fail "truncated client authentication")
+                            exact (remaining-B.length chunk) (chunk:parts)
+                    exact size []
+            worker <- forkFinally (bracket (fst <$> N.accept listener) N.close $ \sock -> do
+                NB.sendAll sock (L.toStrict (encode (encodeToPacket 0 hello)))
+                header <- receive sock 4
+                let size = sum [fromIntegral (B.index header n) * (256^n) | n <- [0..2]]
+                body <- receive sock size
+                putMVar captured body
+                NB.sendAll sock (L.toStrict (encode (ok 2)))) (putMVar finished)
+            flip finally (killThread worker) $ do
+                let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/localhost@TEST"}
+                    ci = defaultConnectInfoMB4 {ciHost="127.0.0.1",ciPort=port,
+                        ciUser="gssapi-test",ciPassword="must-not-be-used"}
+                rejectAuth (connectWithAuthentication defaultConnectionOptions {connectTimeoutMicros=1000000} auth ci)
+                result <- timeout 1000000 (takeMVar finished)
+                case result of
+                    Just (Right ()) -> pure ()
+                    _ -> fail "authentication wire fixture did not complete"
+                body <- takeMVar captured
+                let afterUser = B.drop 1 (snd (B.break (==0) (B.drop 32 body)))
+                assert (not (B.null afterUser)) "client authentication payload missing"
+                equal "no native password proof before GSSAPI" 0 (B.head afterUser)
+    , case7 "live.gssapi-rejects-password-only-success" $ do
+        ci <- config
+        let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/localhost@TEST"}
+        expectRejection (withConnect (connectWithAuthentication defaultConnectionOptions auth ci) healthy)
+    , case7 "gssapi.oversized-announcement" $ do
+        let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/localhost@TEST"}
+        (run,_) <- conversation auth False (switch "auth_gssapi_client" (B.replicate 1048577 65)) []
+        rejectAuth run
+    , case7 "gssapi.malformed-announcement" $ forM_
+        ["", "mariadb/localhost@TEST", "mariadb/localhost@TEST\0NTLM\0", "mariadb/localhost@TEST\0\0extra"] $ \challenge -> do
+        let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/localhost@TEST"}
+        (run,_) <- conversation auth False (switch "auth_gssapi_client" challenge) []
+        rejectAuth run
+    , case7 "live.pam-wrong-password" $
+        expectERR [1045] (withConnect (pamConnect "mariadb_pam" (passwordDialog "incorrect")) healthy)
+    , case7 "live.pam-multiple-questions" $ do
+        password <- fixturePassword
+        code <- BC.pack <$> getEnv "MB_AUTH_PAM_CODE"
+        prompts <- newIORef []
+        let callback prompt = modifyIORef' prompts (prompt:) >>
+                pure (if dialogRound prompt == 0 then password else code)
+        withConnect (pamConnect "mariadb_pam_multi" callback) healthy
+        actual <- reverse <$> readIORef prompts
+        equal "real PAM conversation length" 2 (length actual)
+        equal "real PAM echo modes" [False,True] (map dialogEcho actual)
+    , case7 "live.pam-wrong-second-factor" $ do
+        password <- fixturePassword
+        let callback prompt = pure (if dialogRound prompt == 0 then password else "incorrect")
+        expectERR [1045] (withConnect (pamConnect "mariadb_pam_multi" callback) healthy)
+    , case7 "live.pam-cancellation-and-reconnect" $ do
+        ca <- getEnv "MB_AUTH_TLS_CA"
+        ci <- authConfig "mariadb_pam"
+        params <- TLS.makeClientParams (TLS.CustomCAStore ca)
+        let options = defaultConnectionOptions {connectTimeoutMicros=200000}
+        result <- try (timeout 1000000 (TLS.connectWithAuthentication options
+            (pam (\_ -> threadDelay 1000000 >> pure "never sent")) ci (params,"localhost")))
+        case result of
+            Left (_ :: AuthException) -> pure ()
+            Right Nothing -> fail "connection deadline failed to release PAM callback"
+            Right (Just conn) -> close conn >> fail "timed out PAM unexpectedly connected"
+        pamFeature
+    , case7 "live.gssapi-tls" $ do
+        ci <- authConfig "mariadb_gssapi"
+        principal <- BC.pack <$> getEnv "MB_AUTH_GSSAPI_PRINCIPAL"
+        ca <- getEnv "MB_AUTH_TLS_CA"
+        params <- TLS.makeClientParams (TLS.CustomCAStore ca)
+        withConnect (TLS.connectWithAuthentication defaultConnectionOptions
+            defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just principal}
+            ci (params,"localhost")) healthy
+    , case7 "live.gssapi-premature-ok-rejected" $ do
+        principal <- BC.pack <$> getEnv "MB_AUTH_GSSAPI_PRINCIPAL"
+        let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just principal}
+        (run,_) <- conversation auth False (switch "auth_gssapi_client" (principal <> "\0\0")) [ok 4]
+        rejectAuth run
+        awaitReleasedContexts
+    , case7 "live.gssapi-wrong-identity" $ do
+        cache <- getEnv "MB_AUTH_GSSAPI_OTHER_CACHE"
+        withCache cache (expectERR [1045] (withConnect gssapiConnect healthy))
+    , case7 "live.gssapi-missing-cache" $
+        withCache "FILE:/nonexistent/mariadb-haskell-stage7-cache" (expectRejection (withConnect gssapiConnect healthy))
+    , case7 "live.gssapi-repeated-context-cleanup" $ do
+        replicateM_ 20 gssapiFeature
+        awaitReleasedContexts
+    , case7 "live.gssapi-cancel-before-server-token" $ do
+        principal <- BC.pack <$> getEnv "MB_AUTH_GSSAPI_PRINCIPAL"
+        entered <- newEmptyMVar
+        blocked <- newEmptyMVar
+        source <- S.makeInputStream (putMVar entered () >> takeMVar blocked)
+        conn <- C.newConnection defaultConnectionOptions source (const (pure ())) (pure ())
+        C.setExchangeSequence conn 3
+        let hello = Greeting 10 "12.3.3-MariaDB" 1 "12345678" clientCap 224 2
+                "901234567890" "mysql_native_password"
+            auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just principal}
+        done <- newEmptyMVar
+        worker <- forkFinally (C.completeAuthWithOptions auth conn hello False ""
+            (switch "auth_gssapi_client" (principal <> "\0\0"))) (putMVar done)
+        flip finally (killThread worker) $ do
+            reached <- timeout 2000000 (takeMVar entered)
+            equal "native initiator token produced before cancellation" (Just ()) reached
+            equal "live context owned until cancellation" 1 =<< nativeContextCount
+            throwTo worker ThreadKilled
+            result <- timeout 1000000 (takeMVar done)
+            case result of
+                Just (Left err) | Just ThreadKilled <- fromException err -> pure ()
+                _ -> fail "GSSAPI cancellation did not propagate promptly"
+            awaitReleasedContexts
+    ]

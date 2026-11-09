@@ -1,0 +1,3 @@
+MariaDB preflight passed: 12.3.3-MariaDB-log
+FAIL stage7.gssapi.native-ok-cannot-bypass-required-principal
+Results: validation/results/runs/stage7-principal-pin-before/SUMMARY.md

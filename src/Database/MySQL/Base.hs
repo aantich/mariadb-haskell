@@ -28,6 +28,14 @@ module Database.MySQL.Base
     , ConnectInfo(..)
     , ConnectionOptions(..)
     , defaultConnectionOptions
+    , AuthenticationOptions(..)
+    , defaultAuthenticationOptions
+    , DialogPrompt(..)
+    , passwordDialog
+    , connectWithAuthentication
+    , connectDetailWithAuthentication
+    , connectUnixSocketWithAuthentication
+    , connectUnixSocketDetailWithAuthentication
     , connectWithOptions
     , connectDetailWithOptions
     , connectUnixSocketWithOptions
@@ -143,6 +151,7 @@ import Data.List (transpose, find)
 import System.Timeout (timeout)
 import           Data.Bits                          ((.&.))
 import           Data.IORef                         (IORef, newIORef, readIORef, writeIORef, atomicModifyIORef')
+import           Database.MySQL.Authentication
 import           Database.MySQL.Connection
 import           Database.MySQL.Protocol.Auth
 import           Database.MySQL.Protocol.ColumnDef

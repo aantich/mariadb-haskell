@@ -1,0 +1,11 @@
+{
+  "original_manifest": "results/references/stage7-pre-fixes-confirmation.json",
+  "reason": "Live artifacts are replaced by later current-source runs; these exact historical bytes remain retained.",
+  "all_original_hashes_verified": true,
+  "relocations": {
+    "results/current.json": "results/references/stage7-full-4-live.json",
+    "RESULTS.md": "results/experiments/stage7-pre-fixes-RESULTS.md",
+    "results/overview.svg": "results/experiments/stage7-pre-fixes-overview.svg",
+    "results/stage1-gates.json": "results/experiments/stage7-full-4-gates.json"
+  }
+}

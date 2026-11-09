@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/check.py", line 14, in <module>
+    import publish_results as live
+  File "/Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/publish_results.py", line 412
+    from stage7_benchmarks import verify_evidence as verify_auth
+    ^^^^
+IndentationError: expected an indented block after 'if' statement on line 411

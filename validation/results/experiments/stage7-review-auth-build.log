@@ -1,0 +1,5 @@
+Resolving dependencies...
+Loaded package environment from /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/dist-newstyle/tmp/environment.-18040/.ghc.environment.aarch64-darwin-9.10.3
+[1 of 2] Compiling Main             ( /private/tmp/stage7-review-auth-probe.hs, /private/tmp/stage7-review-auth-build/Main.o )
+[2 of 2] Linking /private/tmp/stage7-review-auth-probe
+ld: warning: -U option is redundant when using -undefined dynamic_lookup

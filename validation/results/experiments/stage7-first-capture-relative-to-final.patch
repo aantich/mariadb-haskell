@@ -1,0 +1,493 @@
+--- a/cbits/gssapi.c
++++ b/cbits/gssapi.c
+@@ -19,7 +19,6 @@
+ struct mariadb_gss_context {
+     gss_name_t service;
+     gss_ctx_id_t context;
+-    gss_cred_id_t credentials;
+     gss_buffer_desc output;
+     gss_OID_desc mechanism;
+     int counted;
+@@ -32,8 +31,6 @@
+     if (state->output.value) gss_release_buffer(&minor, &state->output);
+     if (state->context != GSS_C_NO_CONTEXT)
+         gss_delete_sec_context(&minor, &state->context, GSS_C_NO_BUFFER);
+-    if (state->credentials != GSS_C_NO_CREDENTIAL)
+-        gss_release_cred(&minor, &state->credentials);
+     if (state->service != GSS_C_NO_NAME)
+         gss_release_name(&minor, &state->service);
+     if (state->counted) atomic_fetch_sub(&live_contexts, 1);
+@@ -48,26 +45,14 @@
+     static unsigned char spnego[] = {0x2b,0x06,0x01,0x05,0x05,0x02};
+     struct mariadb_gss_context *state = calloc(1, sizeof(*state));
+     gss_buffer_desc name = {length, (void *)principal};
+-    gss_OID_desc kerberos_mechanism = {sizeof(kerberos), kerberos};
+-    gss_OID_set_desc desired_mechanisms = {1, &kerberos_mechanism};
+     *result = NULL;
+     *major = *minor = 0;
+     if (!state) return 1;
+     state->service = GSS_C_NO_NAME;
+     state->context = GSS_C_NO_CONTEXT;
+-    state->credentials = GSS_C_NO_CREDENTIAL;
+     state->mechanism.length = negotiate ? sizeof(spnego) : sizeof(kerberos);
+     state->mechanism.elements = negotiate ? spnego : kerberos;
+     *major = gss_import_name(minor, &name, GSS_C_NT_USER_NAME, &state->service);
+-    if (GSS_ERROR(*major)) {
+-        mariadb_gss_close(state);
+-        return 2;
+-    }
+-    /* Acquire only Kerberos credentials. In particular, a server selecting
+-     * SPNEGO must not cause the OS to try cached NTLM/other credentials. The
+-     * explicit credential lease is owned and released with this context. */
+-    *major = gss_acquire_cred(minor, GSS_C_NO_NAME, 0, &desired_mechanisms,
+-        GSS_C_INITIATE, &state->credentials, NULL, NULL);
+     if (GSS_ERROR(*major)) {
+         mariadb_gss_close(state);
+         return 2;
+@@ -93,7 +78,7 @@
+     *complete = 0;
+     /* No delegation: the server receives a service ticket, never a TGT. Mutual
+      * authentication binds its reply to the explicitly pinned principal. */
+-    *major = gss_init_sec_context(minor, state->credentials, &state->context,
++    *major = gss_init_sec_context(minor, GSS_C_NO_CREDENTIAL, &state->context,
+         state->service, &state->mechanism, GSS_C_MUTUAL_FLAG, 0,
+         GSS_C_NO_CHANNEL_BINDINGS, length ? &token : GSS_C_NO_BUFFER,
+         NULL, &state->output, &flags, NULL);
+--- a/src/Database/MySQL/Authentication.hs
++++ b/src/Database/MySQL/Authentication.hs
+@@ -17,11 +17,7 @@
+     { authenticationDialog :: Maybe (DialogPrompt -> IO ByteString)
+       -- ^ Opt in to PAM/dialog and clear-password replies. No terminal fallback.
+     , authenticationGSSAPIPrincipal :: Maybe ByteString
+-      -- ^ Require GSSAPI with this exact service principal, including realm.
+-      -- Password-only success and alternate plugin switches are rejected;
+-      -- no initial password proof is emitted before GSSAPI negotiation.
+-      -- Native GSSAPI requires an application built with @-threaded@ so a KDC
+-      -- call cannot prevent the connection deadline or cancellation handler.
++      -- ^ Exact Kerberos service principal expected from MariaDB, including realm.
+     }
+ 
+ -- | Disable external credential use until the application opts in explicitly.
+--- a/src/Database/MySQL/Authentication/GSSAPI.hs
++++ b/src/Database/MySQL/Authentication/GSSAPI.hs
+@@ -49,11 +49,6 @@
+ -- cancellation itself never waits for it and never exposes the socket to it.
+ withGSSAPI :: ByteString -> Bool -> ((ByteString -> IO (Bool, ByteString)) -> IO a) -> IO a
+ withGSSAPI principal negotiate action = mask $ \restore -> do
+-    -- A non-threaded RTS cannot run the timeout handler while another Haskell
+-    -- thread is inside a safe foreign call. Fail before acquiring credentials
+-    -- rather than silently weakening the connection deadline.
+-    unless rtsSupportsBoundThreads
+-        (throwIO (GSSAPIError "GSSAPI authentication requires an application built with -threaded"))
+     requests <- newEmptyMVar
+     ready <- newEmptyMVar
+     _ <- forkIO $ do
+--- a/src/Database/MySQL/Connection.hs
++++ b/src/Database/MySQL/Connection.hs
+@@ -535,7 +535,7 @@
+         greet <- readGreeting conn
+         let caps=negotiatedCapabilities opts greet
+         writeIORef (connectionCapabilities conn) caps
+-        mysqlWrite conn (encodeToPacket 1 (mkAuthForAuthentication auth opts caps ci greet))
++        mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
+         q <- readConnPacket conn
+         completeAuthWithOptions auth conn greet False (ciPassword ci) q
+         when (testBit caps 5) (connectionCompressionStart conn)
+@@ -574,7 +574,7 @@
+         greet <- readGreeting conn
+         let caps=negotiatedCapabilities opts greet
+         writeIORef (connectionCapabilities conn) caps
+-        mysqlWrite conn (encodeToPacket 1 (mkAuthForAuthentication auth opts caps ci greet))
++        mysqlWrite conn (encodeToPacket 1 (mkAuthWithOptions opts caps ci greet))
+         q <- readConnPacket conn
+         completeAuthWithOptions auth conn greet True (ciPassword ci) q
+         when (testBit caps 5) (connectionCompressionStart conn)
+@@ -601,16 +601,6 @@
+         .|. (if enableCompression options then bit 5 else 0)
+         .|. (if enableMetadataCaching options then bit 36 else 0)
+         .|. (if enableExtendedMetadata options then bit 35 else 0)
+-
+--- | A required GSSAPI principal also forbids sending a password proof before
+--- that method has been negotiated. MariaDB normally greets with native-password
+--- even for GSSAPI accounts; send an empty initial response and require its switch.
+-mkAuthForAuthentication :: AuthenticationOptions -> ConnectionOptions -> Word64 -> ConnectInfo -> Greeting -> Auth
+-mkAuthForAuthentication auth options caps ci greeting
+-    | isJust (authenticationGSSAPIPrincipal auth) = Auth caps
+-        (fromIntegral (maximumMessageBytes options)) (ciCharset ci) (ciUser ci)
+-        B.empty (ciDatabase ci) (greetingAuthPlugin greeting)
+-    | otherwise = mkAuthWithOptions options caps ci greeting
+ 
+ mkAuthWithOptions :: ConnectionOptions -> Word64 -> ConnectInfo -> Greeting -> Auth
+ mkAuthWithOptions options caps ci greeting =
+@@ -713,19 +703,12 @@
+     loop :: Int -> ByteString -> ByteString -> Packet -> IO ()
+     loop rounds plugin nonce packet
+         | rounds >= 16 = throwIO (AuthException "too many authentication exchanges")
++        | isOK packet = void (consumeOK conn packet)
+         | isERR packet = decodeFromPacket packet >>= throwIO . ERRException
+-        -- Requiring a principal is an authentication-method requirement, not
+-        -- merely permission to use the credential cache if a server asks.
+-        -- Reject OK and password continuations before any alternate response.
+-        | isJust (authenticationGSSAPIPrincipal auth) && not (isAuthSwitch packet) =
+-            throwIO (AuthException "MariaDB did not select required GSSAPI authentication")
+-        | isOK packet = void (consumeOK conn packet)
+         | isAuthSwitch packet = do
+             let (name, rest) = B.break (==0) (B.drop 1 (L.toStrict (pBody packet)))
+             when (B.null name || B.length name > 128 || B.null rest)
+                 (throwIO (AuthException "malformed authentication switch"))
+-            when (isJust (authenticationGSSAPIPrincipal auth) && name /= "auth_gssapi_client")
+-                (throwIO (AuthException "MariaDB requested another method instead of required GSSAPI"))
+             let challenge = B.drop 1 rest
+             if name `elem` externalPlugins
+                 then external (rounds+1) name
+@@ -761,7 +744,7 @@
+                         doRSAAuth output (pSeqN keyPacket+1) password nonce (B.drop 1 body)
+                     next >>= terminal
+                 _ -> throwIO (AuthException "invalid SHA-2 authentication continuation")
+-        | otherwise = throwIO (AuthException "unexpected authentication response")
++        | otherwise = throwIO (UnexpectedPacket packet)
+     passwordSwitch rounds name challenge packet = do
+         let expected = if name `elem` ["client_ed25519", "parsec"] then 32 else 20
+             exact = if B.length challenge == expected+1 && B.last challenge == 0
+@@ -778,7 +761,7 @@
+     nextPlugin = do
+         packet <- next
+         when (isERR packet) (decodeFromPacket packet >>= throwIO . ERRException)
+-        unless (isAuthMoreData packet) (throwIO (AuthException "unexpected authentication response"))
++        unless (isAuthMoreData packet) (throwIO (UnexpectedPacket packet))
+         pure (unwrapPlugin packet)
+     externalPlugins = ["dialog", "mysql_clear_password", "auth_gssapi_client"]
+     bounded packet = do
+@@ -786,8 +769,6 @@
+         pure (L.toStrict (pBody packet))
+     external :: Int -> ByteString -> Packet -> IO ()
+     external rounds plugin packet
+-        | isJust (authenticationGSSAPIPrincipal auth) && plugin /= "auth_gssapi_client" =
+-            throwIO (AuthException "MariaDB did not select required GSSAPI authentication")
+         | rounds >= 16 = throwIO (AuthException "too many authentication exchanges")
+         | plugin == "auth_gssapi_client" = do
+             when (isERR packet) (decodeFromPacket packet >>= throwIO . ERRException)
+@@ -849,7 +830,7 @@
+         if odd kind || isOK packet' || isERR packet'
+             then terminal packet'
+             else do
+-                unless (isAuthMoreData packet') (throwIO (AuthException "unexpected authentication continuation"))
++                unless (isAuthMoreData packet') (throwIO (UnexpectedPacket packet'))
+                 dialogLoop callback (rounds+1) (question+1) (unwrapPlugin packet')
+     gssLoop step rounds packet token = do
+         when (rounds >= 16) (throwIO (AuthException "too many authentication exchanges"))
+@@ -866,7 +847,7 @@
+     terminal packet
+         | isOK packet = void (consumeOK conn packet)
+         | isERR packet = decodeFromPacket packet >>= throwIO . ERRException
+-        | otherwise = throwIO (AuthException "unexpected authentication response")
++        | otherwise = throwIO (UnexpectedPacket packet)
+ 
+ -- | Full auth handler for plain TCP connections using RSA encryption.
+ --
+--- a/src/Database/MySQL/TLS.hs
++++ b/src/Database/MySQL/TLS.hs
+@@ -84,7 +84,7 @@
+             conn <- newTransportConnection options (Conn.source secure) (Conn.send secure) (TLS.contextClose ctx `finally` Conn.close raw)
+             setExchangeSequence conn 2
+             writeIORef (connectionCapabilities conn) (caps+0x800)
+-            mysqlWrite conn (encodeToPacket 2 (mkAuthForAuthentication auth options (caps+0x800) ci greeting))
++            mysqlWrite conn (encodeToPacket 2 (mkAuthWithOptions options (caps+0x800) ci greeting))
+             response <- readConnPacket conn
+             completeAuthWithOptions auth conn greeting True (ciPassword ci) response
+             when (testBit caps 5) (connectionCompressionStart conn)
+--- a/validation/auth_fixture.py
++++ b/validation/auth_fixture.py
+@@ -6,7 +6,6 @@
+ """
+ from contextlib import contextmanager
+ import json
+-import hashlib
+ import os
+ from pathlib import Path
+ import shutil
+@@ -17,20 +16,6 @@
+ 
+ HERE = Path(__file__).resolve().parent
+ IMAGE = 'mariadb-haskell-stage7-auth'
+-
+-
+-
+-def runtime_identity(image):
+-    """Hash runtime files/configuration, excluding changing provenance indexes."""
+-    config_keys = ('Env', 'Entrypoint', 'Cmd', 'WorkingDir', 'User', 'ExposedPorts',
+-                   'Volumes', 'Labels', 'StopSignal', 'Healthcheck', 'OnBuild',
+-                   'Shell', 'ArgsEscaped')
+-    fields = {key: image.get(key) for key in ('Architecture', 'Os', 'Variant', 'RootFS')}
+-    fields['Config'] = {key: image.get('Config', {}).get(key) for key in config_keys}
+-    # OCI omits the default working directory; Docker inspect spells it ''.
+-    fields['Config']['WorkingDir'] = fields['Config']['WorkingDir'] or ''
+-    return 'docker-runtime-sha256:'+hashlib.sha256(json.dumps(fields,
+-        sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+ 
+ 
+ def command(args, **kwargs):
+@@ -54,7 +39,7 @@
+         try:
+             if local:
+                 # This branch is for the disposable Linux CI image only.
+-                if not Path('/opt/driver-auth/disposable-fixture').is_file() or not Path('/opt/driver-auth/pam_fixture.so').is_file():
++                if not Path('/.dockerenv').exists() or not Path('/opt/driver-auth/pam_fixture.so').is_file():
+                     raise RuntimeError('local authentication fixtures require the disposable Linux CI image')
+                 fixture_root = private/'services'
+                 process = subprocess.Popen(['python3', str(HERE/'auth_fixture/serve.py')],
+@@ -113,12 +98,8 @@
+   kdc = 127.0.0.1:{kdc_port}
+  }}
+ ''')
+-            if local:
+-                identity = 'local-disposable-linux-profile'
+-            else:
+-                image_id = subprocess.check_output(['docker', 'inspect', '-f', '{{.Image}}', container], text=True).strip()
+-                image = json.loads(subprocess.check_output(['docker', 'image', 'inspect', image_id], text=True))[0]
+-                identity = runtime_identity(image)
++            identity = ('local-disposable-linux-profile' if local else
++                subprocess.check_output(['docker', 'inspect', '-f', '{{.Image}}', container], text=True).strip())
+             yield {'MB_AUTH_FIXTURE_IMAGE_ID': identity,
+                 'MB_AUTH_HOST': '127.0.0.1', 'MB_AUTH_PORT': str(port),
+                 'MB_AUTH_TLS_CA': str(private/'tls-cert.pem'),
+--- a/validation/feature_benchmarks.py
++++ b/validation/feature_benchmarks.py
+@@ -31,7 +31,6 @@
+     workload_paths: tuple
+     heap_profiles: dict = field(default_factory=dict)
+     environment_profile: tuple = ()
+-    environment_profile_aliases: dict = field(default_factory=dict)
+ 
+ 
+ def sample(spec, output, ident):
+@@ -155,13 +154,8 @@
+     # json round-trips tuples as lists. Compare dependency identities in a
+     # canonical form, both before saving a run and during later publication.
+     same_dependencies = sorted(map(tuple, data['dependencies'])) == sorted(map(tuple, baseline['dependencies']))
+-    def environment_identity(document):
+-        # Alias only explicitly verified historical identifiers. Recorded
+-        # measurements/metadata stay unchanged; unknown identities never match.
+-        return {key: spec.environment_profile_aliases.get(key, {}).get(value, value)
+-                for key, value in document.get('environment_profile', {}).items()}
+     same = (same_dependencies
+-            and environment_identity(data) == environment_identity(baseline)
++            and data.get('environment_profile', {}) == baseline.get('environment_profile', {})
+             and all(data[key] == baseline[key] for key in ('server', 'machine', 'haskell_benchmark_rts'))
+             and all(data['build'][key] == baseline['build'][key] for key in ('ghc', 'cabal'))
+             and all(data['inputs']['files'][key] == baseline['inputs']['files'][key] for key in spec.workload_paths))
+--- a/validation/hs/Validation/Stage7.hs
++++ b/validation/hs/Validation/Stage7.hs
+@@ -7,19 +7,15 @@
+ import Control.Concurrent
+ import Control.Exception hiding (assert)
+ import Control.Monad
+-import Data.Binary (encode)
+ import qualified Data.ByteString as B
+ import qualified Data.ByteString.Char8 as BC
+ import qualified Data.ByteString.Lazy as L
+-import Data.List (isInfixOf)
+ import Data.IORef
+ import Database.MySQL.Base
+ import qualified Database.MySQL.Connection as C
+ import qualified Database.MySQL.TLS as TLS
+ import Validation.ExternalAuthFixture
+ import Foreign.C.Types (CUInt(..))
+-import qualified Network.Socket as N
+-import qualified Network.Socket.ByteString as NB
+ import System.Environment
+ import qualified System.IO.Streams as S
+ import System.Timeout
+@@ -160,19 +156,6 @@
+         (run,_) <- conversation (pam (passwordDialog "secret")) True
+             (switch "dialog" "\5Password:") [packet 4 "\1\0\0\0\2\0\0\0"]
+         expectRejection run
+-    , case7 "dialog.unexpected-response-does-not-disclose-token" $ do
+-        let secretMarker = "credential-material-must-not-appear"
+-        (run,_) <- conversation (pam (passwordDialog "secret")) True
+-            (switch "dialog" "\5Password:") [packet 4 ("\1" <> secretMarker)]
+-        result <- try run
+-        case result of
+-            Left (err :: SomeException) -> do
+-                assert (not (BC.unpack secretMarker `isInfixOf` show err))
+-                    "authentication exception disclosed raw packet/token bytes"
+-                case fromException err of
+-                    Just (_ :: AuthException) -> pure ()
+-                    Nothing -> fail "unexpected authentication response lacks bounded AuthException"
+-            Right () -> fail "malformed authentication unexpectedly succeeded"
+     , case7 "dialog.callback-failure-propagates" $ do
+         (run,_) <- conversation (pam (\_ -> throwIO ThreadKilled)) True (switch "dialog" "\5Password:") []
+         result <- try run
+@@ -209,52 +192,6 @@
+         (run,sent) <- conversation auth False (switch "auth_gssapi_client" "mariadb/unexpected@TEST\0\0") []
+         rejectAuth run
+         equal "no ticket disclosure" [] =<< sent
+-    , case7 "gssapi.native-ok-cannot-bypass-required-principal" $ do
+-        let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/localhost@TEST"}
+-        (run,_) <- conversation auth False (ok 2) []
+-        rejectAuth run
+-    , case7 "gssapi.initial-password-proof-is-suppressed" $
+-        bracket (N.socket N.AF_INET N.Stream 0) N.close $ \listener -> do
+-            N.bind listener (N.SockAddrInet 0 (N.tupleToHostAddress (127,0,0,1)))
+-            N.listen listener 1
+-            N.SockAddrInet port _ <- N.getSocketName listener
+-            captured <- newEmptyMVar
+-            finished <- newEmptyMVar
+-            let hello = Greeting 10 "12.3.3-MariaDB" 1 "12345678" clientCap 224 2
+-                    "901234567890" "mysql_native_password"
+-                receive sock size = do
+-                    -- Read the fixed header first, then exactly its payload;
+-                    -- no decoder under test determines the password offset.
+-                    let exact 0 parts = pure (B.concat (reverse parts))
+-                        exact remaining parts = do
+-                            chunk <- NB.recv sock remaining
+-                            when (B.null chunk) (fail "truncated client authentication")
+-                            exact (remaining-B.length chunk) (chunk:parts)
+-                    exact size []
+-            worker <- forkFinally (bracket (fst <$> N.accept listener) N.close $ \sock -> do
+-                NB.sendAll sock (L.toStrict (encode (encodeToPacket 0 hello)))
+-                header <- receive sock 4
+-                let size = sum [fromIntegral (B.index header n) * (256^n) | n <- [0..2]]
+-                body <- receive sock size
+-                putMVar captured body
+-                NB.sendAll sock (L.toStrict (encode (ok 2)))) (putMVar finished)
+-            flip finally (killThread worker) $ do
+-                let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/localhost@TEST"}
+-                    ci = defaultConnectInfoMB4 {ciHost="127.0.0.1",ciPort=port,
+-                        ciUser="gssapi-test",ciPassword="must-not-be-used"}
+-                rejectAuth (connectWithAuthentication defaultConnectionOptions {connectTimeoutMicros=1000000} auth ci)
+-                result <- timeout 1000000 (takeMVar finished)
+-                case result of
+-                    Just (Right ()) -> pure ()
+-                    _ -> fail "authentication wire fixture did not complete"
+-                body <- takeMVar captured
+-                let afterUser = B.drop 1 (snd (B.break (==0) (B.drop 32 body)))
+-                assert (not (B.null afterUser)) "client authentication payload missing"
+-                equal "no native password proof before GSSAPI" 0 (B.head afterUser)
+-    , case7 "live.gssapi-rejects-password-only-success" $ do
+-        ci <- config
+-        let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/localhost@TEST"}
+-        expectRejection (withConnect (connectWithAuthentication defaultConnectionOptions auth ci) healthy)
+     , case7 "gssapi.oversized-announcement" $ do
+         let auth = defaultAuthenticationOptions {authenticationGSSAPIPrincipal=Just "mariadb/localhost@TEST"}
+         (run,_) <- conversation auth False (switch "auth_gssapi_client" (B.replicate 1048577 65)) []
+--- a/validation/linux/Dockerfile
++++ b/validation/linux/Dockerfile
+@@ -16,7 +16,6 @@
+ COPY . .
+ RUN mkdir -p /opt/driver-auth && gcc -Wall -Wextra -Werror -fPIC -shared \
+     validation/auth_fixture/pam_fixture.c -lpam -o /opt/driver-auth/pam_fixture.so
+-RUN touch /opt/driver-auth/disposable-fixture
+ # Git history supplies the original baseline revision. Private configuration
+ # and host build artifacts are excluded from the image context.
+ ENTRYPOINT ["python3", "validation/linux/verify.py"]
+--- a/validation/publish_results.py
++++ b/validation/publish_results.py
+@@ -39,10 +39,6 @@
+                         "validation/results/accepted.json", "validation/results/previous-stage.json",
+                         "validation/results/stage7-reference.json",
+                         "validation/results/references/stage6-publication-1.json",
+-                        "validation/results/experiments/stage7-runtime-equivalence.json",
+-                        "validation/results/experiments/stage7-authentication-image-config.json",
+-                        "validation/results/experiments/stage7-first-authentication.log",
+-                        "validation/results/experiments/stage7-runtime-identity-build.log",
+                         "validation/baselines/macos-arm64-native-statements/results.json",
+                         "validation/baselines/macos-arm64-native-statements/SUMMARY.md",
+                         "validation/baselines/macos-arm64-native-statements/SHA256SUMS",
+--- a/validation/stage7_benchmarks.py
++++ b/validation/stage7_benchmarks.py
+@@ -1,12 +1,7 @@
+ #!/usr/bin/env python3
+ """Independent PAM/Kerberos establishment costs; existing workloads stay frozen."""
+ from pathlib import Path
+-import hashlib
+-import json
+-import re
+ import feature_benchmarks as features
+-import auth_fixture
+-import run
+ 
+ PROFILES = {'auth.pam.password': 10, 'auth.pam.multiple': 10,
+             'auth.gssapi.cached-ticket': 10}
+@@ -18,48 +13,13 @@
+                   'validation/auth_fixture/pam_fixture.c')
+ 
+ 
+-def legacy_runtime_aliases():
+-    """Bind the exact first provenance index to its verified runtime only.
+-
+-    The frozen measurements are untouched. Both build logs identify the same
+-    configuration blob; its cryptographic digest and complete filesystem/config
+-    prove this historical equivalence. All other unknown indexes stay distinct.
+-    """
+-    folder = run.HERE/'results/experiments'
+-    proof = json.loads((folder/'stage7-runtime-equivalence.json').read_text())
+-    raw = (folder/'stage7-authentication-image-config.json').read_bytes()
+-    expected = 'sha256:'+hashlib.sha256(raw).hexdigest()
+-    if expected != proof['first_and_verified_runtime_config_digest']:
+-        raise ValueError('authentication runtime configuration digest mismatch')
+-    logs = [('stage7-first-authentication.log', 'first_build_log_sha256'),
+-            ('stage7-runtime-identity-build.log', 'verification_build_log_sha256')]
+-    for filename, key in logs:
+-        content = (folder/filename).read_bytes()
+-        if hashlib.sha256(content).hexdigest() != proof[key]:
+-            raise ValueError('authentication runtime proof log mismatch')
+-        if re.findall(r'exporting config (sha256:[0-9a-f]{64})', content.decode()) != [expected]:
+-            raise ValueError('authentication build did not use the verified configuration')
+-    original = 'sha256:065d10313899e7a007821c2c052b87608b26a82629e4db273b72987e3cddd12f'
+-    if proof['first_capture_index'] != original or original not in (folder/logs[0][0]).read_text():
+-        raise ValueError('authentication initial provenance index mismatch')
+-    blob = json.loads(raw)
+-    image = {'Architecture': blob['architecture'], 'Os': blob['os'], 'Variant': blob.get('variant'),
+-             'RootFS': {'Type': blob['rootfs']['type'], 'Layers': blob['rootfs']['diff_ids']},
+-             'Config': blob['config']}
+-    identity = auth_fixture.runtime_identity(image)
+-    if identity != proof['runtime_identity'] or identity != auth_fixture.runtime_identity(proof['runtime_fields']):
+-        raise ValueError('authentication runtime fingerprint mismatch')
+-    return {'MB_AUTH_FIXTURE_IMAGE_ID': {original: identity}}
+-
+-
+ def specification():
+     return features.FeatureSpec(marker='STAGE7', command='stage7-bench',
+         label='External authentication', profiles=PROFILES, units=PROFILES,
+         checksums=PROFILES, pairs={},
+         baseline_directory=Path('baselines/macos-arm64-external-authentication'),
+         workload_paths=WORKLOAD_PATHS,
+-        environment_profile=('MB_AUTH_FIXTURE_IMAGE_ID',),
+-        environment_profile_aliases=legacy_runtime_aliases())
++        environment_profile=('MB_AUTH_FIXTURE_IMAGE_ID',))
+ 
+ 
+ def verify_evidence(data, inputs):
+--- a/validation/test_stage7.py
++++ b/validation/test_stage7.py
+@@ -11,29 +11,9 @@
+ import publish_results as live
+ import stage1_gates
+ import stage7_benchmarks as auth
+-import auth_fixture
+ 
+ 
+ class ExternalAuthenticationPolicyTests(unittest.TestCase):
+-    def test_runtime_identity_ignores_provenance_indexes(self):
+-        image = {'Id': 'old-index', 'RepoDigests': ['old-attestation'],
+-                 'Architecture': 'arm64', 'Os': 'linux',
+-                 'RootFS': {'Type': 'layers', 'Layers': ['content']},
+-                 'Config': {'Env': ['SETTING=1'], 'Entrypoint': ['server']}}
+-        later = {**image, 'Id': 'new-index', 'RepoDigests': ['new-attestation']}
+-        self.assertEqual(auth_fixture.runtime_identity(image), auth_fixture.runtime_identity(later))
+-
+-    def test_runtime_identity_detects_files_and_configuration_changes(self):
+-        image = {'RootFS': {'Layers': ['old']}, 'Config': {'Env': ['SETTING=1']}}
+-        for changed in [{**image, 'RootFS': {'Layers': ['new']}},
+-                        {**image, 'Config': {'Env': ['SETTING=2']}}]:
+-            self.assertNotEqual(auth_fixture.runtime_identity(image), auth_fixture.runtime_identity(changed))
+-
+-    def test_exact_initial_runtime_alias_is_verified(self):
+-        aliases = auth.legacy_runtime_aliases()['MB_AUTH_FIXTURE_IMAGE_ID']
+-        self.assertEqual(1, len(aliases))
+-        self.assertTrue(next(iter(aliases.values())).startswith('docker-runtime-sha256:'))
+-
+     def test_fixture_and_baseline_artifacts_are_fingerprinted(self):
+         for name in ['validation/auth_fixture/Dockerfile', 'validation/auth_fixture/.dockerignore',
+                      'cbits/gssapi.c', 'validation/results/stage7-reference.json',

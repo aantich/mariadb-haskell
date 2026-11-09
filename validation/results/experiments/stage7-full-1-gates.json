@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "correctness_failures": [],
+  "evidence_failures": [],
+  "evidence_accepted": true,
+  "timing_investigations": [
+    {
+      "reference": "original",
+      "id": "haskell/write.text",
+      "percent": 8.5038096232126
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.text.narrow",
+      "percent": 6.461961503208058
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.parallel-4",
+      "percent": 23.30363833152944
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.socket.narrow",
+      "percent": 6.609021647115743
+    }
+  ],
+  "allocation_investigations": [],
+  "target_passes": 23,
+  "target_count": 23,
+  "native_target_passes": 14,
+  "native_target_count": 14,
+  "statement_target_passes": 5,
+  "statement_target_count": 5,
+  "session_target_passes": 2,
+  "session_target_count": 2,
+  "cdc_target_passes": 18,
+  "cdc_target_count": 18,
+  "correctness_accepted": true,
+  "performance_requires_confirmation": true,
+  "previous_stage_reference": {
+    "schema": 1,
+    "reference": "references/stage5-review-publication-1.json",
+    "sha256": "b201a122915149e7f0f15313be62f752421ecb151ad42eb293bda9838d84fe33",
+    "tested_commit": "ba99d8cb5554c993bdefba341ebce7923295cf31",
+    "purpose": "Preserve all 694 published passes during Stage 6. Original, accepted and feature performance references remain unchanged."
+  },
+  "accepted_reference": {
+    "schema": 1,
+    "reference": "references/pre-stage1.json",
+    "sha256": "da103068ef554a3bd122419d0fc2cea218a40131501d4230aaa7602c5ecef9b8",
+    "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
+    "note": "Last accepted main before Stage 1; not advanced by failing attempts."
+  },
+  "tested_input_sha256": "b7d6b11b98e39b6b4b704426edf742ed32e68df0a956befd7896473aa42d7245",
+  "native_timing_investigations": [],
+  "native_allocation_investigations": [],
+  "reuse_timing_investigations": [],
+  "reuse_allocation_investigations": [],
+  "cdc_timing_investigations": [],
+  "cdc_allocation_investigations": [],
+  "wire_timing_investigations": [],
+  "wire_allocation_investigations": [],
+  "authentication_timing_investigations": [],
+  "authentication_allocation_investigations": []
+}

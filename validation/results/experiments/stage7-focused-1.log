@@ -1,0 +1,82 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 694B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 5.69kB done
+#4 DONE 0.0s
+
+#5 [1/5] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#5 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 done
+#5 DONE 0.0s
+
+#6 [2/5] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     krb5-kdc krb5-admin-server krb5-user libpam0g-dev gcc libc6-dev python3 openssl     && rm -rf /var/lib/apt/lists/*
+#6 CACHED
+
+#7 [3/5] COPY pam_fixture.c /opt/driver-auth/pam_fixture.c
+#7 CACHED
+
+#8 [4/5] RUN gcc -Wall -Wextra -Werror -fPIC -shared /opt/driver-auth/pam_fixture.c     -lpam -o /opt/driver-auth/pam_fixture.so
+#8 CACHED
+
+#9 [5/5] COPY serve.py /opt/driver-auth/serve.py
+#9 DONE 0.0s
+
+#10 exporting to image
+#10 exporting layers 0.0s done
+#10 exporting manifest sha256:29b76e39adaa1fb2b2dd830c6e93589a15ad4348ed13f63e729a7b0aec563dd1 done
+#10 exporting config sha256:75530f96f09effb42b684b66d2b02d9e9b397df807e3996bc415d9b49614b604 done
+#10 exporting attestation manifest sha256:316fe708df3a635395a7ed520d3fc46c61e899bb2eca7a17da0fdd580f1dbb13 done
+#10 exporting manifest list sha256:8a58ba28247a5267e68518f72d3e3aabe7f9ea85bb9021c9611d92a003d52c47 done
+#10 naming to docker.io/library/mariadb-haskell-stage7-auth:latest done
+#10 unpacking to docker.io/library/mariadb-haskell-stage7-auth:latest 0.0s done
+#10 DONE 0.1s
+Initializing database '/fixture/principal' for realm 'MARIADB-HASKELL.TEST',
+master key name 'K/M@MARIADB-HASKELL.TEST'
+No policy specified for mariadb/localhost@MARIADB-HASKELL.TEST; defaulting to no policy
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Principal "mariadb/localhost@MARIADB-HASKELL.TEST" created.
+No policy specified for driver@MARIADB-HASKELL.TEST; defaulting to no policy
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Principal "driver@MARIADB-HASKELL.TEST" created.
+No policy specified for other@MARIADB-HASKELL.TEST; defaulting to no policy
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Principal "other@MARIADB-HASKELL.TEST" created.
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Entry for principal mariadb/localhost@MARIADB-HASKELL.TEST with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/server.keytab.
+Entry for principal mariadb/localhost@MARIADB-HASKELL.TEST with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/server.keytab.
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Entry for principal driver@MARIADB-HASKELL.TEST with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/driver.keytab.
+Entry for principal driver@MARIADB-HASKELL.TEST with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/driver.keytab.
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Entry for principal other@MARIADB-HASKELL.TEST with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/other.keytab.
+Entry for principal other@MARIADB-HASKELL.TEST with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/other.keytab.
+2026-11-09 10:55:30 0 [Warning] mariadbd: io_uring_queue_init() failed with EPERM: sysctl kernel.io_uring_disabled has the value 2, or 1 and the user of the process is not a member of sysctl kernel.io_uring_group. (see man 2 io_uring_setup).
+create_uring failed: falling back to libaio
+Traceback (most recent call last):
+  File "/opt/driver-auth/serve.py", line 132, in <module>
+    main()
+  File "/opt/driver-auth/serve.py", line 90, in main
+    raise RuntimeError('Authentication fixture service exited; inspect /fixture/*.log')
+RuntimeError: Authentication fixture service exited; inspect /fixture/*.log
+Traceback (most recent call last):
+  File "/Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/check.py", line 303, in <module>
+    if __name__=="__main__": raise SystemExit(main_with_authentication())
+                                              ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/check.py", line 291, in main_with_authentication
+    with auth_fixture.environment() as fixture:
+         ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/auth_fixture.py", line 74, in environment
+    raise RuntimeError('external authentication fixture stopped before readiness')
+RuntimeError: external authentication fixture stopped before readiness

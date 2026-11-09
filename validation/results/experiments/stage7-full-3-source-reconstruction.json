@@ -1,0 +1,15 @@
+{
+  "parent_commit": "7b92ded2f913913abe0d7de7b15c78b4cde148aa",
+  "input_sha256": "1c6e6b78bdac8ee1d9208267b4090faf814e74aca030166856f2acb0568f4465",
+  "inputs": 194,
+  "verified": true,
+  "apply_after": "stage7-final-source.patch",
+  "relative_patch": "stage7-full-3-relative-to-final.patch",
+  "changed_files": [
+    "validation/auth_fixture.py",
+    "validation/feature_benchmarks.py",
+    "validation/publish_results.py",
+    "validation/stage7_benchmarks.py",
+    "validation/test_stage7.py"
+  ]
+}

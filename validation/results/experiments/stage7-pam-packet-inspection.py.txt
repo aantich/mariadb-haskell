@@ -1,0 +1,17 @@
+import os,socket,struct
+with socket.create_connection((os.environ['MB_AUTH_HOST'],int(os.environ['MB_AUTH_PORT']))) as s:
+ def exact(n):
+  b=b''
+  while len(b)<n:
+   chunk=s.recv(n-len(b))
+   if not chunk:raise EOFError
+   b+=chunk
+  return b
+ def read():
+  h=exact(4);return h[3],exact(int.from_bytes(h[:3],'little'))
+ seq,hello=read()
+ payload=struct.pack('<IIB23s',0x00088208,67108864,224,b'')+b'mariadb_pam\0\0mariadb_haskell_validation\0mysql_native_password\0'
+ s.sendall(len(payload).to_bytes(3,'little')+b'\1'+payload)
+ seq,body=read()
+ plugin,_,challenge=body[1:].partition(b'\0')
+ print('Authentication switch:',seq,'plugin',plugin.decode(),'challenge length',len(challenge),'question tag',challenge[:1].hex())

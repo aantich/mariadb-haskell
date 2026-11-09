@@ -42,14 +42,19 @@ Stage 2 `e12462a`, on `codex/stage3-native-statements`.
 
 ## Timeout contract
 
-The frozen `reliability.timeout-before-metadata` test requires immediate reuse
-after cancelling `SELECT SLEEP(0.2)`. Published Stage 1's
-`stage1.timeout.connection-retired` performs the same operation and requires
-terminal retirement. Both expectations cannot pass unchanged. Keep retirement
-as the default, retain the original failure and baseline, and document the
-conflict rather than weakening assertions. Any future bounded recovery API
-needs an explicit contract and independent cancellation/desynchronization tests;
-it must never replay SQL or claim an uncertain transaction succeeded.
+The original frozen `reliability.timeout-before-metadata` assertion required
+reuse after cancelling `SELECT SLEEP(0.2)`, while the published
+`stage1.timeout.connection-retired` check required retirement for the identical
+operation. Anton explicitly approved correcting the former contract on
+9 November 2026. The current test keeps its ID, SQL and timeout, and now requires
+Broken status, rejection of another command and health of a fresh connection.
+
+The original baseline and failure history remain immutable. The live report
+labels this as a test-contract correction and excludes it from the
+newly-passing driver-improvement list. Safe retirement remains the default; no
+SQL is replayed and no uncertain transaction is declared successful. A bounded
+recovery API would still need its own explicit contract and independent tests.
+See [Stage 7 contracts and evidence](STAGE7_IMPLEMENTATION.md).
 
 ## Acceptance and continuation record
 
@@ -264,3 +269,35 @@ reference. The [live report](../validation/RESULTS.md) and
 [publication manifest](../validation/results/stage6-publication.json) supersede
 the uncommitted status above. PAM/GSSAPI, advanced CDC lifecycles and a different
 timeout contract remain separate work.
+
+
+## Stage 7 continuation checkpoint — 9 November 2026
+
+Anton approved closing the PAM/GSSAPI gaps and correcting the contradictory
+timeout expectation while keeping safe retirement. The implementation is on
+uncommitted main, parent `7b92ded`. Both authentication inventory entries now
+execute actual feature checks against an isolated PAM/Kerberos/MariaDB fixture.
+The Mac client uses the system GSS framework; Linux uses its native GSSAPI library.
+
+All 48 additive authentication/security cases pass on Mac and Linux. Complete
+Mac/Linux correctness records **844 PASS / 0 FAIL / 0 UNSUPPORTED / 0 unavailable**,
+protecting all 793 published passes. The timeout result is an explicitly approved
+test-contract correction, with its original baseline/history retained. All 173
+policy tests pass. Three independent authentication setup profiles supplement
+the original unchanged 60 profiles; timing acceptance remains separate from
+correctness and no earlier reference advances.
+
+The [implementation and deployment contract](STAGE7_IMPLEMENTATION.md),
+[confirmation manifest](../validation/results/stage7-confirmation.json) and
+[live report](../validation/RESULTS.md) are the continuation points. Publication
+still requires a separate user request. Advanced CDC lifecycles, Windows SSPI,
+and previously deferred workload-specific performance investigations remain
+separate work; these profile results do not certify every OS/authentication service.
+
+The subsequent [Stage 7 review](STAGE7_CODE_REVIEW.md) recorded five findings:
+authentication exception redaction, early/consistent authentication size limits,
+partial-run publication classification, fixture-creation cleanup and unnecessary
+fixture startup for protocol-only runs. All five are now fixed with 11 added
+driver regressions and eight policy tests;
+the current source passes all 48 Stage 7 cases and all 173 policy tests. The
+review report retains the original probes and describes each correction.

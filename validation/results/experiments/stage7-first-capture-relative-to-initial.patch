@@ -1,0 +1,46 @@
+--- a/src/Database/MySQL/Authentication.hs
++++ b/src/Database/MySQL/Authentication.hs
+@@ -18,8 +18,6 @@
+       -- ^ Opt in to PAM/dialog and clear-password replies. No terminal fallback.
+     , authenticationGSSAPIPrincipal :: Maybe ByteString
+       -- ^ Exact Kerberos service principal expected from MariaDB, including realm.
+-      -- Native GSSAPI requires an application built with @-threaded@ so a KDC
+-      -- call cannot prevent the connection deadline or cancellation handler.
+     }
+ 
+ -- | Disable external credential use until the application opts in explicitly.
+--- a/src/Database/MySQL/Authentication/GSSAPI.hs
++++ b/src/Database/MySQL/Authentication/GSSAPI.hs
+@@ -49,11 +49,6 @@
+ -- cancellation itself never waits for it and never exposes the socket to it.
+ withGSSAPI :: ByteString -> Bool -> ((ByteString -> IO (Bool, ByteString)) -> IO a) -> IO a
+ withGSSAPI principal negotiate action = mask $ \restore -> do
+-    -- A non-threaded RTS cannot run the timeout handler while another Haskell
+-    -- thread is inside a safe foreign call. Fail before acquiring credentials
+-    -- rather than silently weakening the connection deadline.
+-    unless rtsSupportsBoundThreads
+-        (throwIO (GSSAPIError "GSSAPI authentication requires an application built with -threaded"))
+     requests <- newEmptyMVar
+     ready <- newEmptyMVar
+     _ <- forkIO $ do
+--- a/validation/auth_fixture.py
++++ b/validation/auth_fixture.py
+@@ -39,7 +39,7 @@
+         try:
+             if local:
+                 # This branch is for the disposable Linux CI image only.
+-                if not Path('/opt/driver-auth/disposable-fixture').is_file() or not Path('/opt/driver-auth/pam_fixture.so').is_file():
++                if not Path('/.dockerenv').exists() or not Path('/opt/driver-auth/pam_fixture.so').is_file():
+                     raise RuntimeError('local authentication fixtures require the disposable Linux CI image')
+                 fixture_root = private/'services'
+                 process = subprocess.Popen(['python3', str(HERE/'auth_fixture/serve.py')],
+--- a/validation/linux/Dockerfile
++++ b/validation/linux/Dockerfile
+@@ -16,7 +16,6 @@
+ COPY . .
+ RUN mkdir -p /opt/driver-auth && gcc -Wall -Wextra -Werror -fPIC -shared \
+     validation/auth_fixture/pam_fixture.c -lpam -o /opt/driver-auth/pam_fixture.so
+-RUN touch /opt/driver-auth/disposable-fixture
+ # Git history supplies the original baseline revision. Private configuration
+ # and host build artifacts are excluded from the image context.
+ ENTRYPOINT ["python3", "validation/linux/verify.py"]

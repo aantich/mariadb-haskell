@@ -190,3 +190,41 @@ The [committed publication](results/stage6-publication.json) now supplies the
 [live report](RESULTS.md), preserving the same correctness counts and all 95
 Stage 6 passes. All 60 profiles have seven repetitions; timing alarms stay
 explicit and no reference advances.
+
+
+## Stage 7: external authentication and timeout-contract correction
+
+The two former environment inventory entries now run actual PAM and Kerberos
+logins from the Haskell client. Forty-eight additional cases cover dialog
+prompt kinds/rounds, optional terminators, empty plugin-switch acknowledgement,
+continuation envelopes, response/prompt/token bounds, embedded NUL rejection,
+secure transport and explicit opt-in, callback exceptions/deadlines, premature
+or disguised terminal OKs, principal pinning, mechanisms, wrong credentials,
+second factors, wrong Kerberos identity, missing caches, TLS GSSAPI, repeated
+native-context cleanup and cancellation before the server's mutual token.
+A separate compiled non-threaded client proves that the runtime guard rejects
+GSSAPI before native credential access.
+
+Mac and exact-source Linux correctness record **844 PASS / 0 FAIL /
+0 UNSUPPORTED / 0 unavailable**; all 793 published passes are preserved. All 173
+policy tests pass. Linux smoke-tests all 39 additive benchmark paths. Complete
+Mac runs measure 63 profiles seven times, including three new external-authentication
+setup paths. The immutable first authentication reference is separate from all
+previous references.
+
+The timeout case is an approved test-contract correction, with explicit
+retirement/rejection/fresh-connection assertions. Its original baseline/failure
+history is preserved and it is excluded from the driver-improvement list. These
+records cover the Mac/Linux client and isolated authentication services; they do
+not configure host OS accounts or certify Windows SSPI or every PAM module/realm.
+See [Stage 7](../docs/STAGE7_IMPLEMENTATION.md).
+
+
+The 11 Stage 7 review regressions cover wrapped/initial ERR-shaped plugin data,
+malformed terminal OK/ERR redaction, preservation of actual server ERR and callback
+exceptions, oversized clear-password challenges before credential callbacks,
+header-only initial/continuation limits, smaller caller budgets and full query
+budgets after authentication. Eight added policy tests cover partial-failure
+classification/interruption, selective fixture setup, source-inventory routing,
+private configuration, failed/interrupted container starts, diagnostic failures
+and ownership collisions. See the [resolved review](../docs/STAGE7_CODE_REVIEW.md).

@@ -1,0 +1,54 @@
+{
+  "recorded_at": "2026-11-09T13:27:46.805908+00:00",
+  "idle_host_claimed": false,
+  "processes": [
+    {
+      "cpu_percent": 99.2,
+      "process": "steam_osx"
+    },
+    {
+      "cpu_percent": 44.9,
+      "process": "Hearthstone"
+    },
+    {
+      "cpu_percent": 35.3,
+      "process": "WindowServer"
+    },
+    {
+      "cpu_percent": 20.8,
+      "process": "Codex (Renderer)"
+    },
+    {
+      "cpu_percent": 8.3,
+      "process": "coreaudiod"
+    },
+    {
+      "cpu_percent": 5.4,
+      "process": "codex"
+    },
+    {
+      "cpu_percent": 4.7,
+      "process": "Codex (Service)"
+    },
+    {
+      "cpu_percent": 4.2,
+      "process": "Battle.net"
+    },
+    {
+      "cpu_percent": 2.5,
+      "process": "com.docker.backend"
+    },
+    {
+      "cpu_percent": 2.1,
+      "process": "WhatsApp"
+    },
+    {
+      "cpu_percent": 2.0,
+      "process": "Google Chrome Helper (Aperitif)"
+    },
+    {
+      "cpu_percent": 1.8,
+      "process": "opendirectoryd"
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 729B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 63B done
+#4 DONE 0.0s
+
+#5 [1/5] FROM docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+#5 resolve docker.io/library/mariadb:12.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9 done
+#5 DONE 0.0s
+
+#6 [3/5] COPY pam_fixture.c /opt/driver-auth/pam_fixture.c
+#6 CACHED
+
+#7 [4/5] RUN gcc -Wall -Wextra -Werror -fPIC -shared /opt/driver-auth/pam_fixture.c     -lpam -o /opt/driver-auth/pam_fixture.so
+#7 CACHED
+
+#8 [2/5] RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     krb5-kdc krb5-admin-server krb5-user libpam0g-dev gcc libc6-dev python3 openssl     mariadb-plugin-gssapi-server     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [5/5] COPY serve.py /opt/driver-auth/serve.py
+#9 CACHED
+
+#10 exporting to image
+#10 exporting layers done
+#10 exporting manifest sha256:6382c59b954e8b4e99719b503eddc82b746f332dcd0e1ae607c72489dabf325e done
+#10 exporting config sha256:a08768478b7bd2038b3d88478e64d24b5977d9968f5479163adf9479a43238b1 done
+#10 exporting attestation manifest sha256:a3512261c7fe47476a00365579bbb625964e9fffc9dd8998ce22288df14405be done
+#10 exporting manifest list sha256:16bcd2c7ba1775303e1329e9f45ce8c10c5e8d073a18b2bc5f8af970ac2fc209 done
+#10 naming to docker.io/library/mariadb-haskell-stage7-auth:latest done
+#10 unpacking to docker.io/library/mariadb-haskell-stage7-auth:latest done
+#10 DONE 0.0s
+Server verified before build: 12.3.3-MariaDB-log
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (lib) (file src/Database/MySQL/Connection.hs changed)
+ - mysql-haskell-1.3.3 (test:test) (dependency rebuilt)
+ - mysql-haskell-1.3.3 (exe:mariadb-validation) (dependency rebuilt)
+ - mysql-haskell-1.3.3 (test:integration) (dependency rebuilt)
+Preprocessing library for mysql-haskell-1.3.3...
+Building library for mysql-haskell-1.3.3...
+<no location info>: warning: [GHC-42258] [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id dt-dflt-clss-0.2.0.0-aac0c9c2)
+      - monad-loops-0.4.3 (exposed by flag -package-id mnd-lps-0.4.3-ff24b47c)
+
+[26 of 30] Compiling Database.MySQL.Connection ( src/Database/MySQL/Connection.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Connection.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Connection.dyn_o ) [Source file changed]
+[27 of 30] Compiling Database.MySQL.Base ( src/Database/MySQL/Base.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Base.dyn_o ) [Database.MySQL.Connection changed]
+[30 of 30] Compiling Database.MySQL.TLS ( src/Database/MySQL/TLS.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/TLS.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/TLS.dyn_o ) [Database.MySQL.Connection changed]
+Preprocessing executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Preprocessing test suite 'integration' for mysql-haskell-1.3.3...
+Preprocessing test suite 'test' for mysql-haskell-1.3.3...
+Building test suite 'test' for mysql-haskell-1.3.3...
+Building executable 'mariadb-validation' for mysql-haskell-1.3.3...
+Building test suite 'integration' for mysql-haskell-1.3.3...
+[ 1 of 17] Compiling BinLog           ( test/BinLog.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLog.o ) [Database.MySQL.Connection changed]
+[ 1 of 24] Compiling Validation.Common ( validation/hs/Validation/Common.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Common.o ) [Database.MySQL.Connection changed]
+[10 of 14] Compiling Sha1Scramble     ( test/Sha1Scramble.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Sha1Scramble.o ) [Database.MySQL.Connection changed]
+[ 2 of 17] Compiling BinLogNew        ( test/BinLogNew.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinLogNew.o ) [Database.MySQL.Connection changed]
+[ 3 of 17] Compiling BinaryRow        ( test/BinaryRow.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRow.o ) [Database.MySQL.Connection changed]
+[11 of 14] Compiling Sha256Scramble   ( test/Sha256Scramble.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/test/opt/build/test/test-tmp/Sha256Scramble.o ) [Database.MySQL.Connection changed]
+[ 2 of 24] Compiling Validation.Benchmark ( validation/hs/Validation/Benchmark.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Benchmark.o ) [Database.MySQL.Connection changed]
+[ 4 of 17] Compiling BinaryRowNew     ( test/BinaryRowNew.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/BinaryRowNew.o ) [Database.MySQL.Connection changed]
+[ 5 of 17] Compiling CachingSha2      ( test/CachingSha2.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/CachingSha2.o ) [Database.MySQL.Connection changed]
+[ 6 of 17] Compiling ExecuteMany      ( test/ExecuteMany.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/ExecuteMany.o ) [Database.MySQL.Connection changed]
+[ 7 of 17] Compiling MultipleResults  ( test/MultipleResults.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MultipleResults.o ) [Database.MySQL.Connection changed]
+[15 of 15] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/test/opt/build/test/test [Objects changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+[ 8 of 17] Compiling QueryWithoutResultSet ( test/QueryWithoutResultSet.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/QueryWithoutResultSet.o ) [Database.MySQL.Connection changed]
+[ 9 of 17] Compiling RoundtripBit     ( test/RoundtripBit.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripBit.o ) [Database.MySQL.Connection changed]
+[10 of 17] Compiling RoundtripYear    ( test/RoundtripYear.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/RoundtripYear.o ) [Database.MySQL.Connection changed]
+[ 3 of 24] Compiling Validation.FaultTransport ( validation/hs/Validation/FaultTransport.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/FaultTransport.o ) [Database.MySQL.Connection changed]
+[11 of 17] Compiling SelectOne        ( test/SelectOne.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/SelectOne.o ) [Database.MySQL.Connection changed]
+[12 of 17] Compiling TLSConnection    ( test/TLSConnection.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TLSConnection.o ) [Database.MySQL.Connection changed]
+[13 of 17] Compiling TextRow          ( test/TextRow.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRow.o ) [Database.MySQL.Connection changed]
+[14 of 17] Compiling TextRowNew       ( test/TextRowNew.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/TextRowNew.o ) [Database.MySQL.Connection changed]
+[15 of 17] Compiling MysqlTests       ( test/MysqlTests.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/MysqlTests.o ) [Database.MySQL.Connection changed]
+[16 of 17] Compiling UnixSocket       ( test/UnixSocket.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/UnixSocket.o ) [Database.MySQL.Connection changed]
+[17 of 17] Compiling Main             ( test/Integration.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration-tmp/Main.o ) [Database.MySQL.Connection changed]
+[ 4 of 24] Compiling Validation.Functional ( validation/hs/Validation/Functional.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Functional.o ) [Database.MySQL.Connection changed]
+[18 of 18] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/t/integration/opt/build/integration/integration [Objects changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+[ 5 of 24] Compiling Validation.Protocol ( validation/hs/Validation/Protocol.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Protocol.o ) [Database.MySQL.Connection changed]
+[ 6 of 24] Compiling Validation.Stage1 ( validation/hs/Validation/Stage1.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage1.o ) [Database.MySQL.Connection changed]
+[ 7 of 24] Compiling Validation.Stage2 ( validation/hs/Validation/Stage2.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage2.o ) [Database.MySQL.Connection changed]
+validation/hs/Validation/Stage2.hs:219:20: warning: [GHC-18042] [-Wtype-defaults]
+    • Defaulting the type variable ‘a0’ to type ‘String’ in the following constraints
+        (ghc-internal-9.1003.0:GHC.Internal.Data.String.IsString a0)
+          arising from the literal ‘"tcp"’
+          at validation/hs/Validation/Stage2.hs:219:20-24
+        (Eq a0)
+          arising from the literal ‘"tcp"’
+          at validation/hs/Validation/Stage2.hs:228:25-29
+    • In the expression: "tcp"
+      In the first argument of ‘forM_’, namely ‘["tcp", "tls", "socket"]’
+      In the first argument of ‘($)’, namely
+        ‘forM_ ["tcp", "tls", "socket"]’
+    |
+219 |             forM_ ["tcp","tls","socket"] $ \transport -> do
+    |                    ^^^^^
+
+[ 8 of 24] Compiling Validation.Stage3 ( validation/hs/Validation/Stage3.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3.o ) [Database.MySQL.Connection changed]
+[ 9 of 24] Compiling Validation.Stage3Bench ( validation/hs/Validation/Stage3Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage3Bench.o ) [Database.MySQL.Connection changed]
+[10 of 24] Compiling Validation.Stage4 ( validation/hs/Validation/Stage4.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4.o ) [Database.MySQL.Connection changed]
+[11 of 24] Compiling Validation.Stage4Bench ( validation/hs/Validation/Stage4Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage4Bench.o ) [Database.MySQL.Connection changed]
+[12 of 24] Compiling Validation.Stage5 ( validation/hs/Validation/Stage5.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5.o ) [Database.MySQL.Connection changed]
+[15 of 24] Compiling Validation.Stage5Review ( validation/hs/Validation/Stage5Review.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage5Review.o ) [Database.MySQL.Connection changed]
+validation/hs/Validation/Stage5Review.hs:123:13: warning: [GHC-63397] [-Wname-shadowing]
+    This binding for ‘query’ shadows the existing binding
+      imported from ‘Database.MySQL.Base’ at validation/hs/Validation/Stage5Review.hs:15:1-26
+    |
+123 |             query=packet BINLOG_QUERY_EVENT $ do
+    |             ^^^^^
+
+[16 of 24] Compiling Validation.Stage6Bench ( validation/hs/Validation/Stage6Bench.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6Bench.o ) [Database.MySQL.Connection changed]
+[17 of 24] Compiling Validation.Stage6Review ( validation/hs/Validation/Stage6Review.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6Review.o ) [Database.MySQL.Connection changed]
+[18 of 24] Compiling Validation.Stage7 ( validation/hs/Validation/Stage7.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage7.o ) [Source file changed]
+[19 of 24] Compiling Validation.Security ( validation/hs/Validation/Security.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Security.o ) [Database.MySQL.Connection changed]
+[21 of 24] Compiling Validation.WireProxy ( validation/hs/Validation/WireProxy.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/WireProxy.o ) [Database.MySQL.Connection changed]
+[22 of 24] Compiling Validation.Stage6 ( validation/hs/Validation/Stage6.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Stage6.o ) [Database.MySQL.Connection changed]
+[23 of 24] Compiling Validation.Reliability ( validation/hs/Validation/Reliability.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Validation/Reliability.o ) [Database.MySQL.Connection changed]
+[24 of 24] Compiling Main             ( validation/hs/Main.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation-tmp/Main.o ) [Validation.Stage7 changed]
+[25 of 25] Linking dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/x/mariadb-validation/opt/build/mariadb-validation/mariadb-validation [Objects changed]
+ld: warning: -U option is redundant when using -undefined dynamic_lookup
+Installing library in /Users/aantich/.cabal/lib/aarch64-osx-ghc-9.10.3-fe9c/mysql-haskell-1.3.3-inplace
+MariaDB preflight passed: 12.3.3-MariaDB-log
+PASS stage7.dialog.multiple-questions
+PASS stage7.dialog.nonlast-question-then-ok
+PASS stage7.dialog.empty-password
+PASS stage7.dialog.plaintext-rejected-before-callback
+PASS stage7.dialog.explicit-opt-in-required
+PASS stage7.dialog.bad-kind
+PASS stage7.dialog.embedded-nul-prompt
+PASS stage7.dialog.embedded-nul-response
+PASS stage7.dialog.oversized-response
+PASS stage7.dialog.oversized-prompt
+PASS stage7.dialog.final-question-requires-ok
+PASS stage7.dialog.callback-failure-propagates
+PASS stage7.dialog.round-limit
+PASS stage7.dialog.password-helper-rejects-second-factor
+PASS stage7.clear-password.secure-switch
+PASS stage7.clear-password.plaintext-rejected
+PASS stage7.gssapi.principal-opt-in-required
+PASS stage7.gssapi.wrong-principal
+PASS stage7.gssapi.malformed-announcement
+FAIL stage7.live.pam-wrong-password
+FAIL stage7.live.pam-multiple-questions
+FAIL stage7.live.pam-wrong-second-factor
+FAIL stage7.live.pam-cancellation-and-reconnect
+PASS stage7.live.gssapi-wrong-identity
+PASS stage7.live.gssapi-missing-cache
+PASS stage7.live.gssapi-repeated-context-cleanup
+Results: /Users/aantich/dev/mariadbnew/projects/mariadb-haskell/validation/results/runs/stage7-focused-6/SUMMARY.md
+Partial/short development run: live full-suite results were not replaced.
+Initializing database '/fixture/principal' for realm 'MARIADB-HASKELL.TEST',
+master key name 'K/M@MARIADB-HASKELL.TEST'
+No policy specified for mariadb/localhost@MARIADB-HASKELL.TEST; defaulting to no policy
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Principal "mariadb/localhost@MARIADB-HASKELL.TEST" created.
+No policy specified for driver@MARIADB-HASKELL.TEST; defaulting to no policy
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Principal "driver@MARIADB-HASKELL.TEST" created.
+No policy specified for other@MARIADB-HASKELL.TEST; defaulting to no policy
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Principal "other@MARIADB-HASKELL.TEST" created.
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Entry for principal mariadb/localhost@MARIADB-HASKELL.TEST with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/server.keytab.
+Entry for principal mariadb/localhost@MARIADB-HASKELL.TEST with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/server.keytab.
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Entry for principal driver@MARIADB-HASKELL.TEST with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/driver.keytab.
+Entry for principal driver@MARIADB-HASKELL.TEST with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/driver.keytab.
+Authenticating as principal root/admin@MARIADB-HASKELL.TEST with password.
+Entry for principal other@MARIADB-HASKELL.TEST with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/other.keytab.
+Entry for principal other@MARIADB-HASKELL.TEST with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/fixture/other.keytab.
+2026-11-09 10:59:51 0 [Warning] mariadbd: io_uring_queue_init() failed with EPERM: sysctl kernel.io_uring_disabled has the value 2, or 1 and the user of the process is not a member of sysctl kernel.io_uring_group. (see man 2 io_uring_setup).
+create_uring failed: falling back to libaio
+mariadb/localhost@MARIADB-HASKELL.TEST: kvno = 2
+mariadb/localhost@MARIADB-HASKELL.TEST: kvno = 2

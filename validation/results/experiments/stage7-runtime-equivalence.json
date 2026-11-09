@@ -1,0 +1,66 @@
+{
+  "first_capture_index": "sha256:065d10313899e7a007821c2c052b87608b26a82629e4db273b72987e3cddd12f",
+  "first_and_verified_runtime_config_digest": "sha256:a08768478b7bd2038b3d88478e64d24b5977d9968f5479163adf9479a43238b1",
+  "runtime_identity": "docker-runtime-sha256:1116d87277d90e072e83ee412801626f06263886f0f8b65730d0b18655a74cca",
+  "verified_image_id": "sha256:119e65d876c33d0b34686438471b3490a88e647cb018a56bcdee7b98d976bc93",
+  "runtime_fields": {
+    "Architecture": "arm64",
+    "Os": "linux",
+    "Variant": null,
+    "RootFS": {
+      "Type": "layers",
+      "Layers": [
+        "sha256:107ffca6dcd3fc87a7bed8c062f5ddc0d6a4b107205c82c0b49efdb7c1aff967",
+        "sha256:0189f7d22abae5b11ee3c653a777289bca4c5632f3e51a39724ed8b7aa369664",
+        "sha256:558a3340449b4747a3e4514b5322cb3d6af786277ac4cac090ef8ab444d44209",
+        "sha256:285f36176de6f66288038d680782f5c59cba55731a8d0ea6e6cbe00e54fdf37a",
+        "sha256:76019c1f28b478238fb36752c93b301d743d64f24c9719e913b1b6f6720fc08f",
+        "sha256:c8bb410751b9c2c0d2a323734e5e5516ecc9dd614cd78f98997e54b793ad91ff",
+        "sha256:05dadb8cfabae52aadeaec4b210921e1f870f1012a7d3e5583df58742b3e2ddd",
+        "sha256:059cfa1b215e136e0761856230cce667d1d8af4685e0bb4c219538cbb590c35b",
+        "sha256:91a766871613718a7a49eaa1c790caca91fb503197c919496b35e3deb5417471",
+        "sha256:1b51ca18011ebfd0f5d22966eabd2ba1a5b5c749ee375d81fe93b80f3d9b5ad5",
+        "sha256:4d29cfcd940d116322d6b6861fc84efeeee84bbf515932573689842fb75d3b1b",
+        "sha256:9ba62132dd0d83640daea7905c0ba13ef7f3ae3f9990c16fa8005533c09d9ae9"
+      ]
+    },
+    "Config": {
+      "Cmd": null,
+      "Entrypoint": [
+        "python3",
+        "/opt/driver-auth/serve.py"
+      ],
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "GOSU_VERSION=1.19",
+        "LANG=C.UTF-8",
+        "MARIADB_VERSION=1:12.3.3+maria~ubu2404"
+      ],
+      "ExposedPorts": {
+        "3306/tcp": {}
+      },
+      "Labels": {
+        "org.opencontainers.image.authors": "MariaDB Community",
+        "org.opencontainers.image.base.name": "docker.io/library/ubuntu:noble",
+        "org.opencontainers.image.description": "MariaDB Database for relational SQL",
+        "org.opencontainers.image.documentation": "https://hub.docker.com/_/mariadb/",
+        "org.opencontainers.image.licenses": "GPL-2.0",
+        "org.opencontainers.image.source": "https://github.com/MariaDB/mariadb-docker",
+        "org.opencontainers.image.title": "MariaDB Database",
+        "org.opencontainers.image.url": "https://github.com/MariaDB/mariadb-docker",
+        "org.opencontainers.image.vendor": "MariaDB Community",
+        "org.opencontainers.image.version": "12.3.3"
+      },
+      "OnBuild": null,
+      "User": "root",
+      "Volumes": {
+        "/var/lib/mysql": {}
+      },
+      "WorkingDir": ""
+    }
+  },
+  "first_build_log_sha256": "0d4f996315ac38b828d0f1503b54fa1972fa768e7b4cd8ef2ff5ee940b6af46a",
+  "verification_build_log_sha256": "2977a6881193db9298bc83515e47c8763d5d25c8ca98390ab1dd9ca6ec4d9fc6",
+  "reason": "Provenance manifests changed while the platform configuration and filesystem stayed identical; bind only the exact initial capture index to its verified runtime fingerprint.",
+  "configuration_blob": "experiments/stage7-authentication-image-config.json"
+}

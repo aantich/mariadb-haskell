@@ -1,0 +1,33 @@
+import contextlib, json, pathlib, sys, tempfile
+from unittest.mock import patch
+sys.path.insert(0,str(pathlib.Path('validation').resolve()))
+import check,auth_fixture,feature_benchmarks,stage7_benchmarks
+for args in [ ['--only=protocol.length-0'],['--repetitions','1'],['--only','protocol.length-0'] ]:
+ with patch.object(check,'_main_with_authentication',side_effect=RuntimeError('synthetic fixture failure')),patch.object(check.live,'publish') as pub,patch.object(check.live,'input_snapshot',return_value={'files':{}}),patch('sys.argv',['check.py',*args]):
+  check.main_with_authentication()
+  print('partial failure',args,'full-report publications:',pub.call_count)
+with tempfile.TemporaryDirectory() as temp:
+ root=pathlib.Path(temp);(root/'.local').mkdir(); calls=[]; created=[]
+ def command(args,**kwargs):
+  calls.append(list(map(str,args)))
+  if args[:2]==['docker','run']:
+   created.append(args[args.index('--name')+1]);raise RuntimeError('synthetic cancellation after daemon creates container')
+ with patch.object(auth_fixture,'HERE',root),patch.object(auth_fixture,'command',side_effect=command),patch.object(auth_fixture.subprocess,'run') as run:
+  try:
+   with auth_fixture.environment():pass
+  except RuntimeError:pass
+  print('fixture creation interrupted: created names=',len(created),'cleanup subprocesses=',run.call_count)
+# Authentication benchmark comparison must describe the actual target runtime.
+spec=stage7_benchmarks.specification()
+base,_=feature_benchmarks.load_baseline(spec)
+mutated=json.loads(json.dumps(base));mutated['environment_profile']['MB_AUTH_HOST']='different-host'
+print('recorded external metadata fields:', sorted(base['environment_profile']))
+print('auth-specific server metadata:', any(k.startswith('auth') or k.startswith('fixture') for k in base['server']))
+# This check must not need a real MariaDB or Docker process.
+with tempfile.TemporaryDirectory() as folder:
+ config=pathlib.Path(folder)/'config.json';config.write_text('{}')
+ @contextlib.contextmanager
+ def fixture():yield {'MB_AUTH_HOST':'127.0.0.1'}
+ with patch('sys.argv',['check.py','--config',str(config),'--only','protocol.length-0','--no-upstream','--no-benchmarks']),patch.object(check.run,'sql_client',return_value='MariaDB'),patch('auth_fixture.environment',side_effect=fixture) as make,patch.object(check,'main',return_value=0),patch.dict('os.environ',{},clear=True):
+  check._main_with_authentication()
+  print('protocol-only run provisions external fixture:',make.call_count==1)

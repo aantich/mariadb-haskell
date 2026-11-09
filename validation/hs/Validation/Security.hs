@@ -8,6 +8,7 @@ import qualified Database.MySQL.TLS as TLS
 import qualified Network.TLS as WireTLS
 import System.Environment
 import Validation.Common
+import qualified Validation.Stage7 as Stage7
 
 clientCertificate :: Bool -> Bool -> ConnectInfo -> IO MySQLConn
 clientCertificate expired explicitHook ci=do
@@ -43,6 +44,6 @@ cases =
         ci <- config
         expectERR [1045,1698] (withConnect (connect ci {ciUser="mariadb_socket",ciPassword=""}) healthy)
     , Case "connection.mozilla-ca-store-installed" "connection" $ void (TLS.makeClientParams TLS.MozillaCAStore)
-    , Case "auth.pam-environment" "environment" $ throwIO (Unavailable "PAM helper from the Homebrew bottle could not acquire root ownership; no OS PAM login fixture is configured")
-    , Case "auth.gssapi-environment" "environment" $ throwIO (Unavailable "no Kerberos realm, keytab or GSSAPI login fixture configured on this Mac")
+    , Case "auth.pam-environment" "environment" $ Stage7.pamFeature
+    , Case "auth.gssapi-environment" "environment" $ Stage7.gssapiFeature
     ]

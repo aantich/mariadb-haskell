@@ -16,6 +16,8 @@ module Database.MySQL.TLS (
       connect
     , connectDetail
     , connectWithOptions
+    , connectWithAuthentication
+    , connectDetailWithAuthentication
     , connectDetailWithOptions
     , module Data.TLSSetting
     ) where
@@ -28,7 +30,8 @@ import           Data.IORef                     (writeIORef)
 import           Data.Bits                      (testBit)
 import           Control.Monad                  (when)
 import           Data.TLSSetting
-import           Database.MySQL.Connection      hiding (connect, connectDetail, connectWithOptions, connectDetailWithOptions)
+import           Database.MySQL.Authentication
+import           Database.MySQL.Connection      hiding (connect, connectDetail, connectWithOptions, connectDetailWithOptions, connectWithAuthentication, connectDetailWithAuthentication)
 import           Database.MySQL.Protocol.Auth
 import           Database.MySQL.Protocol.Packet
 import qualified Network.TLS                    as TLS
@@ -51,14 +54,24 @@ connectDetail = connectDetailWithOptions defaultConnectionOptions
 -- | Explicit-options variant of 'connectDetail'. The plaintext greeting uses
 -- sequence zero, SSLRequest one and the authenticated TLS response sequence two.
 connectDetailWithOptions :: ConnectionOptions -> ConnectInfo -> (TLS.ClientParams,String) -> IO (Greeting,MySQLConn)
-connectDetailWithOptions options ci (params,name) = withConnectDeadline options $ do
+connectDetailWithOptions options = connectDetailWithAuthentication options defaultAuthenticationOptions
+
+-- | TLS connection with explicit PAM callbacks or a pinned GSSAPI principal.
+-- Certificate verification remains the responsibility of the supplied TLS
+-- parameters; external authentication does not replace peer verification.
+connectWithAuthentication :: ConnectionOptions -> AuthenticationOptions -> ConnectInfo -> (TLS.ClientParams,String) -> IO MySQLConn
+connectWithAuthentication options auth ci params = snd <$> connectDetailWithAuthentication options auth ci params
+
+-- | Greeting-returning variant of 'connectWithAuthentication'.
+connectDetailWithAuthentication :: ConnectionOptions -> AuthenticationOptions -> ConnectInfo -> (TLS.ClientParams,String) -> IO (Greeting,MySQLConn)
+connectDetailWithAuthentication options auth ci (params,name) = withConnectDeadline options $ do
     validateOptions options
     bracketOnError (TCP.connectSocketTimeout (connectTimeoutMicros options) (ciHost ci) (ciPort ci) >>= TCP.socketToConnectionAdaptive bUFSIZE) Conn.close $ \raw -> do
-        input <- decodeInputStreamWithLimit (maximumMessageBytes options) (Conn.source raw)
+        input <- decodeInputStreamWithLimit (authenticationWireLimit options) (Conn.source raw)
         packet <- readPacket input
         if pSeqN packet /= 0 then throwIO (ProtocolError "invalid greeting sequence") else pure ()
-        if isERR packet then decodeFromPacket packet >>= throwIO . ERRException else pure ()
-        greeting <- getFromPacketExact getGreeting packet
+        if isERR packet then authenticationDiagnostic (decodeFromPacket packet) >>= throwIO . ERRException else pure ()
+        greeting <- authenticationDiagnostic (getFromPacketExact getGreeting packet)
         if not (supportTLS (greetingCaps greeting)) then throwIO (AuthException "MariaDB server does not offer TLS") else pure ()
         let caps=negotiatedCapabilities options greeting
             params'=params {TLS.clientServerIdentification=(name,"")}
@@ -68,12 +81,12 @@ connectDetailWithOptions options ci (params,name) = withConnectDeadline options 
         bracketOnError (TLS.contextNew sock params') (\ctx -> TLS.contextClose ctx `finally` Conn.close raw) $ \ctx -> do
             TLS.handshake ctx
             secure <- TLS.tLsToConnection (ctx,addr)
-            conn <- newTransportConnection options (Conn.source secure) (Conn.send secure) (TLS.contextClose ctx `finally` Conn.close raw)
+            (authConn,conn) <- newAuthenticatingTransportConnection options (Conn.source secure) (Conn.send secure) (TLS.contextClose ctx `finally` Conn.close raw)
             setExchangeSequence conn 2
             writeIORef (connectionCapabilities conn) (caps+0x800)
-            mysqlWrite conn (encodeToPacket 2 (mkAuthWithOptions options (caps+0x800) ci greeting))
-            response <- readConnPacket conn
-            completeAuth conn greeting True (ciPassword ci) response
+            mysqlWrite conn (encodeToPacket 2 (mkAuthForAuthentication auth options (caps+0x800) ci greeting))
+            response <- authenticationDiagnostic (readConnPacket authConn)
+            completeAuthWithOptions auth authConn greeting True (ciPassword ci) response
             when (testBit caps 5) (connectionCompressionStart conn)
             role <- initializeSession conn
             rememberInitialSession conn ci role

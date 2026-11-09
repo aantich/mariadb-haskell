@@ -1,0 +1,20 @@
+{
+  "recorded_at": "2026-11-09T11:30:16.574977+00:00",
+  "parent_commit": "7b92ded2f913913abe0d7de7b15c78b4cde148aa",
+  "final_input_sha256": "2e6a1eb6692f7a02fe41756a01996ebdc152aee7f36b33d8ce49d96b5cf37d35",
+  "final_inputs": 194,
+  "final_patch_sha256": "4d03c9a1de58baa5343a8deb789559113206cd30d2064b38c095dbf9289157c8",
+  "final_reconstruction_verified": true,
+  "first_authentication_capture_input_sha256": "4d6d175c0783b5bc28b74db3c02ae0edde8f45b2fee619d3036212610038b982",
+  "first_capture_inputs": 191,
+  "first_capture_reconstruction_verified": true,
+  "first_capture_review_differences": [
+    "src/Database/MySQL/Authentication.hs",
+    "src/Database/MySQL/Authentication/GSSAPI.hs",
+    "src/Database/MySQL/Connection.hs",
+    "validation/auth_fixture.py",
+    "validation/hs/Validation/Stage7.hs",
+    "validation/linux/Dockerfile"
+  ],
+  "immutable_artifacts_added_after_capture": 3
+}

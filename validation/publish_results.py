@@ -35,8 +35,14 @@ def is_input(path):
             or path.startswith(("test/", "npins/"))
             or (path.startswith("validation/") and p.suffix == ".py")
             or p.name.startswith("cabal.project") or path == "mozillaCAStore.pem"
-            or path in {".dockerignore", "validation/linux/Dockerfile",
+            or path in {".dockerignore", "validation/linux/Dockerfile", "validation/auth_fixture/Dockerfile", "validation/auth_fixture/.dockerignore",
                         "validation/results/accepted.json", "validation/results/previous-stage.json",
+                        "validation/results/stage7-reference.json",
+                        "validation/results/references/stage6-publication-1.json",
+                        "validation/results/experiments/stage7-runtime-equivalence.json",
+                        "validation/results/experiments/stage7-authentication-image-config.json",
+                        "validation/results/experiments/stage7-first-authentication.log",
+                        "validation/results/experiments/stage7-runtime-identity-build.log",
                         "validation/baselines/macos-arm64-native-statements/results.json",
                         "validation/baselines/macos-arm64-native-statements/SUMMARY.md",
                         "validation/baselines/macos-arm64-native-statements/SHA256SUMS",
@@ -48,7 +54,10 @@ def is_input(path):
                         "validation/baselines/macos-arm64-cdc/SHA256SUMS",
                         "validation/baselines/macos-arm64-wire-features/results.json",
                         "validation/baselines/macos-arm64-wire-features/SUMMARY.md",
-                        "validation/baselines/macos-arm64-wire-features/SHA256SUMS"}
+                        "validation/baselines/macos-arm64-wire-features/SHA256SUMS",
+                        "validation/baselines/macos-arm64-external-authentication/results.json",
+                        "validation/baselines/macos-arm64-external-authentication/SUMMARY.md",
+                        "validation/baselines/macos-arm64-external-authentication/SHA256SUMS"}
             or path.startswith(".github/workflows/"))
 
 
@@ -218,6 +227,12 @@ def render(document, baseline):
     comparison = data.get("comparison")
     regressions = comparison["regressions"] if comparison else []
     improvements = comparison["improved_cases"] if comparison else []
+    corrected_timeout = ("validation/hs/Validation/Stage7.hs" in completed['attempt']['inputs']['files']
+        and any(case['id'] == 'reliability.timeout-before-metadata' and case['status'] == 'PASS'
+                for case in data['correctness']))
+    if corrected_timeout:
+        improvements = [ident for ident in improvements if ident != 'reliability.timeout-before-metadata']
+        lines += ["> [!NOTE]", "> **Approved test-contract correction:** `reliability.timeout-before-metadata` now asserts safe retirement, rejection of further commands and a healthy fresh connection after cancellation. Its former reuse expectation contradicted the passing retirement test. The original baseline and failure history remain unchanged. This passing assertion is excluded from the driver-improvement list below. [Contract and evidence](../docs/STAGE7_IMPLEMENTATION.md).", ""]
     failed = counts["FAIL"] + counts["TIMEOUT"]
     if attempt["state"] != "COMPLETED":
         lines += ["## Last completed suite (older results)", "",
@@ -336,6 +351,23 @@ def render(document, baseline):
         comparison = wire['baseline_comparison']
         lines += ["", "Server cursors materialize results and add fetch round trips. Compression is optional and trades CPU/allocations for fewer network bytes; local timing is not a WAN result. These features need not outperform ordinary streaming on this Mac.", "",
             f"[First wire-feature capture](baselines/macos-arm64-wire-features/results.json): **{'comparable' if comparison['comparable'] else 'different profile; deltas withheld'}**; timing investigations above 5%: **{len(comparison['timing_investigations'])}**; allocation investigations: **{len(comparison['allocation_investigations'])}**. All seven-repetition samples are retained in [current.json](results/current.json).", ""]
+    external_auth = attempt.get('external_authentication')
+    if external_auth and external_auth.get('complete'):
+        lines += ["### External authentication setup", "",
+            "Complete connect/authenticate/session-initialize/query/close costs; units are verified connections. PAM uses TLS and GSSAPI uses a pre-acquired Kerberos service ticket over TCP. KDC ticket acquisition is excluded. The fixture image identity must match before timing deltas are compared.", "",
+            "| Profile | Baseline ns/connection | Current ns/connection | Change vs baseline | Allocation change |",
+            "| --- | ---: | ---: | ---: | ---: |"]
+        from stage7_benchmarks import specification
+        import feature_benchmarks
+        auth_baseline, _ = feature_benchmarks.load_baseline(specification())
+        comparison = external_auth['baseline_comparison']
+        for ident, profile in external_auth['profiles'].items():
+            original_profile = auth_baseline['profiles'][ident]
+            changes = comparison['profiles'].get(ident)
+            delta = f"{changes['elapsed_ns']:+.1f}%" if changes else 'withheld: different profile'
+            allocation = f"{changes['allocated_bytes']:+.1f}%" if changes else 'withheld'
+            lines.append(f"| `{ident}` | {original_profile['median_elapsed_ns_per_unit']:,.2f} | {profile['median_elapsed_ns_per_unit']:,.2f} | {delta} | {allocation} |")
+        lines += ["", f"[First authentication capture](baselines/macos-arm64-external-authentication/results.json): timing investigations **{len(comparison['timing_investigations'])}**; allocation investigations **{len(comparison['allocation_investigations'])}**. These authentication alternatives have different security/transport work and are not compared against one another.", ""]
     engines = sorted({ident.partition("/")[0] for ident in data["benchmarks"]}, key=lambda engine: (engine != "haskell", engine))
     for engine in engines:
         title = {"haskell": "Haskell driver", "connector-c": "MariaDB Connector/C control"}.get(engine, engine)
@@ -419,6 +451,9 @@ def verify(document, snapshot, *, allow_working_tree=False):
     if any(case['id'].startswith('stage6.') for case in data['correctness']):
         from stage6_benchmarks import verify_evidence as verify_wire
         verify_wire(attempt.get('wire_features', {}), attempt['inputs'])
+    if any(case['id'].startswith('stage7.') for case in data['correctness']):
+        from stage7_benchmarks import verify_evidence as verify_auth
+        verify_auth(attempt.get('external_authentication', {}), attempt['inputs'])
     if data["build"]["git_commit"] != attempt["inputs"]["commit"]:
         raise ValueError("recorder and report disagree about the tested commit")
 

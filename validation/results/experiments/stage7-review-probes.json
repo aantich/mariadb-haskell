@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-11-09T13:15:13.761086+00:00",
+  "parent_commit": "7b92ded2f913913abe0d7de7b15c78b4cde148aa",
+  "input_sha256": "c2e48f1c67af0255eea4bedf627b7099f71ff5a67b8f6176be072dbd01bb513e",
+  "review_only": true,
+  "driver_and_executable_inputs_changed": false,
+  "full_benchmarks_rerun": false,
+  "policy_tests": {
+    "pass": 165,
+    "fail": 0
+  },
+  "freshness_check": "PASS --working-tree",
+  "probes": {
+    "wrapped_plugin_err_redaction": "Synthetic marker is present in ERRException; plugin data was treated as SQL ERR after unwrap.",
+    "malformed_ok_redaction": "Synthetic marker is present in DecodePacketFailed.",
+    "clear_password_token_limit": "2 MiB challenge accepted; callback invoked and reply sent.",
+    "continuation_pre_body_limit": "2 MiB header caused a body-read request instead of early rejection.",
+    "partial_publication": "Injected fixture failure publishes full latest-attempt status for --only=... and --repetitions 1; spaced --only is correctly excluded.",
+    "fixture_creation_cleanup": "Fault injection after simulated creation raises before ownership registration; no cleanup subprocess is called.",
+    "protocol_only_setup": "Mocked _main_with_authentication calls external fixture for protocol.length-0 only; no Docker started."
+  },
+  "scope_limits": [
+    "No real secret values were used by probes.",
+    "Container creation/cleanup and failure-publication probes use mocks; no real container or live report was modified.",
+    "No real-server or benchmark rerun was performed."
+  ],
+  "artifact_root": "validation/results/experiments/",
+  "artifact_sha256": {
+    "stage7-review-auth-probe.hs.txt": "7d2741011b24e510a9ebc62c9044e8bd69501bff9d34ca1c8ac4e78e435234ec",
+    "stage7-review-redaction-probe.hs.txt": "43a4b24b80331fc6fd8ad2fea40c810a4141d0f59114a65c3f80c879d2f73be9",
+    "stage7-review-python-probes.py.txt": "db1eb3d7f49d01ff91e54ebc113e88e95ece20e7eeb2a781aacbf1e3af8fb9c5",
+    "stage7-review-auth-build.log": "e466a42a87f5decc977248cf5df9d1eec0fa541db94a5bd1465564d9826384ad",
+    "stage7-review-redaction-build.log": "694a3e1a6c9fe521da33c1d4636f8a16d7baaac341d092d1edab3ce93938f403",
+    "stage7-review-policy.log": "4a8cb3de15ed64b56435c160b702b652062158ada2667c71ab1a66a69ffe5dbf",
+    "stage7-review-auth-probe.log": "55fd567917e21381366abf5f7119ccda938c0516bf19354fbf90f23db2f4ab61",
+    "stage7-review-redaction-probe.log": "f7657010a3da048c6ba2a91af467fd232a8d3ac42e3591b406d933df1212f6b7",
+    "stage7-review-python-probes.log": "69e6a84eb41048505e6403b094941f35a910849ca67242230679d5c43b30eeb8"
+  }
+}

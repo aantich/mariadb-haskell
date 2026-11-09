@@ -22,3 +22,5 @@ result-*
 validation/.local/
 validation/results/runs/
 validation/__pycache__/
+
+__pycache__/

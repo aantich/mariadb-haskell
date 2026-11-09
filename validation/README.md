@@ -259,3 +259,46 @@ Correctness/evidence gates pass; the run exits 1 for timing alarms. All referenc
 and earlier review captures remain unchanged. The
 [publication manifest](results/stage6-publication.json) also retains the stopped
 extra confirmation and identifies the completed capture used by the live report.
+
+
+### Stage 7: PAM, GSSAPI and the corrected timeout contract
+
+Full `check.py` runs now prepare an owned loopback Docker authentication fixture
+before building, after verifying the managed MariaDB server. Docker must be
+running. The fixture supplies real PAM conversations and a disposable Kerberos
+realm, server principal/keytabs, pre-acquired client tickets, TLS CA and MariaDB
+server. It changes no host PAM policy, OS account, default ticket cache or trust
+store, and removes its own container/private files on exit. Explicit existing
+`MB_AUTH_*` fixture settings are reused instead. Missing requested fixtures fail
+real checks; the two old unavailable placeholders are gone.
+
+The full workflow keeps all 60 earlier profiles and adds three authentication
+setup profiles, each with two warmups and seven measured processes of ten
+connections. Each operation creates TLS parameters/loads the fixture CA where
+applicable, connects, authenticates, initializes session state, verifies SELECT
+and closes. PAM uses TLS; GSSAPI uses a pre-acquired service ticket over TCP.
+These are distinct end-to-end setup workloads, not interchangeable authentication
+microbenchmarks. Applications may reuse TLS parameters. KDC ticket acquisition
+is excluded. The separate first authentication baseline is immutable, and a
+fixture-image change withholds timing deltas. Current measurements are embedded
+in the live JSON and independently required by publication freshness checks.
+
+The original timeout test now asserts Broken status, rejection of further commands
+and a healthy fresh connection after cancellation, following Anton's explicit
+9 November approval. It keeps the original ID, SQL and timeout. The report labels
+this contract correction separately from driver improvements; the original
+baseline and failure evidence remain unchanged. See [contracts and deployment
+requirements](../docs/STAGE7_IMPLEMENTATION.md), including GSSAPI's threaded-RTS
+requirement and Linux native-library dependency.
+
+
+Stage 7 review fixes enforce a separate authentication framing budget before
+body reads, then return to the ordinary query reader after login. Malformed
+packet diagnostics are redacted without changing application callback exceptions
+or genuine SQL ERR replies. Focused non-live filters (for example
+`--only=protocol.length-0 --no-upstream --no-benchmarks`) no longer provision
+Docker/Kerberos/PAM. Full runs and selected live authentication cases still require
+the real services. Partial setup failures never replace full-run attempt status,
+including `--only=...` and runs with fewer than seven repetitions. Owned fixture
+containers are identified before creation and verified by a unique instance label
+before cleanup, including failed or interrupted starts.

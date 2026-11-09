@@ -122,7 +122,13 @@ def main():
         lost = [case['id'] for case in previous['correctness']
                 if case['status']=='PASS' and current.get(case['id'])!='PASS']
         added_failures = [case['id'] for case in data['correctness']
-                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.', 'stage5.', 'stage6.')) and case['status']!='PASS']
+                          if case['id'].startswith(('stage2.', 'stage3.', 'stage4.', 'stage5.', 'stage6.', 'stage7.')) and case['status']!='PASS']
+        stage6_manifest = json.loads((ROOT/'validation/results/stage7-reference.json').read_text())
+        stage6 = json.loads((ROOT/'validation/results'/stage6_manifest['reference']).read_text())
+        lost += [case['id'] for case in stage6['correctness']
+                 if case['status'] == 'PASS' and current.get(case['id']) != 'PASS']
+        added_failures += [ident for ident in ['auth.pam-environment', 'auth.gssapi-environment',
+            'reliability.timeout-before-metadata'] if current.get(ident) != 'PASS']
         sys.path.insert(0, str(ROOT/'validation'))
         import stage1_gates
         native_failures = [ident for ident in stage1_gates.NATIVE_TARGETS + stage1_gates.STATEMENT_TARGETS + stage1_gates.SESSION_TARGETS + stage1_gates.CDC_TARGETS if current.get(ident) != 'PASS']
@@ -147,6 +153,8 @@ def main():
         import stage6_benchmarks
         for profile in stage6_benchmarks.PROFILES:
             command([binary, 'stage6-bench', profile, '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
+        for profile in ['auth.pam.password', 'auth.pam.multiple', 'auth.gssapi.cached-ticket']:
+            command([binary, 'stage7-bench', profile, '1', '+RTS', '-N4', '-T', '-RTS'], env=native_env)
         print('Linux correctness profile passed; frozen timings were not compared.', flush=True)
     finally:
         process.terminate()
@@ -159,4 +167,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.path.insert(0, str(ROOT/'validation'))
+    import auth_fixture
+    with auth_fixture.environment(local=True) as fixture:
+        os.environ.update(fixture)
+        main()

@@ -1,0 +1,446 @@
+Resolving dependencies...
+Build profile: -w ghc-9.10.3 -O1
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (lib) (first run)
+Preprocessing library for mysql-haskell-1.3.3...
+Running Haddock on library for mysql-haskell-1.3.3...
+Warning: The following packages have no Haddock documentation installed. No
+links will be generated to these packages: attoparsec-0.14.4
+<no location info>: warning: [GHC-42258] [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id dt-dflt-clss-0.2.0.0-a231f1d6)
+      - monad-loops-0.4.3 (exposed by flag -package-id mnd-lps-0.4.3-6192c187)
+
+[ 1 of 31] Compiling Data.Binary.Parser.Word8 ( src/Data/Binary/Parser/Word8.hs, nothing )
+[ 2 of 31] Compiling Data.Binary.Parser.Numeric ( src/Data/Binary/Parser/Numeric.hs, nothing )
+[ 3 of 31] Compiling Data.Binary.Parser ( src/Data/Binary/Parser.hs, nothing )
+[ 4 of 31] Compiling Data.Connection  ( src/Data/Connection.hs, nothing )
+[ 5 of 31] Compiling Data.Word.Word24 ( src/Data/Word/Word24.hs, nothing )
+[ 6 of 31] Compiling Data.Int.Int24   ( src/Data/Int/Int24.hs, nothing )
+[ 7 of 31] Compiling Database.MySQL.Authentication ( src/Database/MySQL/Authentication.hs, nothing )
+[ 8 of 31] Compiling Database.MySQL.Authentication.GSSAPI ( src/Database/MySQL/Authentication/GSSAPI.hs, nothing )
+[ 9 of 31] Compiling Database.MySQL.Protocol.Compression ( src/Database/MySQL/Protocol/Compression.hs, nothing )
+[10 of 31] Compiling Database.MySQL.Protocol.Escape ( src/Database/MySQL/Protocol/Escape.hs, nothing )
+[11 of 31] Compiling Database.MySQL.Protocol.Packet ( src/Database/MySQL/Protocol/Packet.hs, nothing )
+[12 of 31] Compiling Database.MySQL.Protocol.ColumnDef ( src/Database/MySQL/Protocol/ColumnDef.hs, nothing )
+[13 of 31] Compiling Database.MySQL.Protocol.MySQLValue ( src/Database/MySQL/Protocol/MySQLValue.hs, nothing )
+[14 of 31] Compiling Database.MySQL.Protocol.Command ( src/Database/MySQL/Protocol/Command.hs, nothing )
+[15 of 31] Compiling Database.MySQL.Field ( src/Database/MySQL/Field.hs, nothing )
+[16 of 31] Compiling Database.MySQL.BinLogProtocol.BinLogMeta ( src/Database/MySQL/BinLogProtocol/BinLogMeta.hs, nothing )
+src/Database/MySQL/BinLogProtocol/BinLogMeta.hs:130:13: warning: [GHC-63397] [-Wname-shadowing]
+    This binding for ‘label’ shadows the existing binding
+      imported from ‘Data.Binary.Get’ at src/Database/MySQL/BinLogProtocol/BinLogMeta.hs:32:1-32
+      (and originally defined in ‘Data.Binary.Get.Internal’)
+    |
+130 | checkedByte label valid = do
+    |             ^^^^^
+
+[17 of 31] Compiling Database.MySQL.Protocol.Auth ( src/Database/MySQL/Protocol/Auth.hs, nothing )
+[18 of 31] Compiling Database.MySQL.BinLogProtocol.BinLogValue ( src/Database/MySQL/BinLogProtocol/BinLogValue.hs, nothing )
+[19 of 31] Compiling Database.MySQL.Protocol.Progress ( src/Database/MySQL/Protocol/Progress.hs, nothing )
+[20 of 31] Compiling Database.MySQL.Query ( src/Database/MySQL/Query.hs, nothing )
+[21 of 31] Compiling Database.MySQL.BinLogProtocol.BinLogEvent ( src/Database/MySQL/BinLogProtocol/BinLogEvent.hs, nothing )
+[22 of 31] Compiling Database.MySQL.BinLogProtocol.CDC ( src/Database/MySQL/BinLogProtocol/CDC.hs, nothing )
+[23 of 31] Compiling Database.MySQL.Session ( src/Database/MySQL/Session.hs, nothing )
+[24 of 31] Compiling Paths_mysql_haskell ( dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/build/autogen/Paths_mysql_haskell.hs, nothing )
+[25 of 31] Compiling Data.TLSSetting  ( src/Data/TLSSetting.hs, nothing )
+[26 of 31] Compiling System.IO.Streams.TCP ( src/System/IO/Streams/TCP.hs, nothing )
+[27 of 31] Compiling Database.MySQL.Connection ( src/Database/MySQL/Connection.hs, nothing )
+[28 of 31] Compiling Database.MySQL.Base ( src/Database/MySQL/Base.hs, nothing )
+[29 of 31] Compiling Database.MySQL.BinLog ( src/Database/MySQL/BinLog.hs, nothing )
+[30 of 31] Compiling System.IO.Streams.TLS ( src/System/IO/Streams/TLS.hs, nothing )
+[31 of 31] Compiling Database.MySQL.TLS ( src/Database/MySQL/TLS.hs, nothing )
+Haddock coverage:
+ 100% ( 23 / 23) in 'Data.Binary.Parser.Word8'
+ 100% (  8 /  8) in 'Data.Binary.Parser.Numeric'
+Warning: 'ByteString' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+ 100% ( 31 / 31) in 'Data.Binary.Parser'
+Warning: 'Connection' is ambiguous. It is defined
+    * at src/Data/Connection.hs:37:21
+    * at src/Data/Connection.hs:37:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Data/Connection.hs:37:1
+  50% (  1 /  2) in 'Data.Connection'
+  Missing documentation for:
+    Module header
+  90% (  9 / 10) in 'Data.Word.Word24'
+  Missing documentation for:
+    byteSwap24# (src/Data/Word/Word24.hs:215)
+  80% (  4 /  5) in 'Data.Int.Int24'
+  Missing documentation for:
+    narrow24Int# (src/Data/Int/Int24.hs:86)
+ 100% (  5 /  5) in 'Database.MySQL.Authentication'
+  33% (  1 /  3) in 'Database.MySQL.Protocol.Escape'
+  Missing documentation for:
+    escapeText (src/Database/MySQL/Protocol/Escape.hs:50)
+    escapeBytes (src/Database/MySQL/Protocol/Escape.hs:121)
+Warning: 'OK' is ambiguous. It is defined
+    * at src/Database/MySQL/Protocol/Packet.hs:138:11
+    * at src/Database/MySQL/Protocol/Packet.hs:138:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Protocol/Packet.hs:138:1
+  39% ( 17 / 43) in 'Database.MySQL.Protocol.Packet'
+  Missing documentation for:
+    putPacket (src/Database/MySQL/Protocol/Packet.hs:42)
+    getPacket (src/Database/MySQL/Protocol/Packet.hs:49)
+    isERR (src/Database/MySQL/Protocol/Packet.hs:63)
+    isOK (src/Database/MySQL/Protocol/Packet.hs:67)
+    encodeToPacket (src/Database/MySQL/Protocol/Packet.hs:119)
+    putToPacket (src/Database/MySQL/Protocol/Packet.hs:126)
+    ERR (src/Database/MySQL/Protocol/Packet.hs:171)
+    getERR (src/Database/MySQL/Protocol/Packet.hs:178)
+    putERR (src/Database/MySQL/Protocol/Packet.hs:186)
+    EOF (src/Database/MySQL/Protocol/Packet.hs:200)
+    getEOF (src/Database/MySQL/Protocol/Packet.hs:206)
+    putEOF (src/Database/MySQL/Protocol/Packet.hs:212)
+    getByteStringNul (src/Database/MySQL/Protocol/Packet.hs:228)
+    getRemainingByteString (src/Database/MySQL/Protocol/Packet.hs:232)
+    putLenEncBytes (src/Database/MySQL/Protocol/Packet.hs:236)
+    getLenEncBytes (src/Database/MySQL/Protocol/Packet.hs:242)
+    putLenEncInt (src/Database/MySQL/Protocol/Packet.hs:286)
+    putWord24le (src/Database/MySQL/Protocol/Packet.hs:291)
+    getWord24le (src/Database/MySQL/Protocol/Packet.hs:297)
+    putWord48le (src/Database/MySQL/Protocol/Packet.hs:304)
+    getWord48le (src/Database/MySQL/Protocol/Packet.hs:310)
+    getWord24be (src/Database/MySQL/Protocol/Packet.hs:317)
+    getInt24be (src/Database/MySQL/Protocol/Packet.hs:324)
+    getWord40be (src/Database/MySQL/Protocol/Packet.hs:331)
+    getWord48be (src/Database/MySQL/Protocol/Packet.hs:335)
+    getWord56be (src/Database/MySQL/Protocol/Packet.hs:339)
+Warning: 'ColumnDef' is ambiguous. It is defined
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:33:18
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:33:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Protocol/ColumnDef.hs:33:1
+  12% (  7 / 54) in 'Database.MySQL.Protocol.ColumnDef'
+  Missing documentation for:
+    mySQLTypeDecimal (src/Database/MySQL/Protocol/ColumnDef.hs:128)
+    mySQLTypeTiny (src/Database/MySQL/Protocol/ColumnDef.hs:129)
+    mySQLTypeShort (src/Database/MySQL/Protocol/ColumnDef.hs:130)
+    mySQLTypeLong (src/Database/MySQL/Protocol/ColumnDef.hs:131)
+    mySQLTypeFloat (src/Database/MySQL/Protocol/ColumnDef.hs:132)
+    mySQLTypeDouble (src/Database/MySQL/Protocol/ColumnDef.hs:133)
+    mySQLTypeNull (src/Database/MySQL/Protocol/ColumnDef.hs:134)
+    mySQLTypeTimestamp (src/Database/MySQL/Protocol/ColumnDef.hs:135)
+    mySQLTypeLongLong (src/Database/MySQL/Protocol/ColumnDef.hs:136)
+    mySQLTypeInt24 (src/Database/MySQL/Protocol/ColumnDef.hs:137)
+    mySQLTypeDate (src/Database/MySQL/Protocol/ColumnDef.hs:138)
+    mySQLTypeTime (src/Database/MySQL/Protocol/ColumnDef.hs:139)
+    mySQLTypeDateTime (src/Database/MySQL/Protocol/ColumnDef.hs:140)
+    mySQLTypeYear (src/Database/MySQL/Protocol/ColumnDef.hs:141)
+    mySQLTypeNewDate (src/Database/MySQL/Protocol/ColumnDef.hs:142)
+    mySQLTypeVarChar (src/Database/MySQL/Protocol/ColumnDef.hs:143)
+    mySQLTypeBit (src/Database/MySQL/Protocol/ColumnDef.hs:144)
+    mySQLTypeTimestamp2 (src/Database/MySQL/Protocol/ColumnDef.hs:145)
+    mySQLTypeDateTime2 (src/Database/MySQL/Protocol/ColumnDef.hs:146)
+    mySQLTypeTime2 (src/Database/MySQL/Protocol/ColumnDef.hs:147)
+    mySQLTypeNewDecimal (src/Database/MySQL/Protocol/ColumnDef.hs:148)
+    mySQLTypeEnum (src/Database/MySQL/Protocol/ColumnDef.hs:149)
+    mySQLTypeSet (src/Database/MySQL/Protocol/ColumnDef.hs:150)
+    mySQLTypeTinyBlob (src/Database/MySQL/Protocol/ColumnDef.hs:151)
+    mySQLTypeMediumBlob (src/Database/MySQL/Protocol/ColumnDef.hs:152)
+    mySQLTypeLongBlob (src/Database/MySQL/Protocol/ColumnDef.hs:153)
+    mySQLTypeBlob (src/Database/MySQL/Protocol/ColumnDef.hs:154)
+    mySQLTypeVarString (src/Database/MySQL/Protocol/ColumnDef.hs:155)
+    mySQLTypeString (src/Database/MySQL/Protocol/ColumnDef.hs:156)
+    mySQLTypeGeometry (src/Database/MySQL/Protocol/ColumnDef.hs:157)
+    getFieldType (src/Database/MySQL/Protocol/ColumnDef.hs:160)
+    putFieldType (src/Database/MySQL/Protocol/ColumnDef.hs:164)
+    flagNotNull (src/Database/MySQL/Protocol/ColumnDef.hs:194)
+    flagPrimaryKey (src/Database/MySQL/Protocol/ColumnDef.hs:195)
+    flagUniqueKey (src/Database/MySQL/Protocol/ColumnDef.hs:196)
+    flagMultipleKey (src/Database/MySQL/Protocol/ColumnDef.hs:197)
+    flagBlob (src/Database/MySQL/Protocol/ColumnDef.hs:198)
+    flagUnsigned (src/Database/MySQL/Protocol/ColumnDef.hs:199)
+    flagZeroFill (src/Database/MySQL/Protocol/ColumnDef.hs:200)
+    flagBinary (src/Database/MySQL/Protocol/ColumnDef.hs:201)
+    flagEnum (src/Database/MySQL/Protocol/ColumnDef.hs:202)
+    flagAutoIncrement (src/Database/MySQL/Protocol/ColumnDef.hs:203)
+    flagTimeStamp (src/Database/MySQL/Protocol/ColumnDef.hs:204)
+    flagSet (src/Database/MySQL/Protocol/ColumnDef.hs:205)
+    flagNoDefaultValue (src/Database/MySQL/Protocol/ColumnDef.hs:206)
+    flagPartKey (src/Database/MySQL/Protocol/ColumnDef.hs:207)
+    flagNumeric (src/Database/MySQL/Protocol/ColumnDef.hs:208)
+Warning: 'LocalTime' is ambiguous. It is defined
+    * in ‘Data.Time.LocalTime.Internal.LocalTime’
+    * in ‘Data.Time.LocalTime.Internal.LocalTime’
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined in ‘Data.Time.LocalTime.Internal.LocalTime’
+Warning: 'TimeOfDay' is ambiguous. It is defined
+    * in ‘Data.Time.LocalTime.Internal.TimeOfDay’
+    * in ‘Data.Time.LocalTime.Internal.TimeOfDay’
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined in ‘Data.Time.LocalTime.Internal.TimeOfDay’
+Warning: 'FieldType' is ambiguous. It is defined
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:119:21
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:119:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Protocol/ColumnDef.hs:119:1
+ 100% ( 27 / 27) in 'Database.MySQL.Protocol.MySQLValue'
+  63% (  7 / 11) in 'Database.MySQL.Protocol.Command'
+  Missing documentation for:
+    StmtID (src/Database/MySQL/Protocol/Command.hs:31)
+    putCommand (src/Database/MySQL/Protocol/Command.hs:79)
+    putExecute (src/Database/MySQL/Protocol/Command.hs:131)
+    getStmtPrepareOK (src/Database/MySQL/Protocol/Command.hs:158)
+  21% ( 11 / 51) in 'Database.MySQL.Field'
+  Missing documentation for:
+    encodeInt8 (src/Database/MySQL/Field.hs:122)
+    decodeInt8 (src/Database/MySQL/Field.hs:125)
+    encodeWord8 (src/Database/MySQL/Field.hs:133)
+    decodeWord8 (src/Database/MySQL/Field.hs:136)
+    encodeInt16 (src/Database/MySQL/Field.hs:144)
+    decodeInt16 (src/Database/MySQL/Field.hs:147)
+    encodeWord16 (src/Database/MySQL/Field.hs:155)
+    decodeWord16 (src/Database/MySQL/Field.hs:158)
+    encodeInt32 (src/Database/MySQL/Field.hs:166)
+    decodeInt32 (src/Database/MySQL/Field.hs:169)
+    encodeWord32 (src/Database/MySQL/Field.hs:177)
+    decodeWord32 (src/Database/MySQL/Field.hs:180)
+    encodeInt64 (src/Database/MySQL/Field.hs:188)
+    decodeInt64 (src/Database/MySQL/Field.hs:191)
+    encodeWord64 (src/Database/MySQL/Field.hs:199)
+    decodeWord64 (src/Database/MySQL/Field.hs:202)
+    decodeFloat' (src/Database/MySQL/Field.hs:215)
+    encodeDouble (src/Database/MySQL/Field.hs:223)
+    decodeDouble (src/Database/MySQL/Field.hs:226)
+    encodeScientific (src/Database/MySQL/Field.hs:234)
+    decodeScientific (src/Database/MySQL/Field.hs:237)
+    encodeText (src/Database/MySQL/Field.hs:249)
+    decodeText (src/Database/MySQL/Field.hs:252)
+    encodeLazyText (src/Database/MySQL/Field.hs:260)
+    decodeLazyText (src/Database/MySQL/Field.hs:263)
+    encodeString (src/Database/MySQL/Field.hs:282)
+    decodeString (src/Database/MySQL/Field.hs:305)
+    encodeByteString (src/Database/MySQL/Field.hs:313)
+    decodeByteString (src/Database/MySQL/Field.hs:316)
+    encodeLazyByteString (src/Database/MySQL/Field.hs:324)
+    decodeLazyByteString (src/Database/MySQL/Field.hs:327)
+    encodeDay (src/Database/MySQL/Field.hs:335)
+    decodeDay (src/Database/MySQL/Field.hs:338)
+    encodeLocalTime (src/Database/MySQL/Field.hs:350)
+    decodeLocalTime (src/Database/MySQL/Field.hs:353)
+    decodeTimeOfDay (src/Database/MySQL/Field.hs:368)
+    encodeBool (src/Database/MySQL/Field.hs:383)
+    decodeBool (src/Database/MySQL/Field.hs:387)
+    encodeMaybe (src/Database/MySQL/Field.hs:396)
+    decodeMaybe (src/Database/MySQL/Field.hs:400)
+Warning: 'FieldType' is ambiguous. It is defined
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:119:21
+    * at src/Database/MySQL/Protocol/ColumnDef.hs:119:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Protocol/ColumnDef.hs:119:1
+  66% (  2 /  3) in 'Database.MySQL.BinLogProtocol.BinLogMeta'
+  Missing documentation for:
+    getBinLogMeta (src/Database/MySQL/BinLogProtocol/BinLogMeta.hs:66)
+ 100% ( 16 / 16) in 'Database.MySQL.Protocol.Auth'
+  83% (  5 /  6) in 'Database.MySQL.BinLogProtocol.BinLogValue'
+  Missing documentation for:
+    getBits' (src/Database/MySQL/BinLogProtocol/BinLogValue.hs:312)
+  42% ( 11 / 26) in 'Database.MySQL.BinLogProtocol.BinLogEvent'
+  Missing documentation for:
+    BinLogPacket (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:207)
+    getFromBinLogPacket (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:276)
+    getFromBinLogPacket' (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:282)
+    FormatDescription (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:289)
+    getFormatDescription (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:299)
+    eventHeaderLen (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:312)
+    RotateEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:321)
+    getRotateEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:325)
+    getQueryEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:345)
+    getQueryEvent' (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:362)
+    getTableMapEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:381)
+    DeleteRowsEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:422)
+    WriteRowsEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:455)
+    UpdateRowsEvent (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:488)
+    getPresentMap (src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:560)
+Warning: 'BinLogNull' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'GtidSet' is ambiguous. It is defined
+    * at src/Database/MySQL/BinLogProtocol/CDC.hs:50:19
+    * at src/Database/MySQL/BinLogProtocol/CDC.hs:50:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/BinLogProtocol/CDC.hs:50:1
+ 100% ( 10 / 10) in 'Data.TLSSetting'
+Warning: 'HostName' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'PortNumber' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'TCP_NODELAY' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'Connection' is ambiguous. It is defined
+    * at src/Data/Connection.hs:37:21
+    * at src/Data/Connection.hs:37:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Data/Connection.hs:37:1
+Warning: 'Socket' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+ 100% ( 14 / 14) in 'System.IO.Streams.TCP'
+Warning: 'MySQLConn' is ambiguous. It is defined
+    * at src/Database/MySQL/Connection.hs:172:18
+    * at src/Database/MySQL/Connection.hs:172:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Connection.hs:172:1
+Warning: 'closeStmt' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: Database.MySQL.Connection: Could not find documentation for exported module: Database.MySQL.Connection
+  40% ( 54 /134) in 'Database.MySQL.Connection'
+  Missing documentation for:
+    utf8mb4_unicode_ci (src/Database/MySQL/Connection.hs:505)
+    maximumRenderingValueBytes (src/Database/MySQL/Connection.hs:127)
+    validateOptions (src/Database/MySQL/Connection.hs:130)
+    ExchangeProgress (src/Database/MySQL/Connection.hs:146)
+    Runtime (src/Database/MySQL/Connection.hs:147)
+    FramingState (src/Database/MySQL/Connection.hs:330)
+    InitialSession (src/Database/MySQL/Connection.hs:322)
+    CachedColumns (src/Database/MySQL/Connection.hs:205)
+    StatementState (src/Database/MySQL/Connection.hs:215)
+    newConnection (src/Database/MySQL/Connection.hs:239)
+    newConnectionUsing (src/Database/MySQL/Connection.hs:267)
+    advanceFraming (src/Database/MySQL/Connection.hs:352)
+    newByteConnection (src/Database/MySQL/Connection.hs:250)
+    decodeFramedInput (src/Database/MySQL/Connection.hs:967)
+    newTransportConnection (src/Database/MySQL/Connection.hs:255)
+    emptyFramingStates (src/Database/MySQL/Connection.hs:334)
+    setExchangeSequence (src/Database/MySQL/Connection.hs:339)
+    writeIORef' (src/Database/MySQL/Connection.hs:1831)
+    releaseTransport (src/Database/MySQL/Connection.hs:368)
+    abortConnection (src/Database/MySQL/Connection.hs:373)
+    clearStatements (src/Database/MySQL/Connection.hs:1562)
+    invalidateSession (src/Database/MySQL/Connection.hs:1342)
+    isCancellation (src/Database/MySQL/Connection.hs:1853)
+    claimCommand (src/Database/MySQL/Connection.hs:393)
+    finishResponse (src/Database/MySQL/Connection.hs:414)
+    invalidateSessionFacts (src/Database/MySQL/Connection.hs:1351)
+    withCommand (src/Database/MySQL/Connection.hs:432)
+    streamGuard (src/Database/MySQL/Connection.hs:450)
+    markStreaming (src/Database/MySQL/Connection.hs:466)
+    markResponseStream (src/Database/MySQL/Connection.hs:471)
+    beginTransactionLease (src/Database/MySQL/Connection.hs:479)
+    endTransactionLease (src/Database/MySQL/Connection.hs:486)
+    utf8_general_ci (src/Database/MySQL/Connection.hs:504)
+    bUFSIZE (src/Database/MySQL/Connection.hs:508)
+    readGreeting (src/Database/MySQL/Connection.hs:588)
+    negotiatedCapabilities (src/Database/MySQL/Connection.hs:596)
+    readConnPacket (src/Database/MySQL/Connection.hs:1005)
+    initializeSession (src/Database/MySQL/Connection.hs:1576)
+    rememberInitialSession (src/Database/MySQL/Connection.hs:1581)
+    mkAuthWithOptions (src/Database/MySQL/Connection.hs:616)
+    mkAuth (src/Database/MySQL/Connection.hs:621)
+    readPacket (src/Database/MySQL/Connection.hs:986)
+    consumeOK (src/Database/MySQL/Connection.hs:1293)
+    decodeInputStream (src/Database/MySQL/Connection.hs:959)
+    decodeInputStreamWithLimit (src/Database/MySQL/Connection.hs:962)
+    readPacketWithLimit (src/Database/MySQL/Connection.hs:989)
+    writeCommand (src/Database/MySQL/Connection.hs:1036)
+    writeEncoded (src/Database/MySQL/Connection.hs:1039)
+    sendCommand (src/Database/MySQL/Connection.hs:1051)
+    classifyQueryEffect (src/Database/MySQL/Connection.hs:1248)
+    bulkValueSize (src/Database/MySQL/Connection.hs:1184)
+    encodedLength (src/Database/MySQL/Connection.hs:1869)
+    consumeCommandOK (src/Database/MySQL/Connection.hs:1266)
+    serverError (src/Database/MySQL/Connection.hs:1272)
+    updateStatus (src/Database/MySQL/Connection.hs:1281)
+    lenString (src/Database/MySQL/Connection.hs:1323)
+    recordSessionChanges (src/Database/MySQL/Connection.hs:1361)
+    updateTracked (src/Database/MySQL/Connection.hs:1376)
+    trackingPairs (src/Database/MySQL/Connection.hs:1326)
+    updateSessionObservations (src/Database/MySQL/Connection.hs:1368)
+    recordSessionFacts (src/Database/MySQL/Connection.hs:1365)
+    usesOKTerminator (src/Database/MySQL/Connection.hs:1392)
+    isResultEnd (src/Database/MySQL/Connection.hs:1395)
+    isResultEndFor (src/Database/MySQL/Connection.hs:1398)
+    consumeEnd (src/Database/MySQL/Connection.hs:1402)
+    readMetadataEnd (src/Database/MySQL/Connection.hs:1411)
+    readColumnBlock (src/Database/MySQL/Connection.hs:1421)
+    readColumns (src/Database/MySQL/Connection.hs:1442)
+    readResultColumns (src/Database/MySQL/Connection.hs:1448)
+    storeStatementColumns (src/Database/MySQL/Connection.hs:1525)
+    statementMap (src/Database/MySQL/Connection.hs:1477)
+    ownColumnBlock (src/Database/MySQL/Connection.hs:1506)
+    forgetStatement (src/Database/MySQL/Connection.hs:1550)
+    refreshSessionSnapshot (src/Database/MySQL/Connection.hs:1717)
+    SnapshotFields (src/Database/MySQL/Connection.hs:1714)
+    acquireResetLease (src/Database/MySQL/Connection.hs:1692)
+    guardUnconsumed (src/Database/MySQL/Connection.hs:1808)
+    withSessionLease (src/Database/MySQL/Connection.hs:1858)
+    waitCommandReply (src/Database/MySQL/Connection.hs:1820)
+    waitCommandReplys (src/Database/MySQL/Connection.hs:1826)
+Warning: 'ERRException' is ambiguous. It is defined
+    * at src/Database/MySQL/Connection.hs:1845:21
+    * at src/Database/MySQL/Connection.hs:1845:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Connection.hs:1845:1
+Warning: 'WrongParamsCount' is ambiguous. It is defined
+    * at src/Database/MySQL/Query.hs:59:25
+    * at src/Database/MySQL/Query.hs:59:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Query.hs:59:1
+Warning: 'ExtraResultSets' is ambiguous. It is defined
+    * at src/Database/MySQL/Base.hs:250:24
+    * at src/Database/MySQL/Base.hs:250:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/Base.hs:250:1
+ 100% (114 /114) in 'Database.MySQL.Base'
+Warning: 'FormatDescription' is ambiguous. It is defined
+    * at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:289:26
+    * at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:289:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:289:1
+Warning: 'BinLogPacket' is ambiguous. It is defined
+    * at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:207:21
+    * at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:207:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Database/MySQL/BinLogProtocol/BinLogEvent.hs:207:1
+ 100% ( 41 / 41) in 'Database.MySQL.BinLog'
+Warning: 'Connection' is ambiguous. It is defined
+    * at src/Data/Connection.hs:37:21
+    * at src/Data/Connection.hs:37:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Data/Connection.hs:37:1
+Warning: 'HostName' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'PortNumber' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'Socket' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+ 100% ( 10 / 10) in 'System.IO.Streams.TLS'
+ 100% (  8 /  8) in 'Database.MySQL.TLS'
+Warning: Database.MySQL.Protocol.MySQLValue: could not find link destinations for: 
+	- Database.MySQL.Protocol.MySQLValue.Rep_MySQLValue
+	- Database.MySQL.Protocol.MySQLValue.Rep_DateParts
+Warning: Database.MySQL.BinLogProtocol.BinLogValue: could not find link destinations for: 
+	- Database.MySQL.BinLogProtocol.BinLogValue.Rep_BinLogValue
+Warning: Database.MySQL.BinLogProtocol.BinLogEvent: could not find link destinations for: 
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_UpdateRowsEvent
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_WriteRowsEvent
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_DeleteRowsEvent
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_TableMapEvent
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_QueryEvent
+	- Database.MySQL.BinLogProtocol.BinLogEvent.Rep_FormatDescription
+Warning: Database.MySQL.Connection: could not find link destinations for: 
+	- Database.MySQL.Session.ObservationSource
+	- Database.MySQL.Session.SessionCache
+Warning: Database.MySQL.BinLog: could not find link destinations for: 
+	- Database.MySQL.BinLog.Rep_RowBinLogEvent
+	- Database.MySQL.BinLog.Rep_BinLogTracker
+Documentation created:
+/Users/aantich/dev/mariadbnew/projects/mariadb-haskell/./dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/doc/html/mysql-haskell

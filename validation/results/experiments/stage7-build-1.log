@@ -1,0 +1,31 @@
+Resolving dependencies...
+Build profile: -w ghc-9.10.3 -O2
+In order, the following will be built (use -v for more details):
+ - mysql-haskell-1.3.3 (lib) (configuration changed)
+ - mysql-haskell-1.3.3 (exe:mariadb-validation) (configuration changed)
+Configuring library for mysql-haskell-1.3.3...
+Preprocessing library for mysql-haskell-1.3.3...
+Building library for mysql-haskell-1.3.3...
+<no location info>: warning: [GHC-42258] [-Wunused-packages]
+    The following packages were specified via -package or -package-id flags,
+    but were not needed for compilation:
+      - data-default-class-0.2.0.0 (exposed by flag -package-id dt-dflt-clss-0.2.0.0-aac0c9c2)
+      - monad-loops-0.4.3 (exposed by flag -package-id mnd-lps-0.4.3-ff24b47c)
+
+[ 7 of 30] Compiling Database.MySQL.Authentication ( src/Database/MySQL/Authentication.hs, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Authentication.o, dist-newstyle/build/aarch64-osx/ghc-9.10.3/mysql-haskell-1.3.3/opt/build/Database/MySQL/Authentication.dyn_o )
+src/Database/MySQL/Authentication.hs:86:16: error: [GHC-87543]
+    Ambiguous occurrence ‘void’.
+    It could refer to
+       either ‘Control.Monad.void’,
+              imported from ‘Control.Monad’ at src/Database/MySQL/Authentication.hs:16:1-20
+              (and originally defined in ‘ghc-internal-9.1003.0:GHC.Internal.Data.Functor’),
+           or ‘Foreign.void’,
+              imported from ‘Foreign’ at src/Database/MySQL/Authentication.hs:20:1-14
+              (and originally defined in ‘ghc-internal-9.1003.0:GHC.Internal.Foreign.Marshal.Error’).
+   |
+86 |     let stop = void (tryPutMVar requests Stop)
+   |                ^^^^
+
+Error: [Cabal-7125]
+Failed to build mysql-haskell-1.3.3 (which is required by exe:mariadb-validation from mysql-haskell-1.3.3).
+
