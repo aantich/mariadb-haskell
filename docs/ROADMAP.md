@@ -251,3 +251,16 @@ See the [final checkpoint](STAGE6_IMPLEMENTATION.md#final-review-fix-validation-
 and [confirmation manifest](../validation/results/stage6-confirmation.json).
 No reference advances. Changes remain uncommitted on main. PAM/GSSAPI, advanced
 CDC lifecycles and a different timeout contract remain separate phases.
+
+
+### Stage 6 committed publication — 9 November 2026
+
+Anton authorized publication directly on main. Source commit `9c4bac0` contains
+all four APIs and the review fixes. The complete committed-input run records
+793 PASS / 1 known FAIL / 0 UNSUPPORTED / 2 unavailable, all 95 Stage 6 checks
+passing and 60 profiles measured seven times. Correctness/evidence gates pass;
+the run exits 1 for timing alarms, which remain open without advancing any
+reference. The [live report](../validation/RESULTS.md) and
+[publication manifest](../validation/results/stage6-publication.json) supersede
+the uncommitted status above. PAM/GSSAPI, advanced CDC lifecycles and a different
+timeout contract remain separate work.

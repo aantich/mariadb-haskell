@@ -1,13 +1,14 @@
 # Stage 6: streamed parameters, cursors, progress and compression
 
 Anton approved phase 1 on 8 November 2026. Work starts on main at `1516216`;
-implementation remains uncommitted for review. PAM/GSSAPI, CDC's documented
+the implementation is now committed on main. PAM/GSSAPI, CDC's documented
 advanced lifecycles and a different timeout-recovery contract are separate work.
 
 **Current outcome, 9 November:** all follow-up findings are fixed. Complete Mac
 and Linux correctness records 793 PASS / 1 known FAIL / 0 UNSUPPORTED /
 2 unavailable; all 95 Stage 6 cases pass. Two full seven-repetition captures
-measure all 60 profiles and update the live report. Read the
+measure all 60 profiles. The committed publication below now supplies the live
+report. Read the
 [final checkpoint](#final-review-fix-validation--9-november-2026) for timing
 investigations and the corrected memory evidence. Earlier checkpoints below
 retain their original source identity and measurements.
@@ -336,3 +337,28 @@ fetch control, progress information and compression choices with explicit costs.
 The sole retained correctness failure remains the conflicting frozen timeout
 expectation. PAM/GSSAPI require separate implementation/fixtures. No commit or
 push occurred; the complete diff is available for review on main.
+
+
+## Committed publication — 9 November 2026
+
+Anton authorized committing and pushing the reviewed work directly on main.
+Source commit `9c4bac0cbeabc269d41ec307aa53e4f2da50f345` contains the implementation,
+regressions, frozen wire-feature baseline and retained review evidence. The
+[publication manifest](../validation/results/stage6-publication.json) and
+[live report](../validation/RESULTS.md) record a complete run on those committed
+inputs: **793 PASS / 1 known timeout-contract FAIL / 0 UNSUPPORTED / 2 unavailable**,
+all 95 Stage 6 checks passing, and all 60 runnable profiles with seven repetitions.
+All 176 executable file hashes match the earlier review and Linux captures.
+
+The completed publication run exits 1 because parallel reads cross the 20%
+timing threshold. Correctness and evidence gates pass; timing acceptance stays
+open. Its eighteen ordinary timing/reference signals, two reuse signals and one
+wire-feature signal remain visible. Native/CDC timing and all allocation
+investigation lists are empty. No reference advances and no measurements are
+changed. The earlier full review captures remain retained independently.
+
+An unnecessary second publication confirmation was stopped when Anton instructed
+publishing immediately; its partial log and interruption are retained in the
+publication manifest. The live report presents the completed committed-input run
+with its timing alarms. This publication supersedes the uncommitted status in
+the historical checkpoints above.

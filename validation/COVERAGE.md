@@ -181,6 +181,12 @@ transactions, reconnect/resume, preservation of incoming buffers across ACKs,
 and rejection of whole-source buffering by the actual retained-heap guard.
 The producer allocates fresh storage per chunk and the guard checks every
 checkpoint. Two full captures measure all 60 profiles seven times; the second
-supplies the live report. The independent first wire-feature reference and
+supplied the review report. The independent first wire-feature reference and
 all earlier references remain immutable. Timing investigations remain explicit.
 See the [current confirmation manifest](results/stage6-confirmation.json).
+
+
+The [committed publication](results/stage6-publication.json) now supplies the
+[live report](RESULTS.md), preserving the same correctness counts and all 95
+Stage 6 passes. All 60 profiles have seven repetitions; timing alarms stay
+explicit and no reference advances.

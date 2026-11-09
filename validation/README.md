@@ -236,7 +236,7 @@ compression costs are reported even when they are slower than ordinary reads.
 Progress throughput measures negotiation with no emitted reports; real report
 delivery, callback failure and cancellation have separate correctness coverage.
 
-**Current checkpoint, 9 November 2026:** all follow-up findings are fixed.
+**Review checkpoint, 9 November 2026:** all follow-up findings are fixed.
 Complete Mac and exact-source Linux correctness record **793 PASS / 1 known
 timeout-contract FAIL / 0 UNSUPPORTED / 2 unavailable**. All 95 Stage 6 cases
 and 155 policy tests pass. Two complete Mac captures each measure all 60 profiles
@@ -250,3 +250,12 @@ allocation investigation lists are empty. No existing reference advances.
 See the [confirmation manifest](results/stage6-confirmation.json),
 [resolved review](../docs/STAGE6_CODE_REVIEW.md) and
 [final checkpoint](../docs/STAGE6_IMPLEMENTATION.md#final-review-fix-validation--9-november-2026).
+
+
+**Committed publication, 9 November 2026:** the [live report](RESULTS.md) now
+records the complete run on source commit `9c4bac0`: 793 PASS / 1 known FAIL /
+0 UNSUPPORTED / 2 unavailable and all 60 runnable profiles with seven repetitions.
+Correctness/evidence gates pass; the run exits 1 for timing alarms. All references
+and earlier review captures remain unchanged. The
+[publication manifest](results/stage6-publication.json) also retains the stopped
+extra confirmation and identifies the completed capture used by the live report.

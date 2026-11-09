@@ -7,27 +7,92 @@
     {
       "reference": "original",
       "id": "haskell/latency.text",
-      "percent": 5.3565075977028975
+      "percent": 8.59887177923464
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.parallel-4",
+      "percent": 24.775697633345107
     },
     {
       "reference": "original",
       "id": "haskell/write.text",
-      "percent": 7.75493163552865
+      "percent": 10.914831437219497
     },
     {
       "reference": "original",
       "id": "connector-c/read.text.narrow",
-      "percent": 6.533630470016205
+      "percent": 6.7666126418152395
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.tls.narrow",
+      "percent": 5.715365103351511
+    },
+    {
+      "reference": "original",
+      "id": "connector-c/write.text",
+      "percent": 7.6936582625184435
+    },
+    {
+      "reference": "original",
+      "id": "haskell/read.text.narrow",
+      "percent": 7.502946183056158
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/latency.text",
+      "percent": 6.546669325887522
     },
     {
       "reference": "accepted",
       "id": "haskell/read.parallel-4",
-      "percent": 19.115810507035214
+      "percent": 47.04853883939721
+    },
+    {
+      "reference": "accepted",
+      "id": "haskell/read.tls.narrow",
+      "percent": 5.692548427129984
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.prepared.narrow",
+      "percent": 8.250355618776673
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.parallel-4",
+      "percent": 23.450059411476907
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/write.execute-many",
+      "percent": 8.563949139865379
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.text.wide",
+      "percent": 7.087904527202005
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.vector.narrow",
+      "percent": 5.642852970383783
+    },
+    {
+      "reference": "previous_stage",
+      "id": "haskell/read.socket.narrow",
+      "percent": 6.627161688233163
     },
     {
       "reference": "previous_stage",
       "id": "haskell/read.parallel-16",
-      "percent": 5.339534082590536
+      "percent": 8.433143931651887
+    },
+    {
+      "reference": "previous_stage",
+      "id": "connector-c/write.text",
+      "percent": 11.633239908273584
     }
   ],
   "allocation_investigations": [],
@@ -45,10 +110,10 @@
   "performance_requires_confirmation": true,
   "previous_stage_reference": {
     "schema": 1,
-    "reference": "references/stage5-publication-1.json",
-    "sha256": "bf2741c054e4c94a721e17944432d187f39ed488ababdafbbf34fa0440d5e3eb",
-    "tested_commit": "9d0eedc6ee47ac7316658c00d7825ba8f1faafa7",
-    "purpose": "Preserve all 636 published Stage 5 passes during the follow-up CDC review. Original, accepted, native, reuse and CDC performance baselines remain unchanged."
+    "reference": "references/stage5-review-publication-1.json",
+    "sha256": "b201a122915149e7f0f15313be62f752421ecb151ad42eb293bda9838d84fe33",
+    "tested_commit": "ba99d8cb5554c993bdefba341ebce7923295cf31",
+    "purpose": "Preserve all 694 published passes during Stage 6. Original, accepted and feature performance references remain unchanged."
   },
   "accepted_reference": {
     "schema": 1,
@@ -57,11 +122,27 @@
     "tested_commit": "3b45fd34276b2ceffec5da6abb7bcb2a6c6571ec",
     "note": "Last accepted main before Stage 1; not advanced by failing attempts."
   },
-  "tested_input_sha256": "fcf5026a5b1e70ef66e2f60e0e2e20b611dcf34eb838672f9c59514e3211cba6",
+  "tested_input_sha256": "dbc3c49dc9042610a46bb0c70651e7541a8d3d26fbe6641a0c367c3b192aff0e",
   "native_timing_investigations": [],
   "native_allocation_investigations": [],
-  "reuse_timing_investigations": [],
+  "reuse_timing_investigations": [
+    {
+      "id": "reuse.tcp.reset",
+      "percent": 6.264367816091965
+    },
+    {
+      "id": "reuse.socket.reconnect",
+      "percent": 10.998774509803933
+    }
+  ],
   "reuse_allocation_investigations": [],
   "cdc_timing_investigations": [],
-  "cdc_allocation_investigations": []
+  "cdc_allocation_investigations": [],
+  "wire_timing_investigations": [
+    {
+      "id": "cursor.batch512",
+      "percent": 5.20167240531233
+    }
+  ],
+  "wire_allocation_investigations": []
 }

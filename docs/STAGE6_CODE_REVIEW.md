@@ -1,7 +1,7 @@
 # Stage 6 follow-up code review — 9 November 2026
 
 **Historical review: two P1 reliability defects and one P2 validation defect.**
-All three findings are corrected in the current uncommitted working tree after
+All three findings are corrected in the committed Stage 6 implementation after
 Anton requested fixing them and running the full documented validation. The
 original reproductions below retain the source identity and failures found by
 the review. See the resolution record at the end for the corrections.
@@ -154,3 +154,14 @@ are absent; no >20% same-workload alarm occurs. These are measured investigation
 signals, not waived acceptance criteria. The [final checkpoint](STAGE6_IMPLEMENTATION.md#final-review-fix-validation--9-november-2026)
 and [confirmation manifest](../validation/results/stage6-confirmation.json)
 retain both captures. Changes remain uncommitted on main.
+
+
+## Committed review-fix publication — 9 November 2026
+
+The reviewed fixes are committed directly on main in `9c4bac0`. The
+[publication record](../validation/results/stage6-publication.json) and
+[live report](../validation/RESULTS.md) identify the subsequent complete
+committed-input run. It preserves all 793 passes, the known timeout-contract
+failure and two unavailable authentication fixtures, with all 60 profiles measured
+seven times. Correctness/evidence gates pass; timing alarms remain open and the
+completed run exits 1. Earlier uncommitted review captures remain historical.
