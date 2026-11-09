@@ -601,7 +601,7 @@ validateStatementValues state values =
         (throwIO WrongParamsCount)
 
 -- | Latest first-result metadata, including unknown MariaDB extension tags.
--- Reading metadata performs no I/O. A subsequent execution/reprepare can replace
+-- Reading metadata performs no network operations. A subsequent execution or reprepare can replace
 -- it; the returned immutable snapshot remains valid for the caller.
 preparedMetadata :: PreparedStatement -> IO [ColumnMetadata]
 preparedMetadata statement = do

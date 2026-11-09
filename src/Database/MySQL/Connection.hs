@@ -83,7 +83,7 @@ data ConnectionOptions = ConnectionOptions
     , maximumMetadataBytes :: !Word64 -- ^ Per-metadata-block and OK tracking budget.
     , maximumColumns :: !Int -- ^ Maximum fields in a result or statement metadata block.
     , cleanupTimeoutMicros :: !Int -- ^ One deadline for draining and rollback.
-    , connectTimeoutMicros :: !Int -- ^ Whole establishment deadline, including DNS/TLS/auth/setup.
+    , connectTimeoutMicros :: !Int -- ^ Whole establishment deadline: DNS, TLS, authentication and setup.
     , maximumAuthIterations :: !Int -- ^ Maximum server-requested PARSEC PBKDF2 work.
     , enableSessionTracking :: !Bool -- ^ Negotiate tracking and OK terminators together.
     , enableMetadataCaching :: !Bool -- ^ Negotiate MariaDB prepared metadata omission.

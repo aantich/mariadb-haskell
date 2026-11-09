@@ -7,16 +7,16 @@ description:
   Alpha software: extensively validated with automated tests and benchmarks,
   but not yet validated in real-world applications. Evaluate in your own
   environment before relying on it; APIs and behavior may change.
-  .
+
   MariaDB-only fork of mysql-haskell. Streaming text and binary queries,
   managed prepared statements, native bulk execution, cached/extended metadata,
   session observations and clean connection reset, streamed parameters,
   server cursors, progress reporting and optional transport compression.
-  .
+
   TCP, Unix sockets and verified TLS, including client certificates and
   explicit PAM/Kerberos authentication. Row-based CDC supports MariaDB GTID
   resume, complete-group checkpoints and manual semisync acknowledgements.
-  .
+
   See the packaged README, user guide, migration guide and benchmark guide,
   or <https://github.com/aantich/mariadb-haskell>.
   <https://github.com/aantich/mariadb-haskell/blob/main/docs/USER_GUIDE.md User guide>;
